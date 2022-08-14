@@ -27,21 +27,6 @@ impl Display for TriPoint {
     }
 }
 
-impl Display for Orientation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-        if self.reflected {
-            write!(f, "%")?;
-        }
-        match self.rotation {
-            Rotation::Up => {}
-            Rotation::Right => write!(f, ">")?,
-            Rotation::Left => write!(f, "<")?,
-        }
-        write!(f, ")")
-    }
-}
-
 impl Oriented for TriPoint {
     fn reorient(
         &mut self,

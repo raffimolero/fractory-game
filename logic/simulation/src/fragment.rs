@@ -1,4 +1,4 @@
-use crate::tringle::{Orientation, Tringle};
+use crate::{tringle::{Orientation, Tringle}, tree::Expander};
 use std::collections::HashMap;
 
 /// please don't create more than 65536 well-defined fragments. that would suck.
@@ -13,4 +13,4 @@ pub struct Fragment {
     orientation: Orientation,
 }
 
-pub struct Slot(Tringle<Option<Fragment>>);
+pub type Slot = Tringle<Option<Fragment>>;

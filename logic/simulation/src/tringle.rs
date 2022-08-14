@@ -2,7 +2,10 @@
 mod tests;
 
 use crate::tree::Node;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::{
+    fmt::Display,
+    ops::{Add, Div, Mul, Neg, Sub},
+};
 
 pub type Tringle<T> = Node<T, 4>;
 
@@ -67,12 +70,25 @@ impl Neg for Orientation {
         self
     }
 }
+impl Display for Orientation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        if self.reflected {
+            write!(f, "%")?;
+        }
+        match self.rotation {
+            Rotation::Up => {}
+            Rotation::Right => write!(f, ">")?,
+            Rotation::Left => write!(f, "<")?,
+        }
+        write!(f, ")")
+    }
+}
 
 trait Oriented {
     /// mutates self and reorients it by the given value
     fn reorient(&mut self, orientation: Orientation);
 }
-
 impl<T: Oriented> Oriented for Tringle<T> {
     fn reorient(&mut self, orientation: Orientation) {
         match self {
