@@ -1,3 +1,7 @@
+//! quick confession i am absolutely terrified of using these functions in larger scales
+//!
+//! i don't know if they're reliable or anything
+
 use std::ops::Mul;
 use std::ops::{Add, AddAssign, Neg};
 
@@ -74,49 +78,46 @@ rotations concerning flips:
   /  \  /  \f /  \  /  \
  /____\/____\/____\/____\
 
-\    /\    /\    /\    /\    /\    /\    /\    /\
- \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \
-  \/____\/____\/____\/____\/____\/____\/____\/____\
-  /\    /\    /\-2-2/\    /\    /\    /\    /\    /
- /  \  /  \  /  \f /-1\  /  \  /  \  /  \  /  \  /
-/____\/____\/____\/_-1_\/____\/____\/____\/____\/
-\    /\    /\    /\    /\    /\-1+1/\    /\    /\
- \  /  \  /  \  /  \  /00\  /=0\f /  \  /  \  /  \
-  \/____\/____\/____\/____\/_+1_\/____\/____\/____\
-  /\    /\    /\    /\    /\    /\    /\    /\    /
- /  \  /  \  /  \  /+1\  /  \  /  \  /  \  /  \  /
-/____\/____\/____\/_=0_\/____\/____\/____\/____\/
-\    /\    /\    /\+1,0/\    /\    /\    /\    /\
- \  /  \  /  \  /  \f /  \  /  \  /  \  /  \  /  \
-  \/____\/____\/____\/____\/____\/____\/____\/____\
-  /\    /\    /\    /\    /\    /\    /\    /\    /
- /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /
-/____\/____\/____\/____\/____\/____\/____\/____\/
+\    /\    /\    /\    /\    /\    /\
+ \  /  \  /  \  /  \  /  \  /  \  /  \
+  \/____\/____\/____\/____\/____\/____\
+  /\    /\-2-2/\    /\    /\    /\    /
+ /  \  /  \f /-1\  /  \  /  \  /  \  /
+/____\/____\/_-1_\/____\/____\/____\/
+\    /\    /\    /\    /\-1+1/\    /\
+ \  /  \  /  \  /00\  /=0\f /  \  /  \
+  \/____\/____\/____\/_+1_\/____\/____\
+  /\    /\    /\    /\    /\    /\    /
+ /  \  /  \  /+1\  /  \  /  \  /  \  /
+/____\/____\/_=0_\/____\/____\/____\/
+\    /\    /\+1,0/\    /\    /\    /\
+ \  /  \  /  \f /  \  /  \  /  \  /  \
+  \/____\/____\/____\/____\/____\/____\
+  /\    /\    /\    /\    /\    /\    /
+ /  \  /  \  /  \  /  \  /  \  /  \  /
+/____\/____\/____\/____\/____\/____\/
 
 horizontal reflections concerning the y axis: directly proportional
-\    /\    /\    /\    /\    /\    /\    /\    /\
- \  /  \  /  \  /-2\  /  \  /-2\  /  \  /  \  /  \
-  \/____\/____\/_-2_\/____\/_=0_\/____\/____\/____\
-  /\    /\    /\    /\    /\    /\    /\    /\    /
- /  \  /  \  /  \  /-1\  /-1\  /  \  /  \  /  \  /
-/____\/____\/____\/_-1_\/_=0_\/____\/____\/____\/
-\    /\    /\    /\    /\    /\    /\    /\    /\
- \  /  \  /  \  /  \  /00\  /  \  /  \  /  \  /  \
-  \/____\/____\/____\/____\/____\/____\/____\/____\
-  /\    /\    /\    /\    /\    /\    /\    /\    /
- /  \  /  \  /  \  /+1\  /+1\  /  \  /  \  /  \  /
-/____\/____\/____\/_=0_\/_+1_\/____\/____\/____\/
-\    /\    /\    /\    /\    /\    /\    /\    /\
- \  /  \  /  \  /+2\  /  \  /+2\  /  \  /  \  /  \
-  \/____\/____\/_=0_\/____\/_+2_\/____\/____\/____\
-  /\    /\    /\+2=0/\    /\+2+2/\    /\    /\    /
- /  \  /  \  /  \f /  \  /  \f /  \  /  \  /  \  /
-/____\/____\/____\/____\/____\/____\/____\/____\/
+\    /\    /\    /\    /\    /\
+ \  /  \  /-2\  /  \  /-2\  /  \
+  \/____\/_-2_\/____\/_=0_\/____\
+  /\    /\    /\    /\    /\    /
+ /  \  /  \  /-1\  /-1\  /  \  /
+/____\/____\/_-1_\/_=0_\/____\/
+\    /\    /\    /\    /\    /\
+ \  /  \  /  \  /00\  /  \  /  \
+  \/____\/____\/____\/____\/____\
+  /\    /\    /\    /\    /\    /
+ /  \  /  \  /+1\  /+1\  /  \  /
+/____\/____\/_=0_\/_+1_\/____\/
+\    /\    /\    /\    /\    /\
+ \  /  \  /+2\  /  \  /+2\  /  \
+  \/____\/_=0_\/____\/_+2_\/____\
+  /\    /\+2=0/\    /\+2+2/\    /
+ /  \  /  \f /  \  /  \f /  \  /
+/____\/____\/____\/____\/____\/
 
 horizontal reflections concerning the x axis: do i have to tell you
-\    /\    /\    /\    /\    /\    /\    /\    /\
- \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \
-  \/____\/____\/____\/____\/____\/____\/____\/____\
   /\    /\    /\    /\    /\    /\    /\    /\    /
  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /
 /____\/____\/____\/____\/____\/____\/____\/____\/
@@ -126,8 +127,21 @@ horizontal reflections concerning the x axis: do i have to tell you
   /\    /\    /\    /\    /\    /\    /\    /\    /
  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /
 /____\/____\/____\/____\/____\/____\/____\/____\/
+
 \    /\    /\    /\    /\    /\    /\    /\    /\
  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \
+  \/____\/____\/____\/____\/____\/____\/____\/____\
+  /\    /\    /\    /\    /\    /\    /\    /\    /
+ /  \  /  \  /  \  /  \  /-1\  /  \  /  \  /  \  /
+/____\/____\/____\/____\/_=0_\/____\/____\/____\/
+\    /\    /\    /\    /\    /\    /\    /\    /\
+ \  /  \  /-2\  /  \  /00\  /+1\  /+2\  /  \  /  \
+  \/____\/____\/____\/____\/____\/____\/____\/____\
+  /\    /\ -2f/\ -1f/\ 00f/\    /\ +2f/\    /\    /
+ /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /
+/____\/____\/____\/____\/____\/____\/____\/____\/
+\    /\    /\    /\+1=0/\    /\    /\    /\    /\
+ \  /  \  /  \  /  \f /  \  /  \  /  \  /  \  /  \
   \/____\/____\/____\/____\/____\/____\/____\/____\
   /\    /\    /\    /\    /\    /\    /\    /\    /
  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /  \  /
@@ -155,15 +169,15 @@ impl TileOffset {
         }
     }
 
+    const FLIP_X: IMat2 = IMat2::new([-1, 0], [1, 1]);
     const ROT_CW: IMat2 = IMat2::new([0, 1], [-1, -1]);
     const ROT_CC: IMat2 = IMat2::new([-1, -1], [1, 0]);
-    const FLIP: IMat2 = IMat2::new([-1, 0], [1, 1]);
 
     // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
     // i decided not to do that
 
-    fn flip(&mut self) {
-        self.offset = Self::FLIP * self.offset;
+    fn flip_x(&mut self) {
+        self.offset = Self::FLIP_X * self.offset;
     }
 
     fn rotate_cw(&mut self) {
@@ -173,39 +187,12 @@ impl TileOffset {
             self.offset.y -= 1;
         }
     }
+
     fn rotate_cc(&mut self) {
         self.offset = Self::ROT_CC * self.offset;
         if self.flop {
             self.offset.y -= 1;
         }
-    }
-}
-
-impl Neg for TileOffset {
-    type Output = Self;
-
-    fn neg(mut self) -> Self::Output {
-        // self.flop ^= true;?
-        self.offset *= -1;
-        self
-    }
-}
-
-impl AddAssign for TileOffset {
-    fn add_assign(&mut self, rhs: Self) {
-        self.offset += rhs.offset;
-        if rhs.flop {
-            *self = -*self;
-        }
-    }
-}
-
-impl Add for TileOffset {
-    type Output = Self;
-
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self += rhs;
-        self
     }
 }
 
@@ -304,8 +291,24 @@ impl TilePos {
         flop: false,
     };
 
+    pub fn height(self) -> usize {
+        1 << self.depth
+    }
+
+    pub fn is_valid(self) -> bool {
+        // must not be negative
+        self.pos.x >= 0
+            // must fit within the row
+            && self.pos.x <= self.pos.y
+            // must not go beneath its height
+            && (self.pos.y + self.flop as i32) < self.height()
+    }
+
+    /// makes this point a position in a larger triangle
+    ///
+    /// you must provide where this subtriangle is relative to the larger triangle
     pub fn upscale(&mut self, placement: SubTile) {
-        let h = 1 << self.depth;
+        let h = self.height();
         self.depth += 1;
         match placement {
             SubTile::D => {
@@ -323,6 +326,17 @@ impl TilePos {
                 self.pos.y += h;
             }
         }
+    }
+}
+
+impl AddAssign<TileOffset> for TilePos {
+    fn add_assign(&mut self, rhs: TileOffset) {
+        if self.flop {
+            rhs.offset *= -1;
+        }
+        self.pos += rhs.offset;
+        self.flop ^= rhs.flop;
+        assert!(self.is_valid());
     }
 }
 
@@ -362,9 +376,9 @@ fn test_upscale() {
 fn test_flip() {
     let original = TileOffset::new(0, 2, true);
     let mut temp = original;
-    temp.flip();
+    temp.flip_x();
     assert_eq!(temp, TileOffset::new(2, 2, true));
-    temp.flip();
+    temp.flip_x();
     assert_eq!(temp, original);
 }
 
@@ -396,22 +410,4 @@ fn test_rotate_identities() {
     temp.rotate_cw();
     let a3 = temp;
     assert_eq!(a3, a);
-}
-
-// fn rotate(order: u8, p: [i32; 2]) -> [i32; 2] {
-//     let size = 1 << order;
-//     let max_h = size - 1;
-//     let max_w = max_h * 2;
-
-// }
-
-#[test]
-fn test() {
-    let order = 2;
-    for y in 0..1 << order {
-        for x in 0..y * 2 + 1 {
-            print!("({x},{y}) ");
-        }
-        println!();
-    }
 }
