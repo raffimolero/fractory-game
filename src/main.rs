@@ -1,5 +1,15 @@
-// TODO: import and call loop from logic crate
-
+use bevy::prelude::*;
 fn main() {
-    println!("Hello, world!");
+    App::new()
+        .add_startup_system(setup)
+        .add_system(tick)
+        .run()
+}
+
+fn tick() {
+
+}
+
+fn setup(mut commands: Commands) {
+    println!("Hello, World!");
 }

@@ -3,7 +3,7 @@ mod tests;
 
 use std::{
     fmt::Display,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
 };
 
 pub type Tringle<T> = [T; 4];
@@ -84,18 +84,31 @@ impl Display for Orientation {
     }
 }
 
-trait Oriented {
-    /// mutates self and reorients it by the given value
-    fn reorient(&mut self, orientation: Orientation);
-}
-impl<T: Oriented> Oriented for Tringle<T> {
-    fn reorient(&mut self, orientation: Orientation) {
+impl<T: AddAssign<Orientation>> AddAssign<Orientation> for Tringle<T> {
+    fn add_assign(&mut self, rhs: Orientation) {
         for child in self.iter_mut() {
-            child.reorient(orientation);
+            child += rhs;
         }
-        if orientation.reflected {
+        if rhs.reflected {
             self.swap(2, 3);
         }
-        self[1..].rotate_right(orientation.rotation as usize);
-    }
+        self[1..].rotate_right(rhs.rotation as usize);
+   }
 }
+
+// trait Oriented {
+//     /// mutates self and reorients it by the given value
+//     fn reorient(&mut self, orientation: Orientation);
+// }
+// impl<T: Oriented> Oriented for Tringle<T> {
+//     fn reorient(&mut self, orientation: Orientation) {
+//         for child in self.iter_mut() {
+//             child.reorient(orientation);
+//         }
+//         if orientation.reflected {
+//             self.swap(2, 3);
+//         }
+//         self[1..].rotate_right(orientation.rotation as usize);
+//     }
+// }
+
