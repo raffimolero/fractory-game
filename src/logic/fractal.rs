@@ -1,4 +1,4 @@
-use super::orientation::Transform;
+use super::orientation::{Orient, Transform};
 use std::{
     collections::HashMap,
     ops::{AddAssign, Index},
@@ -6,17 +6,69 @@ use std::{
 
 use indexmap::IndexSet;
 
-pub struct Tringle<T>([T; 4]);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+struct Tile {
+    id: usize,
+    orient: Orient,
+}
 
-impl<T: AddAssign<Transform>> AddAssign<Transform> for Tringle<T> {
+impl Tile {
+    /// takes a set of 4 tiles and reorients them.
+    fn reorient(tile: [Tile; 4]) -> ([Tile; 4], Orient) {
+        // make sure that rotated tiles and flipped tiles are recognized correctly.
+        // the center tile is the main dependency.
+        // reflective tiles with isotropic centers are the only big issue.
+        use Orient::*;
+        match tile[0].orient {
+            Iso => todo!(),
+            RtK | RtF => todo!(),
+            RfU => todo!(),
+            RfR => todo!(),
+            RfL => todo!(),
+            orient @ (AKU | AKR | AKL | AFU | AFR | AFL) => (tile + -orient, orient),
+        }
+    }
+}
+
+struct Fractory {
+    recognizer: HashMap<[Tile; 4], Tile>,
+    library: Vec<[Tile; 4]>,
+    root: Tile,
+    // TODO: behavior: Vec<Behavior>,
+}
+
+impl Fractory {
+    fn identify(&self, tile: &[Tile; 4]) -> Option<&Tile> {
+        self.recognizer.get(tile)
+    }
+
+    fn register(&mut self, tile: [Tile; 4]) -> &Tile {
+        if let Some(tile) = self.identify(&tile) {
+            tile
+        } else {
+            self.register_unchecked(tile)
+        }
+    }
+
+    fn register_unchecked(&mut self, tile: [Tile; 4]) -> &Tile {
+        todo!("reorient tile, register tile in library, and cache it in the recognizer.");
+        // let mut tile = Tile::reorient(tile);
+        // self.library.push(tile);
+        // for tf in Transform::TRANSFORMS {
+        //     self.recognizer
+        // }
+    }
+}
+
+impl<T: AddAssign<Transform>> AddAssign<Transform> for [T; 4] {
     fn add_assign(&mut self, rhs: Transform) {
-        for child in self.0.iter_mut() {
+        for child in self.iter_mut() {
             *child += rhs;
         }
         if rhs.reflected() {
-            self.0.swap(2, 3);
+            self.swap(2, 3);
         }
-        self.0[1..].rotate_right(rhs.rotation() as usize);
+        self[1..].rotate_right(rhs.rotation() as usize);
     }
 }
 
@@ -73,13 +125,4 @@ impl<T: IntoIterator<Item = usize>> Index<T> for Fractal {
     fn index(&self, path: T) -> &Self::Output {
         path.into_iter().fold(&self.root, |r, i| &self.nodes[*r][i])
     }
-}
-
-struct Tile {
-    id: usize,
-    orientation: Transform,
-}
-
-struct Fractory {
-    recognizer: HashMap<Tringle<Tile>, Tile>,
 }

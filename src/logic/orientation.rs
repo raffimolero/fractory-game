@@ -1,21 +1,52 @@
-use std::ops::Add;
+use std::ops::{Add, Neg};
 
 #[test]
-fn test_table() {
-    println!("[");
-    for a in Orientation::ORIENTATIONS {
+fn test_reorient_table() {
+    for a in Orient::ORIENTATIONS {
         for b in Transform::TRANSFORMS {
             let result = a.reorient(b);
+            // print!("{result:?}, ");
             assert_eq!(result, a + b);
-            println!("    Self::{result:?},");
         }
+        // println!();
     }
-    println!("]");
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Orientation {
+#[test]
+fn test_neg_table() {
+    for a in Orient::ORIENTATIONS {
+        // for b in Transform::TRANSFORMS {
+        //     if a + b == a.canon() {
+        //         print!("{b:?}, ");
+        //         break;
+        //     }
+        // }
+        assert_eq!(a.canon(), a + -a);
+    }
+    println!();
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum Rotation {
+    #[default]
+    U,
+    R,
+    L,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum Symmetries {
+    #[default]
+    Isotropic,
+    Rotational,
+    Reflective,
+    Asymmetric,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum Orient {
     // isotropic
+    #[default]
     Iso,
 
     // rotational
@@ -36,7 +67,7 @@ pub enum Orientation {
     AFL,
 }
 
-impl Orientation {
+impl Orient {
     pub const ORIENTATIONS: [Self; 12] = [
         Self::Iso,
         Self::RtK,
@@ -52,14 +83,44 @@ impl Orientation {
         Self::AFL,
     ];
 
+    pub const fn symmetries(self) -> Symmetries {
+        use Orient::*;
+        use Symmetries::*;
+        match self {
+            Iso => Isotropic,
+            RtK => Rotational,
+            RtF => Rotational,
+            RfU => Reflective,
+            RfR => Reflective,
+            RfL => Reflective,
+            AKU => Asymmetric,
+            AKR => Asymmetric,
+            AKL => Asymmetric,
+            AFU => Asymmetric,
+            AFR => Asymmetric,
+            AFL => Asymmetric,
+        }
+    }
+
+    pub const fn canon(self) -> Self {
+        use Orient::*;
+        use Symmetries::*;
+        match self.symmetries() {
+            Isotropic => Iso,
+            Rotational => RtK,
+            Reflective => RfU,
+            Asymmetric => AKU,
+        }
+    }
+
     pub const fn reorient(mut self, rhs: Transform) -> Self {
         use Transform::*;
         let (flip, rot) = match rhs {
             KU => (false, 0),
-            FU => (true, 0),
             KR => (false, 1),
-            FR => (true, 1),
             KL => (false, 2),
+            FU => (true, 0),
+            FR => (true, 1),
             FL => (true, 2),
         };
         if flip {
@@ -74,25 +135,25 @@ impl Orientation {
     }
 
     pub const fn flip(self) -> Self {
-        use Orientation::*;
+        use Orient::*;
         match self {
             Iso => self,
             RtK => RtF,
             RtF => RtK,
             RfU => self,
-            RfR => self,
-            RfL => self,
+            RfR => RfL,
+            RfL => RfR,
             AKU => AFU,
-            AKR => AFR,
-            AKL => AFL,
+            AKR => AFL,
+            AKL => AFR,
             AFU => AKU,
-            AFR => AKR,
-            AFL => AKL,
+            AFR => AKL,
+            AFL => AKR,
         }
     }
 
     pub const fn rot_cw(self) -> Self {
-        use Orientation::*;
+        use Orient::*;
         match self {
             Iso => self,
             RtK => self,
@@ -113,15 +174,15 @@ impl Orientation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Transform {
     KU,
-    FU,
     KR,
-    FR,
     KL,
+    FU,
+    FR,
     FL,
 }
 
 impl Transform {
-    pub const TRANSFORMS: [Self; 6] = [Self::KU, Self::FU, Self::KR, Self::FR, Self::KL, Self::FL];
+    pub const TRANSFORMS: [Self; 6] = [Self::KU, Self::KR, Self::KL, Self::FU, Self::FR, Self::FL];
 
     pub const fn reflected(self) -> bool {
         use Transform::*;
@@ -142,91 +203,52 @@ impl Transform {
     }
 }
 
-impl Add<Transform> for Orientation {
-    type Output = Self;
+impl Neg for Orient {
+    type Output = Transform;
 
-    fn add(self, rhs: Transform) -> Self::Output {
-        [
-            Self::Iso,
-            Self::Iso,
-            Self::Iso,
-            Self::Iso,
-            Self::Iso,
-            Self::Iso,
-            Self::RtK,
-            Self::RtF,
-            Self::RtK,
-            Self::RtF,
-            Self::RtK,
-            Self::RtF,
-            Self::RtF,
-            Self::RtK,
-            Self::RtF,
-            Self::RtK,
-            Self::RtF,
-            Self::RtK,
-            Self::RfU,
-            Self::RfU,
-            Self::RfR,
-            Self::RfR,
-            Self::RfL,
-            Self::RfL,
-            Self::RfR,
-            Self::RfR,
-            Self::RfL,
-            Self::RfL,
-            Self::RfU,
-            Self::RfU,
-            Self::RfL,
-            Self::RfL,
-            Self::RfU,
-            Self::RfU,
-            Self::RfR,
-            Self::RfR,
-            Self::AKU,
-            Self::AFU,
-            Self::AKR,
-            Self::AFR,
-            Self::AKL,
-            Self::AFL,
-            Self::AKR,
-            Self::AFR,
-            Self::AKL,
-            Self::AFL,
-            Self::AKU,
-            Self::AFU,
-            Self::AKL,
-            Self::AFL,
-            Self::AKU,
-            Self::AFU,
-            Self::AKR,
-            Self::AFR,
-            Self::AFU,
-            Self::AKU,
-            Self::AFR,
-            Self::AKR,
-            Self::AFL,
-            Self::AKL,
-            Self::AFR,
-            Self::AKR,
-            Self::AFL,
-            Self::AKL,
-            Self::AFU,
-            Self::AKU,
-            Self::AFL,
-            Self::AKL,
-            Self::AFU,
-            Self::AKU,
-            Self::AFR,
-            Self::AKR,
-        ][self as usize * 6 + rhs as usize]
+    fn neg(self) -> Self::Output {
+        use Orient::*;
+        use Transform::*;
+        match self {
+            Iso => KU,
+            RtK => KU,
+            RtF => FU,
+            RfU => KU,
+            RfR => KL,
+            RfL => KR,
+            AKU => KU,
+            AKR => KL,
+            AKL => KR,
+            AFU => FU,
+            AFR => FR,
+            AFL => FL,
+        }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub enum Rotation {
-    #[default]
-    U = 0,
-    R = 1,
-    L = 2,
+impl Add<Transform> for Orient {
+    type Output = Self;
+
+    fn add(self, rhs: Transform) -> Self::Output {
+        use Orient::*;
+
+        #[rustfmt::skip]
+        const TABLE: [Orient; 12 * 6] = [
+        //  KU   KR   KL   FR   FU  FL
+            Iso, Iso, Iso, Iso, Iso, Iso, 
+            RtK, RtK, RtK, RtF, RtF, RtF, 
+            RtF, RtF, RtF, RtK, RtK, RtK, 
+            RfU, RfR, RfL, RfU, RfR, RfL, 
+            RfR, RfL, RfU, RfL, RfU, RfR, 
+            RfL, RfU, RfR, RfR, RfL, RfU, 
+            AKU, AKR, AKL, AFU, AFR, AFL, 
+            AKR, AKL, AKU, AFL, AFU, AFR, 
+            AKL, AKU, AKR, AFR, AFL, AFU, 
+            AFU, AFR, AFL, AKU, AKR, AKL, 
+            AFR, AFL, AFU, AKL, AKU, AKR, 
+            AFL, AFU, AFR, AKR, AKL, AKU,
+        ];
+
+        TABLE[self as usize * 6 + rhs as usize]
+    }
 }

@@ -1,14 +1,11 @@
-//! quick confession i am absolutely terrified of using these functions in larger scales
-//!
-//! i don't know if they're reliable or anything
+// NOTE: quick confession i am absolutely terrified of using these functions in larger scales
+// i don't know if they're reliable or anything
 
 #[cfg(test)]
 mod tests;
 
+use std::ops::AddAssign;
 use std::ops::Mul;
-use std::ops::{Add, AddAssign, Neg};
-
-use super::fractal::Tringle;
 
 use glam::IVec2;
 
