@@ -1,56 +1,52 @@
-use std::{array, ops::Deref};
+use std::collections::HashMap;
 
-pub enum Node<T, const N: usize> {
-    Leaf(T),
-    Branch(Box<[Self; N]>),
+pub type NodeId = usize;
+
+#[derive(Debug, Default)]
+pub struct NodeLibrary<const N: usize> {
+    idx_to_node: Vec<[NodeId; N]>,
+    node_to_idx: HashMap<[NodeId; N], NodeId>,
 }
-impl<const N: usize, T> Node<T, N> {
-    pub fn expand(&mut self, expander: &impl Expander<T, N>) -> &mut [Self; N] {
-        use Node::*;
-        if let Leaf(item) = self {
-            *self = Branch(Box::new(expander.expand(item).map(Leaf)));
-        }
-
-        if let Branch(children) = self {
-            children
-        } else {
-            unreachable!()
-        }
-    }
-
-    pub fn expand_get_mut(
-        &mut self,
-        expander: &impl Expander<T, N>,
-        index: impl Into<usize>,
-    ) -> &mut Self {
-        &mut self.expand(expander)[index.into()]
-    }
-
-    pub fn deep_expand_get_mut<Iter>(
-        &mut self,
-        expander: &impl Expander<T, N>,
-        indices: Iter,
-    ) -> &mut Self
-    where
-        Iter: IntoIterator,
-        Iter::Item: Into<usize>,
-    {
-        indices
-            .into_iter()
-            .fold(self, |node, index| node.expand_get_mut(expander, index))
+impl<const N: usize> NodeLibrary<N> {
+    /// creates a new node library, initialized with an "empty tile" node.
+    fn new() -> Self {
+        
     }
 }
 
-pub trait Expander<T, const N: usize> {
-    // i would use associated types for this,
-    // but "generic parameters (actually associated consts in this case) can't be used in const operations."
-    fn expand(&self, item: &T) -> [T; N];
+#[derive(Debug, Default)]
+pub struct Fractal<const N: usize> {
+    node_library: NodeLibrary<N>,
+    root: NodeId,
 }
-impl<T, const N: usize, E: Expander<T, N>> Expander<Option<T>, N> for E {
-    fn expand(&self, item: &Option<T>) -> [Option<T>; N] {
-        match item {
-            Some(inner) => self.expand(inner).map(Some),
-            None => array::from_fn(|_| None),
+
+impl<const N: usize> Fractal<N> {
+    fn new() -> Self {
+        Self {
+            node_library: NodeLibrary {
+                idx_to_node: vec![[0; N]],
+                node_to_idx: HashMap::from([([0; N], 0)]),
+            },
+            root: 0,
         }
     }
 }
+
+/*
+definitions:
+    1: Sierpinski
+
+inventory:
+    1: 5
+
+hashmap:
+    0 -> [0, 0, 0, 0]
+    1 -> [0, 1, 1, 1]
+    2 -> [0, 1, 0, 1]
+    3 -> [0, 2, 0, 2]
+    root: 3
+
+  1
+  0
+3   2
+*/
