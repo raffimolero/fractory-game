@@ -30,44 +30,44 @@ fn test_subtiles() {
     let mut set = HashSet::new();
     for a in SubTile::ORDER {
         let aa = pos;
-        pos.outer(a);
+        pos.promote(a);
         assert!(set.insert(pos));
         println!("{pos:?}");
         for b in SubTile::ORDER {
             let bb = pos;
-            pos.outer(b);
+            pos.promote(b);
             assert!(set.insert(pos));
             println!("{pos:?}");
             for c in SubTile::ORDER {
                 let cc = pos;
-                pos.outer(c);
+                pos.promote(c);
                 assert!(set.insert(pos));
                 println!("{pos:?}");
                 for d in SubTile::ORDER {
                     let dd = pos;
-                    pos.outer(d);
+                    pos.promote(d);
                     assert!(set.insert(pos));
                     println!("{pos:?}");
                     for e in SubTile::ORDER {
                         let ee = pos;
-                        pos.outer(e);
+                        pos.promote(e);
 
                         assert!(set.insert(pos));
                         println!("{pos:?}");
 
-                        assert_eq!(pos.inner(), e);
+                        assert_eq!(pos.demote(), e);
                         assert_eq!(pos, ee);
                     }
-                    assert_eq!(pos.inner(), d);
+                    assert_eq!(pos.demote(), d);
                     assert_eq!(pos, dd);
                 }
-                assert_eq!(pos.inner(), c);
+                assert_eq!(pos.demote(), c);
                 assert_eq!(pos, cc);
             }
-            assert_eq!(pos.inner(), b);
+            assert_eq!(pos.demote(), b);
             assert_eq!(pos, bb);
         }
-        assert_eq!(pos.inner(), a);
+        assert_eq!(pos.demote(), a);
         assert_eq!(pos, aa);
     }
 }
@@ -77,7 +77,7 @@ fn test_supertile_path() {
     let mut pos = TilePos::UNIT;
 
     let a = pos;
-    pos.outer(SubTile::L);
+    pos.promote(SubTile::L);
     assert_eq!(
         pos,
         TilePos {
@@ -88,7 +88,7 @@ fn test_supertile_path() {
     );
 
     let b = pos;
-    pos.outer(SubTile::U);
+    pos.promote(SubTile::U);
     assert_eq!(
         pos,
         TilePos {
@@ -99,7 +99,7 @@ fn test_supertile_path() {
     );
 
     let c = pos;
-    pos.outer(SubTile::C);
+    pos.promote(SubTile::C);
     assert_eq!(
         pos,
         TilePos {
@@ -110,7 +110,7 @@ fn test_supertile_path() {
     );
 
     let d = pos;
-    pos.outer(SubTile::R);
+    pos.promote(SubTile::R);
     assert_eq!(
         pos,
         TilePos {
@@ -120,13 +120,13 @@ fn test_supertile_path() {
         }
     );
 
-    assert_eq!(pos.inner(), SubTile::R);
+    assert_eq!(pos.demote(), SubTile::R);
     assert_eq!(pos, d);
-    assert_eq!(pos.inner(), SubTile::C);
+    assert_eq!(pos.demote(), SubTile::C);
     assert_eq!(pos, c);
-    assert_eq!(pos.inner(), SubTile::U);
+    assert_eq!(pos.demote(), SubTile::U);
     assert_eq!(pos, b);
-    assert_eq!(pos.inner(), SubTile::L);
+    assert_eq!(pos.demote(), SubTile::L);
     assert_eq!(pos, a);
 }
 
