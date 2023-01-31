@@ -1,19 +1,22 @@
-use super::orientation::Orientation;
-use std::ops::{AddAssign, Index};
+use super::orientation::Transform;
+use std::{
+    collections::HashMap,
+    ops::{AddAssign, Index},
+};
 
 use indexmap::IndexSet;
 
 pub struct Tringle<T>([T; 4]);
 
-impl<T: AddAssign<Orientation>> AddAssign<Orientation> for Tringle<T> {
-    fn add_assign(&mut self, rhs: Orientation) {
+impl<T: AddAssign<Transform>> AddAssign<Transform> for Tringle<T> {
+    fn add_assign(&mut self, rhs: Transform) {
         for child in self.0.iter_mut() {
             *child += rhs;
         }
-        if rhs.reflected {
+        if rhs.reflected() {
             self.0.swap(2, 3);
         }
-        self.0[1..].rotate_right(rhs.rotation as usize);
+        self.0[1..].rotate_right(rhs.rotation() as usize);
     }
 }
 
@@ -70,4 +73,13 @@ impl<T: IntoIterator<Item = usize>> Index<T> for Fractal {
     fn index(&self, path: T) -> &Self::Output {
         path.into_iter().fold(&self.root, |r, i| &self.nodes[*r][i])
     }
+}
+
+struct Tile {
+    id: usize,
+    orientation: Transform,
+}
+
+struct Fractory {
+    recognizer: HashMap<Tringle<Tile>, Tile>,
 }

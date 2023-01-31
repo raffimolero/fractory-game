@@ -28,47 +28,47 @@ use super::*;
 fn test_subtiles() {
     let mut pos = TilePos::UNIT;
     let mut set = HashSet::new();
-    for a in SubTile::ORDER {
-        let aa = pos;
-        pos.promote(a);
+    for subtile in SubTile::ORDER {
+        let before = pos;
+        pos.promote(subtile);
         assert!(set.insert(pos));
         println!("{pos:?}");
-        for b in SubTile::ORDER {
-            let bb = pos;
-            pos.promote(b);
+        for subtile in SubTile::ORDER {
+            let before = pos;
+            pos.promote(subtile);
             assert!(set.insert(pos));
             println!("{pos:?}");
-            for c in SubTile::ORDER {
-                let cc = pos;
-                pos.promote(c);
+            for subtile in SubTile::ORDER {
+                let before = pos;
+                pos.promote(subtile);
                 assert!(set.insert(pos));
                 println!("{pos:?}");
-                for d in SubTile::ORDER {
-                    let dd = pos;
-                    pos.promote(d);
+                for subtile in SubTile::ORDER {
+                    let before = pos;
+                    pos.promote(subtile);
                     assert!(set.insert(pos));
                     println!("{pos:?}");
-                    for e in SubTile::ORDER {
-                        let ee = pos;
-                        pos.promote(e);
+                    for subtile in SubTile::ORDER {
+                        let before = pos;
+                        pos.promote(subtile);
 
                         assert!(set.insert(pos));
                         println!("{pos:?}");
 
-                        assert_eq!(pos.demote(), e);
-                        assert_eq!(pos, ee);
+                        assert_eq!(pos.demote(), subtile);
+                        assert_eq!(pos, before);
                     }
-                    assert_eq!(pos.demote(), d);
-                    assert_eq!(pos, dd);
+                    assert_eq!(pos.demote(), subtile);
+                    assert_eq!(pos, before);
                 }
-                assert_eq!(pos.demote(), c);
-                assert_eq!(pos, cc);
+                assert_eq!(pos.demote(), subtile);
+                assert_eq!(pos, before);
             }
-            assert_eq!(pos.demote(), b);
-            assert_eq!(pos, bb);
+            assert_eq!(pos.demote(), subtile);
+            assert_eq!(pos, before);
         }
-        assert_eq!(pos.demote(), a);
-        assert_eq!(pos, aa);
+        assert_eq!(pos.demote(), subtile);
+        assert_eq!(pos, before);
     }
 }
 
