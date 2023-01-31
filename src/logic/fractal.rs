@@ -4,12 +4,6 @@ use std::ops::{AddAssign, Index};
 use indexmap::IndexSet;
 
 pub struct Tringle<T>([T; 4]);
-impl<T> Tringle<T> {
-    pub const CENTER: usize = 0;
-    pub const UP: usize = 1;
-    pub const RIGHT: usize = 2;
-    pub const LEFT: usize = 3;
-}
 
 impl<T: AddAssign<Orientation>> AddAssign<Orientation> for Tringle<T> {
     fn add_assign(&mut self, rhs: Orientation) {

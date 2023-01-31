@@ -2,6 +2,9 @@
 //!
 //! i don't know if they're reliable or anything
 
+#[cfg(test)]
+mod tests;
+
 use std::ops::Mul;
 use std::ops::{Add, AddAssign, Neg};
 
@@ -37,11 +40,16 @@ impl Mul<IVec2> for IMat2 {
 //     pub const LEFT: u8 = 2;
 //     pub const RIGHT: u8 = 3;
 // }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SubTile {
-    D,
-    U,
-    R,
-    L,
+    C, // Center/Core
+    U, // Up
+    R, // Right
+    L, // Left
+}
+
+impl SubTile {
+    const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
 }
 
 /**
@@ -156,14 +164,16 @@ template
 /____\/____\/____\/____\/____\/____\/____\/____\/
 ```
 */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TileOffset {
+    depth: usize,
     offset: IVec2,
     flop: bool,
 }
 impl TileOffset {
     fn new(x: i32, y: i32, flop: bool) -> Self {
         Self {
+            depth: 0,
             offset: IVec2 { x, y },
             flop,
         }
@@ -250,7 +260,6 @@ on upscaling
 /____\/____\/____\/____\ /____\/____\/____\/____\ /____\/____\/____\/____\ /_f__\/_f__\/_f__\/_f__\
            ==                       y+4                     +4 +4                 6-y 3-x flop
 
-
                        /\
                       /00\
                      /____\
@@ -277,7 +286,7 @@ on upscaling
 /____\/____\/____\/____\/____\/____\/____\/____\
 ```
 */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
     depth: usize,
     pos: IVec2,
@@ -285,14 +294,18 @@ pub struct TilePos {
 }
 
 impl TilePos {
-    pub const ZERO: Self = Self {
+    pub const UNIT: Self = Self {
         depth: 0,
         pos: IVec2::ZERO,
         flop: false,
     };
 
-    pub fn height(self) -> usize {
+    pub fn height(self) -> i32 {
         1 << self.depth
+    }
+
+    fn row(self) -> i32 {
+        self.pos.y + self.flop as i32
     }
 
     pub fn is_valid(self) -> bool {
@@ -301,17 +314,17 @@ impl TilePos {
             // must fit within the row
             && self.pos.x <= self.pos.y
             // must not go beneath its height
-            && (self.pos.y + self.flop as i32) < self.height()
+            && self.row() < self.height()
     }
 
-    /// makes this point a position in a larger triangle
+    /// locates this point in its encompassing triangle
     ///
-    /// you must provide where this subtriangle is relative to the larger triangle
-    pub fn upscale(&mut self, placement: SubTile) {
+    /// you must provide which subtriangle this is relative to the larger triangle
+    pub fn promote(&mut self, placement: SubTile) {
         let h = self.height();
         self.depth += 1;
         match placement {
-            SubTile::D => {
+            SubTile::C => {
                 let b = h - 1;
                 self.pos.y = b * 2 - self.pos.y;
                 self.pos.x = b - self.pos.x;
@@ -327,10 +340,38 @@ impl TilePos {
             }
         }
     }
+
+    /// finds which subtriangle this point is in
+    pub fn demote(&mut self) -> SubTile {
+        self.depth -= 1;
+        let h = self.height();
+
+        if self.row() < h {
+            return SubTile::U;
+        }
+
+        self.pos.y -= h;
+        if self.pos.x <= self.pos.y {
+            return SubTile::L;
+        }
+
+        if self.pos.x >= h {
+            self.pos.x -= h;
+            return SubTile::R;
+        }
+
+        self.pos.y = h - 2 - self.pos.y;
+        self.pos.x = h - 1 - self.pos.x;
+        self.flop ^= true;
+        SubTile::C
+    }
 }
 
 impl AddAssign<TileOffset> for TilePos {
-    fn add_assign(&mut self, rhs: TileOffset) {
+    fn add_assign(&mut self, mut rhs: TileOffset) {
+        for _ in 0..rhs.depth {
+            self.promote(SubTile::C);
+        }
         if self.flop {
             rhs.offset *= -1;
         }
@@ -338,76 +379,4 @@ impl AddAssign<TileOffset> for TilePos {
         self.flop ^= rhs.flop;
         assert!(self.is_valid());
     }
-}
-
-#[test]
-fn test_upscale() {
-    let mut pos = TilePos::ZERO;
-    pos.upscale(SubTile::L);
-    assert_eq!(
-        pos,
-        TilePos {
-            depth: 1,
-            pos: IVec2::new(0, 1),
-            flop: false,
-        }
-    );
-    pos.upscale(SubTile::U);
-    assert_eq!(
-        pos,
-        TilePos {
-            depth: 2,
-            pos: IVec2::new(0, 1),
-            flop: false,
-        }
-    );
-    pos.upscale(SubTile::D);
-    assert_eq!(
-        pos,
-        TilePos {
-            depth: 3,
-            pos: IVec2::new(3, 5),
-            flop: true,
-        }
-    );
-}
-
-#[test]
-fn test_flip() {
-    let original = TileOffset::new(0, 2, true);
-    let mut temp = original;
-    temp.flip_x();
-    assert_eq!(temp, TileOffset::new(2, 2, true));
-    temp.flip_x();
-    assert_eq!(temp, original);
-}
-
-#[test]
-fn test_rotate_identities() {
-    let mut temp = TileOffset::new(15, 27, true);
-    let a = temp;
-
-    temp.rotate_cc();
-    let b = temp;
-    assert_ne!(a, b);
-
-    temp.rotate_cc();
-    let c = temp;
-    assert_ne!(b, c);
-
-    temp.rotate_cc();
-    let a2 = temp;
-    assert_eq!(a2, a);
-
-    temp.rotate_cw();
-    let c2 = temp;
-    assert_eq!(c2, c);
-
-    temp.rotate_cw();
-    let b2 = temp;
-    assert_eq!(b2, b);
-
-    temp.rotate_cw();
-    let a3 = temp;
-    assert_eq!(a3, a);
 }
