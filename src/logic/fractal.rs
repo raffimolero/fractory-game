@@ -59,7 +59,7 @@ impl<T: AddAssign<Transform>> AddAssign<Transform> for Tringle<T> {
 }
 
 impl Tringle<Tile> {
-    fn is_upright_and_reflective(self) -> bool {
+    fn is_reflective_and_upright(self) -> bool {
         use Orient::*;
         use SubTile::*;
         matches!(self[C].orient, Iso | RfU) // core is reflective and upright
@@ -79,10 +79,8 @@ impl Tringle<Tile> {
     fn reorient(&mut self) -> Orient {
         use Orient::*;
         let is_rot = self.is_rotational();
-
-        let mut is_ref = false;
         for i in 0..3 {
-            if self.is_upright_and_reflective() {
+            if self.is_reflective_and_upright() {
                 return if is_rot { Iso } else { [RfU, RfL, RfR][i] };
             }
             if is_rot {
@@ -102,16 +100,27 @@ struct Fractory {
 }
 
 impl Fractory {
-    fn identify(&self, tringle: &Tringle<Tile>) -> Option<&Tile> {
-        self.recognizer.get(tringle)
+    fn register(&mut self, tringle: Tringle<Tile>) -> Tile {
+        self.recognizer
+            .get(&tringle)
+            .copied()
+            .unwrap_or_else(|| self.register_unchecked(tringle))
     }
 
-    fn register(&mut self, tringle: Tringle<Tile>) -> Tile {
-        if let Some(tile) = self.identify(&tringle) {
-            *tile
-        } else {
-            self.register_unchecked(tringle)
-        }
+    fn register_unchecked(&mut self, mut tringle: Tringle<Tile>) -> Tile {
+        let orient = tringle.reorient();
+        let id = self.library.len();
+        self.library.push(tringle);
+
+        self.cache_symmetries(
+            tringle,
+            Tile {
+                id,
+                orient: orient.upright(),
+            },
+        );
+
+        Tile { id, orient }
     }
 
     fn cache_symmetries(&mut self, mut tringle: Tringle<Tile>, mut tile: Tile) {
@@ -135,22 +144,6 @@ impl Fractory {
             tringle += Transform::FU;
             tile += Transform::FU;
         }
-    }
-
-    fn register_unchecked(&mut self, mut tringle: Tringle<Tile>) -> Tile {
-        let orient = tringle.reorient();
-        let id = self.library.len();
-        self.library.push(tringle);
-
-        self.cache_symmetries(
-            tringle,
-            Tile {
-                id,
-                orient: orient.upright(),
-            },
-        );
-
-        Tile { id, orient }
     }
 }
 
