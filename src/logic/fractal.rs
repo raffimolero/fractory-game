@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::logic::path::SubTile;
 
 use super::orientation::{Orient, Transform};
@@ -12,6 +15,13 @@ use indexmap::IndexSet;
 struct Tile {
     id: usize,
     orient: Orient,
+}
+
+impl Tile {
+    pub const SPACE: Self = Self {
+        id: 0,
+        orient: Orient::Iso,
+    };
 }
 
 impl AddAssign<Transform> for Tile {
@@ -31,6 +41,10 @@ impl Add<Transform> for Tile {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 struct Tringle<T>([T; 4]);
+
+impl Tringle<Tile> {
+    pub const SPACE: Self = Self([Tile::SPACE; 4]);
+}
 
 impl<T> Index<SubTile> for Tringle<T> {
     type Output = T;
@@ -100,6 +114,15 @@ struct Fractory {
 }
 
 impl Fractory {
+    fn new() -> Self {
+        Self {
+            recognizer: HashMap::from([(Tringle::SPACE, Tile::SPACE)]),
+            library: vec![Tringle::SPACE],
+            root: Tile::SPACE,
+            // behavior: vec![Behavior::NONE],
+        }
+    }
+
     fn register(&mut self, tringle: Tringle<Tile>) -> Tile {
         self.recognizer
             .get(&tringle)
