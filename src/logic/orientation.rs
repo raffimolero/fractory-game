@@ -1,4 +1,4 @@
-use std::ops::{Add, Neg};
+use std::ops::{Add, Neg, AddAssign};
 
 #[test]
 fn test_reorient_table() {
@@ -21,7 +21,7 @@ fn test_neg_table() {
         //         break;
         //     }
         // }
-        assert_eq!(a.canon(), a + -a);
+        assert_eq!(a.upright(), a + -a);
     }
     println!();
 }
@@ -34,13 +34,34 @@ pub enum Rotation {
     L,
 }
 
+/// glorified bitflags
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Symmetries {
     #[default]
-    Isotropic,
-    Rotational,
-    Reflective,
-    Asymmetric,
+    Isotropic  = 0b_00,
+    Rotational = 0b_01,
+    Reflective = 0b_10,
+    Asymmetric = 0b_11,
+}
+
+impl Symmetries {
+    pub const fn new(reflective: bool, rotational: bool) -> Self {
+        use Symmetries::*;
+        match (reflective, rotational) {
+            (true, true) => Isotropic,
+            (true, false) => Rotational,
+            (false, true) => Reflective,
+            (false, false) => Asymmetric,
+        }
+    }
+
+    pub const fn is_reflective(self) -> bool {
+        self as u8 & 0b_01 == 0
+    }
+
+    pub const fn is_rotational(self) -> bool {
+        self as u8 & 0b_10 == 0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -102,7 +123,7 @@ impl Orient {
         }
     }
 
-    pub const fn canon(self) -> Self {
+    pub const fn upright(self) -> Self {
         use Orient::*;
         use Symmetries::*;
         match self.symmetries() {
@@ -111,6 +132,11 @@ impl Orient {
             Reflective => RfU,
             Asymmetric => AKU,
         }
+    }
+
+    pub const fn is_upright(self) -> bool {
+        use Orient::*;
+        matches!(self, Iso | RtK | RfU | AKU)
     }
 
     pub const fn reorient(mut self, rhs: Transform) -> Self {
@@ -171,34 +197,15 @@ impl Orient {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Transform {
-    KU,
-    KR,
-    KL,
-    FU,
-    FR,
-    FL,
-}
-
-impl Transform {
-    pub const TRANSFORMS: [Self; 6] = [Self::KU, Self::KR, Self::KL, Self::FU, Self::FR, Self::FL];
-
-    pub const fn reflected(self) -> bool {
-        use Transform::*;
-        match self {
-            KU | KR | KL => false,
-            FU | FR | FL => true,
-        }
-    }
-
-    pub const fn rotation(self) -> Rotation {
-        use Rotation::*;
-        use Transform::*;
-        match self {
-            KU | FU => U,
-            KR | FR => R,
-            KL | FL => L,
+impl From<Symmetries> for Orient {
+    fn from(symmetries: Symmetries) -> Self {
+        use Symmetries::*;
+        use Orient::*;
+        match symmetries {
+            Isotropic => Iso,
+            Rotational => RtK,
+            Reflective => RfU,
+            Asymmetric => AKU,
         }
     }
 }
@@ -252,3 +259,42 @@ impl Add<Transform> for Orient {
         TABLE[self as usize * 6 + rhs as usize]
     }
 }
+
+impl AddAssign<Transform> for Orient {
+    fn add_assign(&mut self, rhs: Transform) {
+        *self = *self + rhs;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Transform {
+    KU,
+    KR,
+    KL,
+    FU,
+    FR,
+    FL,
+}
+
+impl Transform {
+    pub const TRANSFORMS: [Self; 6] = [Self::KU, Self::KR, Self::KL, Self::FU, Self::FR, Self::FL];
+
+    pub const fn reflected(self) -> bool {
+        use Transform::*;
+        match self {
+            KU | KR | KL => false,
+            FU | FR | FL => true,
+        }
+    }
+
+    pub const fn rotation(self) -> Rotation {
+        use Rotation::*;
+        use Transform::*;
+        match self {
+            KU | FU => U,
+            KR | FR => R,
+            KL | FL => L,
+        }
+    }
+}
+
