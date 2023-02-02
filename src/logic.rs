@@ -1,4 +1,5 @@
+pub mod actions;
 pub mod fractal;
 pub mod orientation;
 pub mod path;
-pub mod quad;
+pub mod tile;

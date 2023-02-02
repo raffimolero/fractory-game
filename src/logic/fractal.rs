@@ -3,32 +3,34 @@ mod tests;
 
 use super::{
     orientation::Transform,
-    quad::{QuadTile, Tile},
+    tile::{QuadTile, Tile}, actions::ActionTree,
 };
 use std::{collections::HashMap, ops::Index};
 
 use indexmap::IndexSet;
 
-struct Fractory {
+struct Fractal {
     root: Tile,
     library: Vec<QuadTile>,
     recognizer: HashMap<QuadTile, Tile>,
-    // TODO: behavior: Vec<Behavior>,
 }
 
-impl Fractory {
-    fn new() -> Self {
+impl Fractal {
+    pub fn new() -> Self {
         Self {
             root: Tile::SPACE,
             library: vec![QuadTile::SPACE],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
-            // behavior: vec![Behavior::NONE],
         }
     }
 
     // TODO: make Fragment data structure
-    fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
+    pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
         todo!("get fragment data such as symmetries, composition, and behaviors")
+    }
+
+    pub fn act(&mut self, actions: ActionTree) {
+        todo!("")
     }
 
     fn register(&mut self, quad: QuadTile) -> Tile {
@@ -78,6 +80,8 @@ impl Fractory {
     }
 }
 
+// NOTE: only for reference. will be replaced by struct Fractory.
+/**```
 #[derive(Debug)]
 pub struct Fractal {
     root: usize,
@@ -132,3 +136,4 @@ impl<T: IntoIterator<Item = usize>> Index<T> for Fractal {
         path.into_iter().fold(&self.root, |r, i| &self.nodes[*r][i])
     }
 }
+```*/
