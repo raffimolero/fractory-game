@@ -1,142 +1,50 @@
 #[cfg(test)]
 mod tests;
 
-use crate::logic::path::SubTile;
-
-use super::orientation::{Orient, Transform};
-use std::{
-    collections::HashMap,
-    ops::{Add, AddAssign, Index, IndexMut},
+use super::{
+    orientation::Transform,
+    quad::{QuadTile, Tile},
 };
+use std::{collections::HashMap, ops::Index};
 
 use indexmap::IndexSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-struct Tile {
-    id: usize,
-    orient: Orient,
-}
-
-impl Tile {
-    pub const SPACE: Self = Self {
-        id: 0,
-        orient: Orient::Iso,
-    };
-}
-
-impl AddAssign<Transform> for Tile {
-    fn add_assign(&mut self, rhs: Transform) {
-        self.orient += rhs;
-    }
-}
-
-impl Add<Transform> for Tile {
-    type Output = Self;
-
-    fn add(mut self, rhs: Transform) -> Self::Output {
-        self += rhs;
-        self
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-struct Tringle<T>([T; 4]);
-
-impl Tringle<Tile> {
-    pub const SPACE: Self = Self([Tile::SPACE; 4]);
-}
-
-impl<T> Index<SubTile> for Tringle<T> {
-    type Output = T;
-
-    fn index(&self, index: SubTile) -> &Self::Output {
-        &self.0[index as usize]
-    }
-}
-
-impl<T> IndexMut<SubTile> for Tringle<T> {
-    fn index_mut(&mut self, index: SubTile) -> &mut Self::Output {
-        &mut self.0[index as usize]
-    }
-}
-
-impl<T: AddAssign<Transform>> AddAssign<Transform> for Tringle<T> {
-    fn add_assign(&mut self, rhs: Transform) {
-        for child in self.0.iter_mut() {
-            *child += rhs;
-        }
-        if rhs.reflected() {
-            self.0.swap(2, 3);
-        }
-        self.0[1..].rotate_right(rhs.rotation() as usize);
-    }
-}
-
-impl Tringle<Tile> {
-    fn is_reflective_and_upright(self) -> bool {
-        use Orient::*;
-        use SubTile::*;
-        matches!(self[C].orient, Iso | RfU) // core is reflective and upright
-            && matches!(self[U].orient, Iso | RfU) // upper is reflective and upright
-            && self[R] + Transform::FR == self[L] // wings match
-    }
-
-    fn is_rotational(self) -> bool {
-        use SubTile::*;
-        let uu = self[U];
-        let ru = self[R] + Transform::KL;
-        let lu = self[L] + Transform::KR;
-        self[C].orient.symmetries().is_rotational() && uu == ru && uu == lu
-    }
-
-    /// reorients a tringle upright, and returns its original orientation.
-    fn reorient(&mut self) -> Orient {
-        use Orient::*;
-        let is_rot = self.is_rotational();
-        for i in 0..3 {
-            if self.is_reflective_and_upright() {
-                return if is_rot { Iso } else { [RfU, RfL, RfR][i] };
-            }
-            if is_rot {
-                return RtK;
-            }
-            *self += Transform::KR;
-        }
-        AKU
-    }
-}
-
 struct Fractory {
-    recognizer: HashMap<Tringle<Tile>, Tile>,
-    library: Vec<Tringle<Tile>>,
     root: Tile,
+    library: Vec<QuadTile>,
+    recognizer: HashMap<QuadTile, Tile>,
     // TODO: behavior: Vec<Behavior>,
 }
 
 impl Fractory {
     fn new() -> Self {
         Self {
-            recognizer: HashMap::from([(Tringle::SPACE, Tile::SPACE)]),
-            library: vec![Tringle::SPACE],
             root: Tile::SPACE,
+            library: vec![QuadTile::SPACE],
+            recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
             // behavior: vec![Behavior::NONE],
         }
     }
 
-    fn register(&mut self, tringle: Tringle<Tile>) -> Tile {
-        self.recognizer
-            .get(&tringle)
-            .copied()
-            .unwrap_or_else(|| self.register_unchecked(tringle))
+    // TODO: make Fragment data structure
+    fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
+        todo!("get fragment data such as symmetries, composition, and behaviors")
     }
 
-    fn register_unchecked(&mut self, mut tringle: Tringle<Tile>) -> Tile {
-        let orient = tringle.reorient();
-        let id = self.library.len();
-        self.library.push(tringle);
+    fn register(&mut self, quad: QuadTile) -> Tile {
+        self.recognizer
+            .get(&quad)
+            .copied()
+            .unwrap_or_else(|| self.register_new(quad))
+    }
 
-        self.cache_symmetries(
-            tringle,
+    fn register_new(&mut self, mut quad: QuadTile) -> Tile {
+        let orient = quad.reorient();
+        let id = self.library.len();
+        self.library.push(quad);
+
+        self.cache(
+            quad,
             Tile {
                 id,
                 orient: orient.upright(),
@@ -146,25 +54,25 @@ impl Fractory {
         Tile { id, orient }
     }
 
-    fn cache_symmetries(&mut self, mut tringle: Tringle<Tile>, mut tile: Tile) {
+    fn cache(&mut self, mut quad: QuadTile, mut tile: Tile) {
         for _reflection in 0..2 {
             for _rotation in 0..3 {
-                let result = self.recognizer.insert(tringle, tile);
+                let result = self.recognizer.insert(quad, tile);
                 assert!(
                     result.is_none(),
-                    "Tringle ({tringle:?}) was registered ({tile:?}) twice!"
+                    "Tringle ({quad:?}) was registered ({tile:?}) twice!"
                 );
 
                 if tile.orient.symmetries().is_rotational() {
                     break;
                 }
-                tringle += Transform::KR;
+                quad += Transform::KR;
                 tile += Transform::KR;
             }
             if tile.orient.symmetries().is_reflective() {
                 break;
             }
-            tringle += Transform::FU;
+            quad += Transform::FU;
             tile += Transform::FU;
         }
     }

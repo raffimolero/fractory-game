@@ -16,7 +16,7 @@ fn test_reorient_table() {
 fn test_neg_table() {
     for a in Orient::ORIENTATIONS {
         // for b in Transform::TRANSFORMS {
-        //     if a + b == a.canon() {
+        //     if a + b == a.upright() {
         //         print!("{b:?}, ");
         //         break;
         //     }
@@ -132,6 +132,11 @@ impl Orient {
             Reflective => RfU,
             Asymmetric => AKU,
         }
+    }
+
+    pub const fn is_rfu(self) -> bool {
+        use Orient::*;
+        matches!(self, Iso | RfU)
     }
 
     pub const fn is_upright(self) -> bool {
