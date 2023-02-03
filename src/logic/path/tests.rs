@@ -1,75 +1,33 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use super::*;
-
-// less prone to errors but can't be refactored
-// macro_rules! _test_subtiles {
-//     ($pos:ident, $set:ident, ) => {};
-
-//     ($pos:ident, $set:ident, $_:tt $($t:tt)*) => {
-//         for subtile in SubTile::ORDER {
-//             let save = $pos;
-//             $pos.in_supertile(subtile);
-//             assert!($set.insert($pos));
-//             println!("{:?}", $pos);
-
-//             _test_subtiles!($pos, $set, $($t)*);
-
-//             assert_eq!($pos.in_subtile(), subtile);
-//             assert_eq!($pos, save);
-//         }
-//     };
-// }
 
 /// enumerates all possible permutations of subtiles,
 /// checks if all positions are unique,
 /// and verifies that every operation is reversible
 #[test]
 fn test_subtiles() {
+    fn inner(pos: &mut TilePos, set: &mut HashSet<TilePos>, depth: u8) {
+        if depth == 0 {
+            return;
+        }
+        for subtile in SubTile::ORDER {
+            let save = *pos;
+            pos.promote(subtile);
+            assert!(pos.is_valid());
+            assert!(set.insert(*pos));
+            println!("{pos:?}");
+
+            inner(pos, set, depth - 1);
+
+            assert_eq!(pos.demote(), subtile);
+            assert_eq!(*pos, save);
+        }
+    }
+
     let mut pos = TilePos::UNIT;
     let mut set = HashSet::new();
-    for subtile in SubTile::ORDER {
-        let before = pos;
-        pos.promote(subtile);
-        assert!(set.insert(pos));
-        println!("{pos:?}");
-        for subtile in SubTile::ORDER {
-            let before = pos;
-            pos.promote(subtile);
-            assert!(set.insert(pos));
-            println!("{pos:?}");
-            for subtile in SubTile::ORDER {
-                let before = pos;
-                pos.promote(subtile);
-                assert!(set.insert(pos));
-                println!("{pos:?}");
-                for subtile in SubTile::ORDER {
-                    let before = pos;
-                    pos.promote(subtile);
-                    assert!(set.insert(pos));
-                    println!("{pos:?}");
-                    for subtile in SubTile::ORDER {
-                        let before = pos;
-                        pos.promote(subtile);
-
-                        assert!(set.insert(pos));
-                        println!("{pos:?}");
-
-                        assert_eq!(pos.demote(), subtile);
-                        assert_eq!(pos, before);
-                    }
-                    assert_eq!(pos.demote(), subtile);
-                    assert_eq!(pos, before);
-                }
-                assert_eq!(pos.demote(), subtile);
-                assert_eq!(pos, before);
-            }
-            assert_eq!(pos.demote(), subtile);
-            assert_eq!(pos, before);
-        }
-        assert_eq!(pos.demote(), subtile);
-        assert_eq!(pos, before);
-    }
+    inner(&mut pos, &mut set, 5);
 }
 
 #[test]

@@ -1,3 +1,4 @@
+/*
 use crate::logic::fractal::Behavior;
 
 pub struct Planet {
@@ -21,3 +22,4 @@ pub struct Fragment {
     desc: String,
     behavior: Behavior,
 }
+*/

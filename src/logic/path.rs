@@ -163,7 +163,7 @@ template
 */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TileOffset {
-    depth: usize,
+    depth: u8,
     offset: IVec2,
     flop: bool,
 }
@@ -285,7 +285,7 @@ on upscaling
 */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
-    depth: usize,
+    depth: u8,
     pos: IVec2,
     flop: bool,
 }

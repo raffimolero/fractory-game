@@ -7,3 +7,37 @@ returns a set of tile movements
 updates the internal simulation
 updates the display grid
 🥳🎉
+
+CLI:
+
+FRACTORY
+> Planets
+  * get all planet names
+  > (planet name)
+    - Edit
+      - name
+    > Fragments
+      * get all fragment names
+      > (fragment name)
+        > Composition
+          * display name
+          * display composition
+          * display symmetry
+          - Edit
+            - name
+            - composition
+        > Behavior
+          * open behavior file in an editor
+    > Biomes
+      * get all biomes
+      > (biome name)
+        - Edit
+
+
+What can i edit?
+> Planets
+  > name
+> Fragments
+  > name
+  > composition
+  > behavior

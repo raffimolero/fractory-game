@@ -1,4 +1,4 @@
-use fractory_game::logic::fractal::Fractal;
+use fractory_game::logic::fractal::BoringFractal as Fractal;
 use std::io::{stdin, stdout, Write};
 
 fn input_path() -> Option<Vec<usize>> {

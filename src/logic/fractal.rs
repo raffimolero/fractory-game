@@ -2,8 +2,9 @@
 mod tests;
 
 use super::{
+    actions::Actions,
     orientation::Transform,
-    tile::{QuadTile, Tile}, actions::ActionTree,
+    tile::{QuadTile, Tile},
 };
 use std::{collections::HashMap, ops::Index};
 
@@ -25,11 +26,11 @@ impl Fractal {
     }
 
     // TODO: make Fragment data structure
-    pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
-        todo!("get fragment data such as symmetries, composition, and behaviors")
-    }
+    // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
+    //     todo!("get fragment data such as symmetries, composition, and behaviors")
+    // }
 
-    pub fn act(&mut self, actions: ActionTree) {
+    pub fn act(&mut self, actions: Actions) {
         todo!("")
     }
 
@@ -80,60 +81,64 @@ impl Fractal {
     }
 }
 
-// NOTE: only for reference. will be replaced by struct Fractory.
-/**```
-#[derive(Debug)]
-pub struct Fractal {
-    root: usize,
-    nodes: IndexSet<[usize; 4]>,
-}
+pub use only_for_reference::Fractal as BoringFractal;
+mod only_for_reference {
+    type Quad = [usize; 4];
+    type TileId = usize;
+    type SubTile = usize;
 
-impl Fractal {
-    pub fn new() -> Self {
-        let mut nodes = IndexSet::new();
-        nodes.insert([0; 4]);
-        Self { root: 0, nodes }
+    #[derive(Debug)]
+    pub struct Fractal {
+        root: usize,
+        nodes: IndexSet<Quad>,
     }
 
-    pub fn load(root: usize, node_array: impl IntoIterator<Item = [usize; 4]>) -> Self {
-        let nodes = node_array.into_iter().collect::<IndexSet<[usize; 4]>>();
-        Self { root, nodes }
-    }
-
-    pub fn set(&mut self, path: impl IntoIterator<Item = usize>, node: usize) -> usize {
-        // expand each child in the path
-        let mut replaced_node = self.root;
-        let expansions = path
-            .into_iter()
-            .map(|next| {
-                let children = self.nodes[replaced_node];
-                replaced_node = children[next];
-                (children, next)
-            })
-            .collect::<Vec<_>>();
-
-        if replaced_node == node {
-            return node;
+    impl Fractal {
+        pub fn new() -> Self {
+            let mut nodes = IndexSet::new();
+            nodes.insert([0; 4]);
+            Self { root: 0, nodes }
         }
 
-        // backtrack each expansion, replacing the old nodes with new ones each time
-        self.root = expansions
-            .into_iter()
-            .rev()
-            .fold(node, |cur_node, (mut quad, child)| {
-                quad[child] = cur_node;
-                self.nodes.insert_full(quad).0
-            });
+        pub fn load(root: TileId, node_array: impl IntoIterator<Item = Quad>) -> Self {
+            let nodes = node_array.into_iter().collect::<IndexSet<Quad>>();
+            Self { root, nodes }
+        }
 
-        replaced_node
+        pub fn set(&mut self, path: impl IntoIterator<Item = SubTile>, node: TileId) -> TileId {
+            // expand each child in the path
+            let mut replaced_node = self.root;
+            let expansions = path
+                .into_iter()
+                .map(|next| {
+                    let children = self.nodes[replaced_node];
+                    replaced_node = children[next];
+                    (children, next)
+                })
+                .collect::<Vec<_>>();
+
+            if replaced_node == node {
+                return node;
+            }
+
+            // backtrack each expansion, replacing the old nodes with new ones each time
+            self.root = expansions
+                .into_iter()
+                .rev()
+                .fold(node, |cur_node, (mut quad, child)| {
+                    quad[child] = cur_node;
+                    self.nodes.insert_full(quad).0
+                });
+
+            replaced_node
+        }
+    }
+
+    impl<T: IntoIterator<Item = usize>> Index<T> for Fractal {
+        type Output = usize;
+
+        fn index(&self, path: T) -> &Self::Output {
+            path.into_iter().fold(&self.root, |r, i| &self.nodes[*r][i])
+        }
     }
 }
-
-impl<T: IntoIterator<Item = usize>> Index<T> for Fractal {
-    type Output = usize;
-
-    fn index(&self, path: T) -> &Self::Output {
-        path.into_iter().fold(&self.root, |r, i| &self.nodes[*r][i])
-    }
-}
-```*/

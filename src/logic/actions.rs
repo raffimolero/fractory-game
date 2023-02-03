@@ -1,14 +1,25 @@
-use super::{orientation::Transform, path::TileOffset};
+use super::{
+    orientation::Transform,
+    path::{TileOffset, TilePos},
+    tile::Tile,
+};
 
-pub struct Move {
-    from: TileOffset,
-    to: TileOffset,
-    transform: Transform,
+/// behavior that a fragment can have
+pub struct TileAct {
+    from: TilePos,
+    act: TreeAct,
 }
 
-pub enum Action {
-    Move(Move),
-    Activate(TileOffset),
+/// action to do at an exact node
+pub enum TreeAct {
+    /// moves this fragment to another tile
+    Move(TileOffset, Transform),
+
+    /// stores this fragment in the player's inventory
+    Store,
+
+    /// activates this tile in the next tick
+    Activate,
 }
 
 enum Node<T> {
@@ -17,7 +28,11 @@ enum Node<T> {
 }
 
 /*
-TODO: figure out how ActionTree should work
+TODO: figure out how Actions should work
+
+notes:
+    - cache tilepos per node in fractal?
+    - store activations in btreeset, sorted by depth and executed from deepest to top?
 
 required:
     - moving tiles from one place to another with a transformation
@@ -29,12 +44,13 @@ required:
     - cascade collisions by backtracking dependencies, everything else should be able to move
 
 */
-pub struct ActionTree {
-    library: Vec<Node<Option<Action>>>,
+
+pub struct Actions {
+    library: Vec<Node<Option<TileAct>>>,
     root: usize,
 }
 
-impl ActionTree {
+impl Actions {
     pub fn new() -> Self {
         Self {
             library: vec![],
