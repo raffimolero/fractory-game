@@ -6,9 +6,7 @@ use super::{
     orientation::Transform,
     tile::{QuadTile, Tile},
 };
-use std::{collections::HashMap, ops::Index};
-
-use indexmap::IndexSet;
+use std::collections::HashMap;
 
 struct Fractal {
     root: Tile,
@@ -83,6 +81,9 @@ impl Fractal {
 
 pub use only_for_reference::Fractal as BoringFractal;
 mod only_for_reference {
+    use indexmap::IndexSet;
+    use std::ops::Index;
+
     type Quad = [usize; 4];
     type TileId = usize;
     type SubTile = usize;
