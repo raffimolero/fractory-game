@@ -1,3 +1,5 @@
+use std::iter::repeat;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Item(i32);
 
@@ -13,10 +15,20 @@ struct Moves {
 }
 
 impl Moves {
-    fn fix(&mut self) {}
+    fn fix(&mut self) {
+        
+    }
 
     fn to_actions(self) -> Vec<Option<Item>> {
-        
+        let mut v = vec![];
+        let mut append = |idx: usize, item: Item| {
+            if v.len() < idx {
+                let compensation = idx - v.len();
+                v.extend(repeat(None).take(compensation));
+                
+            }
+        };
+        todo!()
     }
 }
 
