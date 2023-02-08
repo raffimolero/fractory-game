@@ -1,3 +1,10 @@
+        from-ct  to-ct  result
+empty     _        0    empty
+empty     _        1    filled
+empty     _        2    err
+filled    1             empty
+filled    _             filled
+
 event loop path:
 a clock tick
 tells the app
