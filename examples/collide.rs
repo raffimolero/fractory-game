@@ -165,8 +165,7 @@ impl Moves {
 
                 loop {
                     self.0.swap_remove(backtrack_idx);
-                    if backtrack_idx != self.0.len() {
-                        let moved = self.0[backtrack_idx];
+                    if let Some(moved) = self.0.get(backtrack_idx) {
                         assert_eq!(slots[moved.dst.0], Some(self.0.len()));
                         slots[moved.dst.0] = Some(backtrack_idx);
                     }
