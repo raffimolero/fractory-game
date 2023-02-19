@@ -160,22 +160,20 @@ impl Moves {
         let mut cur = 0;
         'a: while cur < self.0.len() {
             let Move { src: _, dst } = self.0[cur];
-            if !src_set.contains(&dst.0) {
-                if !things[dst].is_hole() {
-                    let mut backtrack_idx = cur;
+            if !src_set.contains(&dst.0) && !things[dst].is_hole() {
+                let mut backtrack_idx = cur;
 
-                    loop {
-                        self.0.swap_remove(backtrack_idx);
-                        if backtrack_idx != self.0.len() {
-                            let moved = self.0[backtrack_idx];
-                            assert_eq!(slots[moved.dst.0], Some(self.0.len()));
-                            slots[moved.dst.0] = Some(backtrack_idx);
-                        }
-                        if let Some(idx) = slots[self.0[backtrack_idx].src.0] {
-                            backtrack_idx = idx;
-                        } else {
-                            continue 'a;
-                        }
+                loop {
+                    self.0.swap_remove(backtrack_idx);
+                    if backtrack_idx != self.0.len() {
+                        let moved = self.0[backtrack_idx];
+                        assert_eq!(slots[moved.dst.0], Some(self.0.len()));
+                        slots[moved.dst.0] = Some(backtrack_idx);
+                    }
+                    if let Some(idx) = slots[self.0[backtrack_idx].src.0] {
+                        backtrack_idx = idx;
+                    } else {
+                        continue 'a;
                     }
                 }
             }
