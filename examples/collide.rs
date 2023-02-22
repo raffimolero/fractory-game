@@ -28,17 +28,17 @@ struct Moves(Vec<Move>);
 struct VerifiedMoves(Moves);
 
 impl Moves {
-    fn clean(mut self, things: &Things) -> VerifiedMoves {
+    fn clean(mut self, items: &Items) -> VerifiedMoves {
         // first solve empties and dupes and forks,
         // then solve merges,
         // then solve dead ends and backtrack.
-        self.clean_sources(things);
-        self.clean_merges(things.0.len());
-        self.clean_dead_ends(things);
+        self.clean_sources(items);
+        self.clean_merges(items.0.len());
+        self.clean_dead_ends(items);
         VerifiedMoves(self)
     }
 
-    fn clean_sources(&mut self, things: &Things) {
+    fn clean_sources(&mut self, items: &Items) {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         enum Status {
             Free,         // the slot is free
@@ -48,7 +48,7 @@ impl Moves {
         use Status::*;
 
         // tells the status of each slot
-        let mut slots = vec![Free; things.0.len()];
+        let mut slots = vec![Free; items.0.len()];
 
         // the index of the move being checked at the moment
         let mut cur = 0;
@@ -56,7 +56,7 @@ impl Moves {
             let Move { src, dst } = self.0[cur];
 
             // check if source is empty
-            if things[src].is_hole() {
+            if items[src].is_hole() {
                 self.0.swap_remove(cur);
                 continue;
             }
@@ -149,8 +149,8 @@ impl Moves {
         }
     }
 
-    fn clean_dead_ends(&mut self, things: &Things) {
-        let mut slots = vec![None; things.0.len()];
+    fn clean_dead_ends(&mut self, items: &Items) {
+        let mut slots = vec![None; items.0.len()];
         let mut src_set = HashSet::new();
         for (i, mv) in self.0.iter().enumerate() {
             slots[mv.dst.0] = Some(i);
@@ -160,7 +160,7 @@ impl Moves {
         let mut cur = 0;
         'a: while cur < self.0.len() {
             let Move { src: _, dst } = self.0[cur];
-            if !src_set.contains(&dst.0) && !things[dst].is_hole() {
+            if !src_set.contains(&dst.0) && !items[dst].is_hole() {
                 let mut backtrack_idx = cur;
 
                 loop {
@@ -186,16 +186,16 @@ struct Actions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Things(Vec<Item>);
+struct Items(Vec<Item>);
 
-impl Things {
+impl Items {
     fn do_moves(&mut self, moves: Moves) {
-        moves.clean(self);
+        let verified = moves.clean(self);
         todo!()
     }
 }
 
-impl Index<Idx> for Things {
+impl Index<Idx> for Items {
     type Output = Item;
 
     fn index(&self, index: Idx) -> &Self::Output {
@@ -203,8 +203,67 @@ impl Index<Idx> for Things {
     }
 }
 
+#[test]
+fn test_random() {
+    use rand::prelude::*;
+    let mut rng = thread_rng();
+    for i in 0..8 {
+        println!("iteration {i}");
+        let item_count = rng.gen_range(32..64);
+        let mut random_item = |_| {
+            if rng.gen() {
+                0
+            } else {
+                rng.gen_range(1..10)
+            }
+        };
+        let items = (0..item_count)
+            .map(random_item)
+            .map(Item)
+            .collect::<Vec<Item>>();
+        let items = Items(items);
+
+        let move_ct = rng.gen_range(32..64);
+        let mut random_num = || rng.gen_range(0..item_count);
+        let moves = (0..move_ct)
+            .map(|_| Move {
+                src: Idx(random_num()),
+                dst: Idx(random_num()),
+            })
+            .collect::<Vec<Move>>();
+
+        let moves = Moves(moves);
+
+        // for Move {
+        //     src: Idx(src),
+        //     dst: Idx(dst),
+        // } in &moves.0
+        // {
+        //     println!("{src:?}-{dst:?}");
+        // }
+
+        let moves = moves.clean(&items);
+
+        // for Move {
+        //     src: Idx(src),
+        //     dst: Idx(dst),
+        // } in &moves.0 .0
+        // {
+        //     println!("{src:?}-{dst:?}");
+        // }
+
+        // for item in items.0 {
+        //     if item.is_hole() {
+        //         print!("_,");
+        //     } else {
+        //         print!("{},", item.0);
+        //     }
+        // }
+    }
+}
+
 fn main() {
-    let mut items = Things([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
+    let mut items = Items([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
 
     let moves = [(0, 7), (7, 8), (5, 6), (6, 2), (1, 2), (2, 3), (3, 4)]
         .map(|(src, dst)| Move {
