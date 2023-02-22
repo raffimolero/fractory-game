@@ -3,6 +3,8 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use rand::prelude::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Item(usize);
 
@@ -205,7 +207,6 @@ impl Index<Idx> for Items {
 
 #[test]
 fn test_random() {
-    use rand::prelude::*;
     let mut rng = thread_rng();
     for i in 0..8 {
         println!("iteration {i}");
@@ -265,12 +266,13 @@ fn test_random() {
 fn main() {
     let mut items = Items([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
 
-    let moves = [(0, 7), (7, 8), (5, 6), (6, 2), (1, 2), (2, 3), (3, 4)]
+    let mut moves = [(0, 7), (7, 8), (5, 6), (6, 2), (1, 2), (2, 3), (3, 4)]
         .map(|(src, dst)| Move {
             src: Idx(src),
             dst: Idx(dst),
         })
         .to_vec();
+    moves.shuffle(&mut thread_rng());
     let mut moves = Moves(moves);
 
     println!("items");
