@@ -86,6 +86,8 @@ impl Moves {
         let mut cur = 0;
         while cur < moves.len() {
             let Move { src, dst } = moves[cur];
+            // dbg!(&moves);
+            // dbg!(&slots);
 
             // println!();
             // println!("Moves");
@@ -123,22 +125,22 @@ impl Moves {
             }
 
             let slot_state = &mut slots[src];
-            println!("slot state: {slot_state:?}");
             match *slot_state {
                 Status::Free => *slot_state = Status::Taken(cur),
                 // check if they're actually the same
                 Status::Taken(old) if moves[old].dst != dst => {
-                    println!("unique");
                     *slot_state = Status::Bad;
-                    dbg!(moves.swap_remove(dbg!(cur)));
+                    moves.swap_remove(cur);
                     cur -= 1;
 
                     let Move { src, dst: _ } = moves[cur];
 
-                    slots[src] = Status::Taken(old);
+                    if let Status::Taken(addr) = &mut slots[src] {
+                        *addr = old;
+                    }
 
                     moves.swap(old, cur);
-                    dbg!(moves.swap_remove(dbg!(cur)));
+                    moves.swap_remove(cur);
                     continue;
                 }
                 _ => {
@@ -163,32 +165,37 @@ impl Moves {
         }
         use Status::*;
 
+        let moves = &mut self.0;
         // tells the status of each slot
-        let mut slots = vec![Free; thing_count];
+        let mut slots = Data(vec![Free; thing_count]);
 
         // the index of the move being checked at the moment
         let mut cur = 0;
-        while cur < self.0.len() {
-            let Move { src: _, dst } = self.0[cur];
+        while cur < moves.len() {
+            let Move { src, dst } = moves[cur];
+            // dbg!(&moves);
+            // dbg!(&slots);
 
-            let slot_state = &mut slots[dst.0];
+            let slot_state = &mut slots[dst];
             match *slot_state {
                 Status::Free => *slot_state = Status::Taken(cur),
-                Status::Taken(old) => {
+                Status::Taken(old) /*if moves[old].src != src*/ => {
                     *slot_state = Status::Bad;
-                    self.0.swap_remove(cur);
+                    moves.swap_remove(cur);
                     cur -= 1;
 
-                    let Move { src: _, dst } = self.0[cur];
+                    let Move { src: _, dst } = moves[cur];
 
-                    slots[dst.0] = Status::Taken(old);
+                    if let Status::Taken(addr) = &mut slots[dst] {
+                        *addr = old;
+                    }
 
-                    self.0.swap(old, cur);
-                    self.0.swap_remove(cur);
+                    moves.swap(old, cur);
+                    moves.swap_remove(cur);
                     continue;
                 }
-                Status::Bad => {
-                    self.0.swap_remove(cur);
+                _ => {
+                    moves.swap_remove(cur);
                     continue;
                 }
             }
@@ -280,12 +287,14 @@ mod tests {
     //     moves.clean(&items);
     // }
 
-    #[test]
+    // #[test]
     fn fuzz_fails() {
-        let fails = [(
-            vec![1, 1],
-            vec![[0, 1], [0, 0], [1, 1], [1, 0], [0, 0], [0, 1]],
-        )];
+        let fails = [
+            (vec![1, 1, 1, 1], vec![[0, 0], [0, 1], [0, 2]]),
+            (vec![1, 1, 1, 1], vec![[0, 3], [1, 0], [2, 0]]),
+            (vec![1, 1, 1, 1], vec![[0, 0], [1, 0], [2, 0]]),
+        ];
+
         for (i, (it, mv)) in fails.into_iter().enumerate() {
             println!("{i}");
             let items = Data(it.into_iter().map(Item).collect());
@@ -297,16 +306,17 @@ mod tests {
                     })
                     .collect(),
             );
-            moves.clean(&items);
+            let moves = moves.clean(&items);
+            println!("{moves:#?}");
         }
     }
 
-    // #[test]
+    #[test]
     fn fuzz() {
         let mut fails = vec![];
-        while fails.len() < 1 {
-            let items = random_items(2..8);
-            let moves = random_moves(items.0.len(), 2..8);
+        for _ in 0..255 {
+            let items = random_items(2..16);
+            let moves = random_moves(items.0.len(), 2..16);
             let saved_items = items
                 .0
                 .iter()
