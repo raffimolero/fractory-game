@@ -45,9 +45,6 @@ struct Move {
 #[derive(Debug, Clone)]
 struct Moves(Vec<Move>);
 
-#[derive(Debug, Clone)]
-struct VerifiedMoves(Moves);
-
 impl Moves {
     fn new<const N: usize>(stuff: [[usize; 2]; N]) -> Self {
         Self(
@@ -59,6 +56,7 @@ impl Moves {
                 .to_vec(),
         )
     }
+
     fn clean(mut self, items: &Items) -> VerifiedMoves {
         // first solve empties and dupes and forks,
         // then solve merges,
@@ -235,9 +233,25 @@ impl Moves {
     }
 }
 
-struct Actions {
-    actions: Vec<(Idx, Item)>,
+#[derive(Debug, Clone)]
+struct VerifiedMoves(Moves);
+
+impl VerifiedMoves {
+    fn to_actions(self, items: &Items) -> Actions {
+        let mut slots = Data(vec![None; items.0.len()]);
+        for Move { src, dst: _ } in &self.0 .0 {
+            assert!(slots[*src].is_none());
+            slots[*src] = Some(Item(0));
+        }
+        for Move { src, dst } in self.0 .0 {
+            assert!(matches!(slots[dst], None | Some(Item(0))));
+            slots[dst] = Some(items[src]);
+        }
+        Actions(slots)
+    }
 }
+
+struct Actions(Data<Option<Item>>);
 
 #[cfg(test)]
 mod tests {
@@ -314,7 +328,7 @@ mod tests {
     #[test]
     fn fuzz() {
         let mut fails = vec![];
-        for _ in 0..255 {
+        for i in 0..1 << 10 {
             let items = random_items(2..16);
             let moves = random_moves(items.0.len(), 2..16);
             let saved_items = items
@@ -329,7 +343,7 @@ mod tests {
                 .map(|Move { src, dst }| [src.0, dst.0])
                 .collect::<Vec<[usize; 2]>>();
 
-            if catch_unwind(|| moves.clean(&items)).is_err() {
+            if catch_unwind(|| moves.clean(&items).to_actions(&items)).is_err() {
                 fails.push((saved_items, saved_moves));
             }
         }
