@@ -14,8 +14,27 @@ impl Item {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Data<T>(Vec<T>);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Idx(usize);
+
+impl<T> Index<Idx> for Data<T> {
+    type Output = T;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        &self.0[index.0]
+    }
+}
+
+impl<T> IndexMut<Idx> for Data<T> {
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+        &mut self.0[index.0]
+    }
+}
+
+type Items = Data<Item>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Move {
@@ -30,6 +49,16 @@ struct Moves(Vec<Move>);
 struct VerifiedMoves(Moves);
 
 impl Moves {
+    fn new<const N: usize>(stuff: [[usize; 2]; N]) -> Self {
+        Self(
+            stuff
+                .map(|[src, dst]| Move {
+                    src: Idx(src),
+                    dst: Idx(dst),
+                })
+                .to_vec(),
+        )
+    }
     fn clean(mut self, items: &Items) -> VerifiedMoves {
         // first solve empties and dupes and forks,
         // then solve merges,
@@ -49,48 +78,71 @@ impl Moves {
         }
         use Status::*;
 
+        let moves = &mut self.0;
         // tells the status of each slot
-        let mut slots = vec![Free; items.0.len()];
+        let mut slots = Data(vec![Free; items.0.len()]);
 
         // the index of the move being checked at the moment
         let mut cur = 0;
-        while cur < self.0.len() {
-            let Move { src, dst } = self.0[cur];
+        while cur < moves.len() {
+            let Move { src, dst } = moves[cur];
+
+            // println!();
+            // println!("Moves");
+            // for (
+            //     i,
+            //     Move {
+            //         src: Idx(src),
+            //         dst: Idx(dst),
+            //     },
+            // ) in moves.iter().enumerate()
+            // {
+            //     if i == cur {
+            //         print!("{i:>2}> ");
+            //     } else {
+            //         print!("    ");
+            //     }
+            //     println!("{src}-{dst}");
+            // }
+
+            // println!("Slots");
+            // for status in &slots.0 {
+            //     match status {
+            //         Free => print!("__, "),
+            //         Taken(idx) => print!("{idx:02}, "),
+            //         Bad => print!("XX, "),
+            //     }
+            // }
+            // println!();
+            // println!("{}^^", "    ".repeat(src.0));
 
             // check if source is empty
             if items[src].is_hole() {
-                self.0.swap_remove(cur);
+                moves.swap_remove(cur);
                 continue;
             }
 
-            let slot_state = &mut slots[src.0];
+            let slot_state = &mut slots[src];
+            println!("slot state: {slot_state:?}");
             match *slot_state {
                 Status::Free => *slot_state = Status::Taken(cur),
                 // check if they're actually the same
-                Status::Taken(old) if self.0[old].dst != dst => {
+                Status::Taken(old) if moves[old].dst != dst => {
+                    println!("unique");
                     *slot_state = Status::Bad;
-                    self.0.swap_remove(cur);
+                    dbg!(moves.swap_remove(dbg!(cur)));
                     cur -= 1;
 
-                    let Move { src, dst: _ } = self.0[cur];
+                    let Move { src, dst: _ } = moves[cur];
 
-                    assert_eq!(
-                        slots[src.0],
-                        if old == cur {
-                            Status::Bad
-                        } else {
-                            Status::Taken(cur)
-                        }
-                    );
+                    slots[src] = Status::Taken(old);
 
-                    slots[src.0] = Status::Taken(old);
-
-                    self.0.swap(old, cur);
-                    self.0.swap_remove(cur);
+                    moves.swap(old, cur);
+                    dbg!(moves.swap_remove(dbg!(cur)));
                     continue;
                 }
                 _ => {
-                    self.0.swap_remove(cur);
+                    moves.swap_remove(cur);
                     continue;
                 }
             }
@@ -102,9 +154,12 @@ impl Moves {
     fn clean_merges(&mut self, thing_count: usize) {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         enum Status {
-            Free,         // the slot is free
-            Taken(usize), // the slot is taken by a move at this index
-            Bad,          // the slot is taken by multiple moves
+            // the slot is free
+            Free,
+            // the slot is taken by a move at this index
+            Taken(usize),
+            // the slot is taken by multiple moves
+            Bad,
         }
         use Status::*;
 
@@ -125,15 +180,6 @@ impl Moves {
                     cur -= 1;
 
                     let Move { src: _, dst } = self.0[cur];
-
-                    assert_eq!(
-                        slots[dst.0],
-                        if old == cur {
-                            Status::Bad
-                        } else {
-                            Status::Taken(cur)
-                        }
-                    );
 
                     slots[dst.0] = Status::Taken(old);
 
@@ -166,16 +212,15 @@ impl Moves {
                 let mut backtrack_idx = cur;
 
                 loop {
-                    self.0.swap_remove(backtrack_idx);
+                    let popped = self.0.swap_remove(backtrack_idx);
                     if let Some(moved) = self.0.get(backtrack_idx) {
                         assert_eq!(slots[moved.dst.0], Some(self.0.len()));
                         slots[moved.dst.0] = Some(backtrack_idx);
                     }
-                    if let Some(idx) = slots[self.0[backtrack_idx].src.0] {
-                        backtrack_idx = idx;
-                    } else {
-                        continue 'a;
-                    }
+                    match slots[popped.src.0] {
+                        Some(idx) => backtrack_idx = idx,
+                        None => continue 'a,
+                    };
                 }
             }
             cur += 1;
@@ -187,30 +232,16 @@ struct Actions {
     actions: Vec<(Idx, Item)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Items(Vec<Item>);
+#[cfg(test)]
+mod tests {
+    use std::{ops::Range, panic::catch_unwind};
 
-impl Items {
-    fn do_moves(&mut self, moves: Moves) {
-        let verified = moves.clean(self);
-        todo!()
-    }
-}
+    use super::*;
 
-impl Index<Idx> for Items {
-    type Output = Item;
+    fn random_items(item_count: Range<usize>) -> Items {
+        let mut rng = thread_rng();
 
-    fn index(&self, index: Idx) -> &Self::Output {
-        &self.0[index.0]
-    }
-}
-
-#[test]
-fn test_random() {
-    let mut rng = thread_rng();
-    for i in 0..8 {
-        println!("iteration {i}");
-        let item_count = rng.gen_range(32..64);
+        let item_count = rng.gen_range(item_count);
         let mut random_item = |_| {
             if rng.gen() {
                 0
@@ -218,13 +249,19 @@ fn test_random() {
                 rng.gen_range(1..10)
             }
         };
+
         let items = (0..item_count)
             .map(random_item)
             .map(Item)
             .collect::<Vec<Item>>();
-        let items = Items(items);
 
-        let move_ct = rng.gen_range(32..64);
+        Data(items)
+    }
+
+    fn random_moves(item_count: usize, move_count: Range<usize>) -> Moves {
+        let mut rng = thread_rng();
+
+        let move_ct = rng.gen_range(move_count);
         let mut random_num = || rng.gen_range(0..item_count);
         let moves = (0..move_ct)
             .map(|_| Move {
@@ -233,38 +270,72 @@ fn test_random() {
             })
             .collect::<Vec<Move>>();
 
-        let moves = Moves(moves);
+        Moves(moves)
+    }
 
-        // for Move {
-        //     src: Idx(src),
-        //     dst: Idx(dst),
-        // } in &moves.0
-        // {
-        //     println!("{src:?}-{dst:?}");
-        // }
+    // #[test]
+    // fn test_dead_end() {
+    //     let items = Items::new([1, 1, 1]);
+    //     let moves = Moves::new([[0, 1], [1, 2]]);
+    //     moves.clean(&items);
+    // }
 
-        let moves = moves.clean(&items);
+    #[test]
+    fn fuzz_fails() {
+        let fails = [(
+            vec![1, 1],
+            vec![[0, 1], [0, 0], [1, 1], [1, 0], [0, 0], [0, 1]],
+        )];
+        for (i, (it, mv)) in fails.into_iter().enumerate() {
+            println!("{i}");
+            let items = Data(it.into_iter().map(Item).collect());
+            let mut moves = Moves(
+                mv.into_iter()
+                    .map(|[src, dst]| Move {
+                        src: Idx(src),
+                        dst: Idx(dst),
+                    })
+                    .collect(),
+            );
+            moves.clean(&items);
+        }
+    }
 
-        // for Move {
-        //     src: Idx(src),
-        //     dst: Idx(dst),
-        // } in &moves.0 .0
-        // {
-        //     println!("{src:?}-{dst:?}");
-        // }
+    // #[test]
+    fn fuzz() {
+        let mut fails = vec![];
+        while fails.len() < 1 {
+            let items = random_items(2..8);
+            let moves = random_moves(items.0.len(), 2..8);
+            let saved_items = items
+                .0
+                .iter()
+                .map(|Item(x)| (*x != 0) as u8)
+                .collect::<Vec<u8>>();
+            let saved_moves = moves
+                .clone()
+                .0
+                .iter()
+                .map(|Move { src, dst }| [src.0, dst.0])
+                .collect::<Vec<[usize; 2]>>();
 
-        // for item in items.0 {
-        //     if item.is_hole() {
-        //         print!("_,");
-        //     } else {
-        //         print!("{},", item.0);
-        //     }
-        // }
+            if catch_unwind(|| moves.clean(&items)).is_err() {
+                fails.push((saved_items, saved_moves));
+            }
+        }
+        println!("let fails = [");
+        for (it, mv) in fails {
+            println!("  (");
+            println!("    vec!{it:?},");
+            println!("    vec!{mv:?},");
+            println!("  ),");
+        }
+        println!("];");
     }
 }
 
 fn main() {
-    let mut items = Items([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
+    let mut items = Data([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
 
     let mut moves = [(0, 7), (7, 8), (5, 6), (6, 2), (1, 2), (2, 3), (3, 4)]
         .map(|(src, dst)| Move {
