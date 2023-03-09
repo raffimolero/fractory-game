@@ -49,7 +49,7 @@ impl SubTile {
     const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
 }
 
-/**
+/*
 ```txt
   /\
  /yx\
@@ -161,6 +161,10 @@ template
 /____\/____\/____\/____\/____\/____\/____\/____\/
 ```
 */
+
+/// An offset that can be added to a TilePos, or rotated and reflected.
+///
+/// Can only move within the same level or deeper, not higher.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TileOffset {
     depth: u8,
@@ -203,7 +207,7 @@ impl TileOffset {
     }
 }
 
-/**
+/*
 ```txt
 on upscaling
   /\
@@ -283,6 +287,11 @@ on upscaling
 /____\/____\/____\/____\/____\/____\/____\/____\
 ```
 */
+
+/// Locates a specific triangle inside of a fractal.
+///
+/// Functions like a Vec<SubTile> with its push/pop methods.
+/// Can only iterate in reverse; from broad to narrow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
     depth: u8,
@@ -314,10 +323,7 @@ impl TilePos {
             && self.row() < self.height()
     }
 
-    /// locates this point in its encompassing triangle
-    ///
-    /// you must provide which subtriangle this is relative to the larger triangle
-    pub fn promote(&mut self, placement: SubTile) {
+    pub fn push(&mut self, placement: SubTile) {
         let h = self.height();
         self.depth += 1;
         match placement {
@@ -338,36 +344,44 @@ impl TilePos {
         }
     }
 
-    /// finds which subtriangle this point is in
-    pub fn demote(&mut self) -> SubTile {
-        self.depth -= 1;
+    pub fn pop(&mut self) -> Option<SubTile> {
+        self.depth = self.depth.checked_sub(1)?;
+
         let h = self.height();
 
         if self.row() < h {
-            return SubTile::U;
+            return Some(SubTile::U);
         }
 
         self.pos.y -= h;
         if self.pos.x <= self.pos.y {
-            return SubTile::L;
+            return Some(SubTile::L);
         }
 
         if self.pos.x >= h {
             self.pos.x -= h;
-            return SubTile::R;
+            return Some(SubTile::R);
         }
 
         self.pos.y = h - 2 - self.pos.y;
         self.pos.x = h - 1 - self.pos.x;
         self.flop ^= true;
-        SubTile::C
+        Some(SubTile::C)
+    }
+}
+
+impl Iterator for TilePos {
+    type Item = SubTile;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
     }
 }
 
 impl AddAssign<TileOffset> for TilePos {
     fn add_assign(&mut self, mut rhs: TileOffset) {
         for _ in 0..rhs.depth {
-            self.promote(SubTile::C);
+            self.push(SubTile::C);
         }
         if self.flop {
             rhs.offset *= -1;

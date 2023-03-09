@@ -13,21 +13,23 @@ fn test_subtiles() {
         }
         for subtile in SubTile::ORDER {
             let save = *pos;
-            pos.promote(subtile);
+            pos.push(subtile);
             assert!(pos.is_valid());
             assert!(set.insert(*pos));
             println!("{pos:?}");
 
             inner(pos, set, depth - 1);
 
-            assert_eq!(pos.demote(), subtile);
+            assert_eq!(pos.pop(), Some(subtile));
             assert_eq!(*pos, save);
         }
     }
 
     let mut pos = TilePos::UNIT;
+    assert_eq!(pos.pop(), None);
     let mut set = HashSet::new();
     inner(&mut pos, &mut set, 5);
+    assert_eq!(pos.pop(), None);
 }
 
 #[test]
@@ -35,7 +37,7 @@ fn test_supertile_path() {
     let mut pos = TilePos::UNIT;
 
     let a = pos;
-    pos.promote(SubTile::L);
+    pos.push(SubTile::L);
     assert_eq!(
         pos,
         TilePos {
@@ -46,7 +48,7 @@ fn test_supertile_path() {
     );
 
     let b = pos;
-    pos.promote(SubTile::U);
+    pos.push(SubTile::U);
     assert_eq!(
         pos,
         TilePos {
@@ -57,7 +59,7 @@ fn test_supertile_path() {
     );
 
     let c = pos;
-    pos.promote(SubTile::C);
+    pos.push(SubTile::C);
     assert_eq!(
         pos,
         TilePos {
@@ -68,7 +70,7 @@ fn test_supertile_path() {
     );
 
     let d = pos;
-    pos.promote(SubTile::R);
+    pos.push(SubTile::R);
     assert_eq!(
         pos,
         TilePos {
@@ -78,14 +80,17 @@ fn test_supertile_path() {
         }
     );
 
-    assert_eq!(pos.demote(), SubTile::R);
+    assert_eq!(pos.pop(), Some(SubTile::R));
     assert_eq!(pos, d);
-    assert_eq!(pos.demote(), SubTile::C);
+    assert_eq!(pos.pop(), Some(SubTile::C));
     assert_eq!(pos, c);
-    assert_eq!(pos.demote(), SubTile::U);
+    assert_eq!(pos.pop(), Some(SubTile::U));
     assert_eq!(pos, b);
-    assert_eq!(pos.demote(), SubTile::L);
+    assert_eq!(pos.pop(), Some(SubTile::L));
     assert_eq!(pos, a);
+    assert_eq!(pos.pop(), None);
+    assert_eq!(pos, a);
+    assert_eq!(pos, TilePos::UNIT);
 }
 
 #[test]

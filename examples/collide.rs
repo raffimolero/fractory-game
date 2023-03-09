@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    fmt::Display,
     ops::{Index, IndexMut},
 };
 
@@ -14,8 +15,24 @@ impl Item {
     }
 }
 
+impl Display for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_hole() {
+            write!(f, ".")
+        } else {
+            write!(f, "{}", self.0)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Data<T>(Vec<T>);
+
+impl<T> Data<T> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Idx(usize);
@@ -34,7 +51,28 @@ impl<T> IndexMut<Idx> for Data<T> {
     }
 }
 
-type Items = Data<Item>;
+#[derive(Clone)]
+struct Items(Data<Item>);
+
+impl Items {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl Index<Idx> for Items {
+    type Output = Item;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<Idx> for Items {
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Move {
@@ -57,12 +95,16 @@ impl Moves {
         )
     }
 
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
     fn clean(mut self, items: &Items) -> VerifiedMoves {
         // first solve empties and dupes and forks,
         // then solve merges,
         // then solve dead ends and backtrack.
         self.clean_sources(items);
-        self.clean_merges(items.0.len());
+        self.clean_merges(items.len());
         self.clean_dead_ends(items);
         VerifiedMoves(self)
     }
@@ -78,7 +120,7 @@ impl Moves {
 
         let moves = &mut self.0;
         // tells the status of each slot
-        let mut slots = Data(vec![Free; items.0.len()]);
+        let mut slots = Data(vec![Free; items.len()]);
 
         // the index of the move being checked at the moment
         let mut cur = 0;
@@ -203,7 +245,7 @@ impl Moves {
     }
 
     fn clean_dead_ends(&mut self, items: &Items) {
-        let mut slots = vec![None; items.0.len()];
+        let mut slots = vec![None; items.len()];
         let mut src_set = HashSet::new();
         for (i, mv) in self.0.iter().enumerate() {
             slots[mv.dst.0] = Some(i);
@@ -211,7 +253,7 @@ impl Moves {
         }
 
         let mut cur = 0;
-        'a: while cur < self.0.len() {
+        'a: while cur < self.len() {
             let Move { src: _, dst } = self.0[cur];
             if !src_set.contains(&dst.0) && !items[dst].is_hole() {
                 let mut backtrack_idx = cur;
@@ -219,7 +261,7 @@ impl Moves {
                 loop {
                     let popped = self.0.swap_remove(backtrack_idx);
                     if let Some(moved) = self.0.get(backtrack_idx) {
-                        assert_eq!(slots[moved.dst.0], Some(self.0.len()));
+                        assert_eq!(slots[moved.dst.0], Some(self.len()));
                         slots[moved.dst.0] = Some(backtrack_idx);
                     }
                     match slots[popped.src.0] {
@@ -238,7 +280,7 @@ struct VerifiedMoves(Moves);
 
 impl VerifiedMoves {
     fn to_actions(self, items: &Items) -> Actions {
-        let mut slots = Data(vec![None; items.0.len()]);
+        let mut slots = Data(vec![None; items.len()]);
         for Move { src, dst: _ } in &self.0 .0 {
             assert!(slots[*src].is_none());
             slots[*src] = Some(Item(0));
@@ -251,7 +293,18 @@ impl VerifiedMoves {
     }
 }
 
+#[derive(Debug, Clone)]
 struct Actions(Data<Option<Item>>);
+
+impl Actions {
+    fn perform(&self, items: &mut Items) {
+        for (item, action) in items.0 .0.iter_mut().zip(self.0 .0.iter().copied()) {
+            if let Some(new) = action {
+                *item = new;
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -330,7 +383,7 @@ mod tests {
         let mut fails = vec![];
         for i in 0..1 << 10 {
             let items = random_items(2..16);
-            let moves = random_moves(items.0.len(), 2..16);
+            let moves = random_moves(items.len(), 2..16);
             let saved_items = items
                 .0
                 .iter()
@@ -358,8 +411,14 @@ mod tests {
     }
 }
 
+struct ItemData(Vec<Vec<Move>>);
+
+// TODO: make this interactive so you can place stuff on a linear array
+// they must have behavior
+// basically fractory but without the fractals and it's just on a line
+
 fn main() {
-    let mut items = Data([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec());
+    let mut items = Items(Data([1, 2, 3, 0, 5, 6, 7, 8, 0].map(Item).to_vec()));
 
     let mut moves = [(0, 7), (7, 8), (5, 6), (6, 2), (1, 2), (2, 3), (3, 4)]
         .map(|(src, dst)| Move {
@@ -371,8 +430,8 @@ fn main() {
     let mut moves = Moves(moves);
 
     println!("items");
-    for item in &items.0 {
-        println!("{item:?}");
+    for item in &items.0 .0 {
+        println!("{item}");
     }
     println!();
 
@@ -387,6 +446,21 @@ fn main() {
     println!("moves");
     for mv in &moves.0 .0 {
         println!("{mv:?}");
+    }
+    println!();
+
+    let actions = moves.to_actions(&items);
+    println!("actions");
+    for act in &actions.0 .0 {
+        println!("{act:?}");
+    }
+    println!();
+
+    let orig = items.clone();
+    actions.perform(&mut items);
+    println!("items");
+    for (i, (orig, item)) in orig.0 .0.into_iter().zip(items.0 .0).enumerate() {
+        println!("{i}: {} {}", orig, item);
     }
     println!();
 }
