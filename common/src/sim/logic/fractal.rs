@@ -2,19 +2,29 @@
 mod tests;
 
 use super::{
-    actions::Actions,
+    actions::BatchedActions,
     orientation::Transform,
     tile::{QuadTile, Tile},
 };
 use std::collections::HashMap;
 
+/// a quadtree specialized to not have root nodes,
+/// instead relying on reference cycles to create a fractal
 struct Fractal {
+    /// the root node of the fractal; the biggest piece
     root: Tile,
+
+    /// a mapping from tile id to quadtile
+    /// the opposite of recognizer
     library: Vec<QuadTile>,
+
+    /// a mapping from quadtile to tile
+    /// the opposite of library
     recognizer: HashMap<QuadTile, Tile>,
 }
 
 impl Fractal {
+    /// creates a default fractal initialized to empty space
     pub fn new() -> Self {
         Self {
             root: Tile::SPACE,
@@ -23,12 +33,13 @@ impl Fractal {
         }
     }
 
-    // TODO: make Fragment data structure
+    // TODO: make Fragment data structure, then implement this function
     // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
     //     todo!("get fragment data such as symmetries, composition, and behaviors")
     // }
 
-    pub fn act(&mut self, actions: Actions) {
+    /// performs a batched set of actions
+    pub fn act(&mut self, actions: BatchedActions) {
         todo!("")
     }
 

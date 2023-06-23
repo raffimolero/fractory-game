@@ -1,6 +1,7 @@
-use crate::logic::path::SubTile;
-
-use super::orientation::{Orient, Transform};
+use super::{
+    orientation::{Orient, Transform},
+    path::SubTile,
+};
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

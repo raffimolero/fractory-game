@@ -6,7 +6,7 @@ use super::{
 
 /// behavior that a fragment can have
 pub struct TileAct {
-    from: TilePos,
+    target: TileOffset,
     act: TreeAct,
 }
 
@@ -23,7 +23,7 @@ pub enum TreeAct {
 }
 
 enum Node<T> {
-    Root(T),
+    Leaf(T),
     Quad([usize; 4]),
 }
 
@@ -45,12 +45,12 @@ required:
 
 */
 
-pub struct Actions {
+pub struct BatchedActions {
     library: Vec<Node<Option<TileAct>>>,
     root: usize,
 }
 
-impl Actions {
+impl BatchedActions {
     pub fn new() -> Self {
         Self {
             library: vec![],

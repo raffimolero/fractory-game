@@ -180,12 +180,12 @@ impl TileOffset {
         }
     }
 
+    // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
+    // i decided not to do that
+
     const FLIP_X: IMat2 = IMat2::new([-1, 0], [1, 1]);
     const ROT_CW: IMat2 = IMat2::new([0, 1], [-1, -1]);
     const ROT_CC: IMat2 = IMat2::new([-1, -1], [1, 0]);
-
-    // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
-    // i decided not to do that
 
     fn flip_x(&mut self) {
         self.offset = Self::FLIP_X * self.offset;
@@ -370,14 +370,6 @@ impl TilePos {
     }
 }
 
-impl Iterator for TilePos {
-    type Item = SubTile;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.pop()
-    }
-}
-
 impl AddAssign<TileOffset> for TilePos {
     fn add_assign(&mut self, mut rhs: TileOffset) {
         for _ in 0..rhs.depth {
@@ -391,3 +383,36 @@ impl AddAssign<TileOffset> for TilePos {
         assert!(self.is_valid());
     }
 }
+
+impl Iterator for TilePos {
+    type Item = SubTile;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
+    }
+}
+
+// TODO: support other topologies
+// /// an absolute position in a quadtree
+// trait Position: Default + AddAssign<Self::Relative> {
+//     /// an offset, which can be added to get a new position in a quadtree
+//     type Relative;
+
+//     /// narrows the scope of this position one layer deeper
+//     fn push(&mut self, placement: SubTile);
+
+//     /// broadens the scope of this position one layer shallower
+//     fn pop(&mut self) -> Option<SubTile>;
+
+//     /// returns whether the position is valid and within bounds
+//     fn is_valid(&self) -> bool;
+// }
+
+// /// a form of topology
+// trait Topology {
+//     /// an absolute position in a quadtree
+//     type Absolute: Position;
+
+//     /// how to transform a parent tile into a smaller subtile
+//     fn transform(subtile: SubTile) -> Mat4;
+// }

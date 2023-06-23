@@ -38,10 +38,11 @@ create main game behavior
 *REORGANIZING: (not final, some decisions are very awkward and will require trial and error)
   common/       crate, holds application logic
     src/
-      api/          holds a bunch of traits that downstream users have to implement
-                    once implemented, it's all just GameStruct::run()
-        io/           filesystem access, internet stuff, etc
+      api/          holds a bunch of traits that downstream users have to implement, "how to"
+                    once implemented, it's all just GameStruct::run()... maybe?
+        io/           how to access filesystem, how to internet stuff, etc
         ui/           traits for how elements should render?
+        data/        defines all the data types loaded by sim::io
       sim/          simulation stuff
         logic/        black box code that just magically gives output
         io/           uses common::api to do all sorts of io stuff
@@ -59,4 +60,4 @@ create main game behavior
     src/          medium scale t&e
       <poc-linear/src/*>
   .git          large scale t&e
-  ```
+```

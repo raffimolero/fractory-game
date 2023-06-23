@@ -1,16 +1,11 @@
-[package]
-name = "fractory-game"
-version = "0.1.0"
-edition = "2021"
-
 [workspace]
-members = ["./util/renderer/", "./logic/simulation"]
+members = [
+  "common",
+  # "terminal",
+  # "desktop",
+  # "web",
+  "poc-linear",
+  # "poc-fractal",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-glam = "0.22.0"
-# macroquad = "0.3.23"
-indexmap = "*"
-num_enum = "0.5.7"
-rand = "0.8.5"
