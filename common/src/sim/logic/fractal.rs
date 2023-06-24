@@ -2,7 +2,7 @@
 mod tests;
 
 use super::{
-    actions::BatchedActions,
+    actions::ActionBatch,
     orientation::Transform,
     tile::{QuadTile, Tile},
 };
@@ -39,7 +39,7 @@ impl Fractal {
     // }
 
     /// performs a batched set of actions
-    pub fn act(&mut self, actions: BatchedActions) {
+    pub fn act(&mut self, actions: ActionBatch) {
         todo!("")
     }
 

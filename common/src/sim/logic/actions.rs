@@ -4,19 +4,24 @@ use super::{
     tile::Tile,
 };
 
-/// behavior that a fragment can have
-pub struct TileAct {
-    target: TileOffset,
-    act: TreeAct,
+/// a complete action that can be done to the tree,
+/// where T is a position that is either relative (TileOffset)
+/// or absolute (TilePos)
+pub struct TargetedAction<T> {
+    target: T,
+    act: TileAction<T>,
 }
 
 /// action to do at an exact node
-pub enum TreeAct {
+pub enum TileAction<T> {
     /// moves this fragment to another tile
-    Move(TileOffset, Transform),
+    Move(T, Transform),
 
     /// stores this fragment in the player's inventory
     Store,
+
+    // /// places a fragment onto the fractal from the player's inventory
+    // Place(FragmentId),
 
     /// activates this tile in the next tick
     Activate,
@@ -25,6 +30,15 @@ pub enum TreeAct {
 enum Node<T> {
     Leaf(T),
     Quad([usize; 4]),
+}
+
+/// is able to collect any number of absolute targeted actions,
+/// resolve their dependencies,
+/// remove contradictions,
+/// and be converted into a batch.
+pub struct ActionCollector {
+    // note: each node can have an infinite and recursive number of dependents and dependencies.
+    library: Vec<Node<Option<???>>>,
 }
 
 /*
@@ -45,16 +59,34 @@ required:
 
 */
 
-pub struct BatchedActions {
-    library: Vec<Node<Option<TileAct>>>,
-    root: usize,
+/// a batch of actions that can be applied to a fractal to advance the game state,
+/// and possibly to the UI to facilitate movement.
+pub struct ActionBatch {
+    library: Vec<Node<Option<TargetedAction<TilePos>>>>,
 }
 
-impl BatchedActions {
+impl ActionBatch {
     pub fn new() -> Self {
-        Self {
-            library: vec![],
-            root: 0,
-        }
+        Self { library: vec![] }
     }
+
+    /// makes a position
+    fn make_source(&mut self, target: TilePos, destination: Option<TilePos>) {
+        todo!("")
+    }
+
+    /// attempts to add an action to the batch.
+    /// fails silently.
+    fn add_action(&mut self, act: TargetedAction<TilePos>) {
+        let TargetedAction { mut target, act } = act;
+        for sub in target {}
+    }
+}
+
+#[test]
+fn test_thing() {
+    assert_eq!(
+        std::mem::size_of::<TargetedAction>(),
+        std::mem::size_of::<Option<TargetedAction>>()
+    );
 }
