@@ -86,7 +86,7 @@ impl ActionBatch {
 #[test]
 fn test_thing() {
     assert_eq!(
-        std::mem::size_of::<TargetedAction>(),
-        std::mem::size_of::<Option<TargetedAction>>()
+        std::mem::size_of::<TargetedAction<TilePos>>(),
+        std::mem::size_of::<Option<TargetedAction<TilePos>>>()
     );
 }
