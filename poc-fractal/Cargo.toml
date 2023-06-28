@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 ergoquad-2d = "0.1.0"
-macroquad = "0.3.26"
 rand = "0.8.5"

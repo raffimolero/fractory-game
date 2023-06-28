@@ -166,6 +166,8 @@ fn window_conf() -> Conf {
     }
 }
 
+// NOTE: ergoquad2d does not provide its own macro
+use ergoquad_2d::macroquad;
 #[macroquad::main(window_conf)]
 async fn main() {
     // camera for canvases
