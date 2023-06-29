@@ -124,6 +124,16 @@ impl<T: Debug> Debug for QuadTree<T> {
     }
 }
 
+/// builds a quadtree from braces, values, and dots
+/// ```
+/// let tree = tree! ({
+///     { . , (), (), .  },
+///     { (), (), . , () },
+///     { },
+///     .,
+/// });
+/// println!("{tree:?}");
+/// ````
 macro_rules! tree {
     (node .) => {
         None
@@ -146,17 +156,7 @@ macro_rules! tree {
 }
 pub(crate) use tree;
 
-fn window_conf() -> Conf {
-    Conf {
-        window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate, RMB to flip.".to_owned(),
-        window_width: 512,
-        window_height: 512,
-        fullscreen: false,
-        window_resizable: true,
-        ..Default::default()
-    }
-}
-
+/// returns a Mat4 corresponding to how much the map needs to be moved
 fn cam_control(mouse_prev: &mut Vec2) -> Mat4 {
     let [mut x, mut y, mut rot] = [0.0; 3];
     let mut flipped = false;
@@ -236,6 +236,38 @@ fn cam_control(mouse_prev: &mut Vec2) -> Mat4 {
 
 // NOTE: ergoquad2d does not provide its own macro
 use ergoquad_2d::macroquad;
+
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate, RMB to flip.".to_owned(),
+        window_width: 512,
+        window_height: 512,
+        fullscreen: false,
+        window_resizable: true,
+        ..Default::default()
+    }
+}
+
+fn draw_num(font: Font) -> impl Fn(&u8) {
+    move |num| {
+        let text = num.to_string();
+        let params = TextParams {
+            font,
+            font_size: 64,
+            font_scale: 1.0 / 128.0,
+            color: WHITE,
+            ..Default::default()
+        };
+        let dims = measure_text(&text, Some(font), params.font_size, params.font_scale);
+        draw_text_ex(
+            &text,
+            (1.0 - dims.width) / 2.0,
+            (1.0 + dims.height) / 2.0,
+            params,
+        )
+    }
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
     // camera for canvases
@@ -255,7 +287,7 @@ async fn main() {
 
     // initialize tree
     let mut rng = thread_rng();
-    let tree = QuadTree::<()>::rand(&mut rng, 6);
+    let tree = QuadTree::<u8>::rand(&mut rng, 1);
     // let tree = tree! ({
     //     { . , (), (), .  },
     //     { (), (), . , () },
@@ -287,7 +319,7 @@ async fn main() {
         }
 
         transform = cam_control(&mut mouse_prev) * transform;
-        apply(transform, || tree.draw(&|_| {}));
+        apply(transform, || tree.draw(&draw_num(font)));
 
         // end frame
         next_frame().await
