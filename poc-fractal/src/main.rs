@@ -1,11 +1,12 @@
 use ::std::{
+    array,
     f32::consts::TAU,
     fmt::{Debug, Display},
 };
-use std::array;
 
-use ::ergoquad_2d::prelude::*;
-// the macroquad rand module is terrible. why does macroquad do this?
+use ergoquad_2d::prelude::*;
+// the macroquad internal rand module is less than ideal.
+// make sure to specify the real rand crate.
 use ::rand::{distributions::Standard, prelude::*};
 
 #[cfg(test)]
@@ -52,8 +53,8 @@ impl<T> QuadTree<T> {
         } else {
             Self::Branch(array::from_fn(|_| {
                 // let is_some = !rng.gen_ratio(1, possible_branches);
-                let is_some = !rng.gen_ratio(1, 2);
-                is_some.then(|| Box::new(Self::rand(rng, depth - 1)))
+                let is_none = rng.gen_ratio(1, 1 << depth);
+                (!is_none).then(|| Box::new(Self::rand(rng, depth - 1)))
             }))
         }
     }
@@ -68,21 +69,21 @@ impl QuadTree<()> {
         draw_rectangle(0.0, 0.0, 1.0, 1.0, col);
 
         // draw outline
-        let outline_thickness = 1.0 / 64.0;
-        draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
+        // let outline_thickness = 1.0 / 64.0;
+        // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
 
         let Self::Branch(children) = self else {
             return;
         };
 
         // margin between child trees
-        let margin = 1.0 / 32.0;
+        let margin = 1.0 / 16.0;
 
-        let scale = upscale(0.5 - margin * 2.0);
+        let scale = upscale(0.5 - margin * 1.5);
         for (y, row) in children.chunks_exact(2).enumerate() {
-            let y = y as f32 * 0.5 + margin;
+            let y = y as f32 * (0.5 - margin / 2.0) + margin;
             for (x, node) in row.iter().enumerate() {
-                let x = x as f32 * 0.5 + margin;
+                let x = x as f32 * (0.5 - margin / 2.0) + margin;
                 if let Some(node) = node {
                     apply(shift(x, y) * scale, || node._draw(depth + 1));
                 }
@@ -157,13 +158,90 @@ pub(crate) use tree;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate.".to_owned(),
+        window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate, RMB to flip.".to_owned(),
         window_width: 512,
         window_height: 512,
         fullscreen: false,
         window_resizable: true,
         ..Default::default()
     }
+}
+
+fn cam_control(mouse_prev: &mut Vec2) -> Mat4 {
+    let [mut x, mut y, mut rot] = [0.0; 3];
+    let mut flipped = false;
+    let mut zoom = 1.0;
+
+    // // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
+    // let time = get_time() as f32;
+    // for some reason this uses f32s already
+    let delta = get_frame_time();
+
+    // check mouse
+    // mouse goes downwards, while transforms go upwards
+    let mouse = mouse_position_local();
+    let mouse_delta = mouse - *mouse_prev;
+
+    // scroll goes up, transforms zoom in
+    let (_scroll_x, scroll_y) = mouse_wheel();
+    {
+        // zoom
+        let scroll_sens = 1.0 / 60.0;
+        // println!("{scroll_y}");
+        zoom *= (2_f32).powf(scroll_y * scroll_sens);
+        x -= mouse.x * (zoom - 1.0);
+        y -= mouse.y * (zoom - 1.0);
+
+        // drag controls
+        if is_mouse_button_down(MouseButton::Left) {
+            x += mouse_delta.x;
+            y += mouse_delta.y;
+        }
+    }
+
+    // check keypresses
+    {
+        use KeyCode::*;
+
+        // WASD movement, y goes down
+        if is_key_down(W) {
+            y -= delta;
+        }
+        if is_key_down(S) {
+            y += delta;
+        }
+        if is_key_down(A) {
+            x -= delta;
+        }
+        if is_key_down(D) {
+            x += delta;
+        }
+
+        // rotation, clockwise
+        let sensitivity = TAU / 2.0; // no i will not use pi
+        if is_key_down(Q) {
+            rot -= delta * sensitivity;
+        }
+        if is_key_down(E) {
+            rot += delta * sensitivity;
+        }
+
+        if is_mouse_button_pressed(MouseButton::Right) {
+            flipped ^= true;
+        }
+    }
+
+    *mouse_prev = mouse;
+
+    Mat4::from_scale_rotation_translation(
+        Vec3 {
+            x: if flipped { -zoom } else { zoom },
+            y: zoom,
+            z: 1.0,
+        },
+        Quat::from_rotation_z(rot),
+        Vec3 { x, y, z: 0.0 },
+    )
 }
 
 // NOTE: ergoquad2d does not provide its own macro
@@ -176,8 +254,7 @@ async fn main() {
     set_camera(cam);
 
     // mouse data
-    let mut mouse = mouse_position_local();
-    let mut mouse_prev;
+    let mut mouse_prev = Vec2::default();
 
     // resource folder
     set_pc_assets_folder("../assets");
@@ -188,7 +265,7 @@ async fn main() {
 
     // initialize tree
     let mut rng = thread_rng();
-    let tree = QuadTree::<()>::rand(&mut rng, 5);
+    let tree = QuadTree::<()>::rand(&mut rng, 6);
     // let tree = tree! ({
     //     { . , (), (), .  },
     //     { (), (), . , () },
@@ -197,76 +274,30 @@ async fn main() {
     // });
     println!("{tree:?}");
 
-    // initialize transforms
-    let [mut x, mut y, mut rot] = [0.75, 0.75, 0.0];
-    let mut flipped = false;
-    let mut zoom = 0.25;
+    // initialize transform
+    let mut transform = Mat4::from_scale_rotation_translation(
+        Vec3 {
+            x: 2.0,
+            y: 2.0,
+            z: 1.0,
+        },
+        Quat::IDENTITY,
+        Vec3 {
+            x: -1.0,
+            y: -1.0,
+            z: 0.0,
+        },
+    );
 
     // main loop
     loop {
-        // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
-        let time = get_time() as f32;
-        // for some reason this uses f32s already
-        let delta = get_frame_time();
-
-        // check mouse
-        // mouse goes downwards, while transforms go upwards
-        mouse_prev = mouse;
-        mouse = mouse_position_local();
-        let mouse_delta = mouse - mouse_prev;
-
-        // scroll goes up, transforms zoom in
-        let (_scroll_x, scroll_y) = mouse_wheel();
-        {
-            // zoom
-            let scroll_sens = 1.0 / 120.0;
-            // println!("{scroll_y}");
-            zoom *= (2_f32).powf(scroll_y * scroll_sens);
-
-            // drag controls
-            if is_mouse_button_down(MouseButton::Left) {
-                x += mouse_delta.x;
-                y += mouse_delta.y;
-            }
+        // Quit on Esc
+        if let Some(KeyCode::Escape) = get_last_key_pressed() {
+            return;
         }
 
-        // check keypresses
-        {
-            use KeyCode::*;
-            // Quit on Esc
-            if let Some(Escape) = get_last_key_pressed() {
-                return;
-            }
-
-            // WASD movement, y goes down
-            if is_key_down(W) {
-                y -= delta;
-            }
-            if is_key_down(S) {
-                y += delta;
-            }
-            if is_key_down(A) {
-                x -= delta;
-            }
-            if is_key_down(D) {
-                x += delta;
-            }
-
-            // rotation, clockwise
-            let sensitivity = TAU / 2.0; // no i will not use pi
-            if is_key_down(Q) {
-                rot -= delta * sensitivity;
-            }
-            if is_key_down(E) {
-                rot += delta * sensitivity;
-            }
-
-            if is_key_pressed(CapsLock) {
-                flipped ^= true;
-            }
-        }
-
-        apply(shift(-1.0, -1.0) * upscale(2.0), || tree.draw());
+        transform = cam_control(&mut mouse_prev) * transform;
+        apply(transform, || tree.draw());
 
         // end frame
         next_frame().await
