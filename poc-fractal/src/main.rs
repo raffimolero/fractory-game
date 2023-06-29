@@ -4,9 +4,7 @@ use ::std::{
     fmt::{Debug, Display},
 };
 
-use ergoquad_2d::prelude::*;
-// the macroquad internal rand module is less than ideal.
-// make sure to specify the real rand crate.
+use ::ergoquad_2d::prelude::*;
 use ::rand::{distributions::Standard, prelude::*};
 
 #[cfg(test)]
@@ -39,20 +37,11 @@ impl<T> QuadTree<T> {
     where
         Standard: Distribution<T>,
     {
-        // let mut possible_trees: u32 = 1;
-        // let mut possible_branches = !0;
-        // for _ in 0..depth {
-        //     possible_branches = possible_trees + 1;
-        //     possible_trees = possible_branches.pow(4) + 1;
-        // }
-
-        // let is_leaf = rng.gen_ratio(1, possible_trees);
         let is_leaf = rng.gen_ratio(1, 1 << depth);
         if is_leaf {
             Self::Leaf(rng.gen())
         } else {
             Self::Branch(array::from_fn(|_| {
-                // let is_some = !rng.gen_ratio(1, possible_branches);
                 let is_none = rng.gen_ratio(1, 1 << depth);
                 (!is_none).then(|| Box::new(Self::rand(rng, depth - 1)))
             }))
@@ -60,8 +49,8 @@ impl<T> QuadTree<T> {
     }
 }
 
-impl QuadTree<()> {
-    fn _draw(&self, depth: usize) {
+impl<T> QuadTree<T> {
+    fn _draw(&self, draw_leaf: &impl Fn(&T), depth: usize) {
         let palette = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
         let col = palette[depth % palette.len()];
 
@@ -72,8 +61,9 @@ impl QuadTree<()> {
         // let outline_thickness = 1.0 / 64.0;
         // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
 
-        let Self::Branch(children) = self else {
-            return;
+        let children = match self {
+            QuadTree::Leaf(val) => return draw_leaf(val),
+            QuadTree::Branch(children) => children,
         };
 
         // margin between child trees
@@ -85,14 +75,14 @@ impl QuadTree<()> {
             for (x, node) in row.iter().enumerate() {
                 let x = x as f32 * (0.5 - margin / 2.0) + margin;
                 if let Some(node) = node {
-                    apply(shift(x, y) * scale, || node._draw(depth + 1));
+                    apply(shift(x, y) * scale, || node._draw(draw_leaf, depth + 1));
                 }
             }
         }
     }
 
-    fn draw(&self) {
-        self._draw(0);
+    fn draw(&self, draw_leaf: &impl Fn(&T)) {
+        self._draw(draw_leaf, 0);
     }
 }
 
@@ -297,7 +287,7 @@ async fn main() {
         }
 
         transform = cam_control(&mut mouse_prev) * transform;
-        apply(transform, || tree.draw());
+        apply(transform, || tree.draw(&|_| {}));
 
         // end frame
         next_frame().await
