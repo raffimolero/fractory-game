@@ -248,14 +248,14 @@ fn window_conf() -> Conf {
     }
 }
 
-fn draw_num(font: Font) -> impl Fn(&u8) {
+fn draw_num(font: Font, color: Color) -> impl Fn(&u8) {
     move |num| {
         let text = num.to_string();
         let params = TextParams {
             font,
             font_size: 64,
             font_scale: 1.0 / 128.0,
-            color: WHITE,
+            color,
             ..Default::default()
         };
         let dims = measure_text(&text, Some(font), params.font_size, params.font_scale);
@@ -287,7 +287,7 @@ async fn main() {
 
     // initialize tree
     let mut rng = thread_rng();
-    let tree = QuadTree::<u8>::rand(&mut rng, 1);
+    let tree = QuadTree::<u8>::rand(&mut rng, 6);
     // let tree = tree! ({
     //     { . , (), (), .  },
     //     { (), (), . , () },
@@ -319,7 +319,7 @@ async fn main() {
         }
 
         transform = cam_control(&mut mouse_prev) * transform;
-        apply(transform, || tree.draw(&draw_num(font)));
+        apply(transform, || tree.draw(&draw_num(font, BLACK)));
 
         // end frame
         next_frame().await
