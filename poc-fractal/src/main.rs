@@ -314,7 +314,7 @@ async fn main() {
     // main loop
     loop {
         // Quit on Esc
-        if let Some(KeyCode::Escape) = get_last_key_pressed() {
+        if is_key_pressed(KeyCode::Escape) {
             return;
         }
 
