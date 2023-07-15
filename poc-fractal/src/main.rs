@@ -183,7 +183,7 @@ fn cam_control(mouse_prev: &mut Vec2) -> Mat4 {
         y -= mouse.y * (zoom - 1.0);
 
         // drag controls
-        if is_mouse_button_down(MouseButton::Left) {
+        if is_mouse_button_down(MouseButton::Right) {
             x += mouse_delta.x;
             y += mouse_delta.y;
         }
@@ -193,30 +193,40 @@ fn cam_control(mouse_prev: &mut Vec2) -> Mat4 {
     {
         use KeyCode::*;
 
+        // zoom
+        let zoom_sens = 4.0;
+        if is_key_down(LeftShift) {
+            zoom *= (2_f32).powf(delta * zoom_sens);
+        }
+        if is_key_down(Space) {
+            zoom /= (2_f32).powf(delta * zoom_sens);
+        }
+
+        let speed = 4.0;
         // WASD movement, y goes down
         if is_key_down(W) {
-            y -= delta;
+            y += delta * speed;
         }
         if is_key_down(S) {
-            y += delta;
+            y -= delta * speed;
         }
         if is_key_down(A) {
-            x -= delta;
+            x += delta * speed;
         }
         if is_key_down(D) {
-            x += delta;
+            x -= delta * speed;
         }
 
         // rotation, clockwise
         let sensitivity = TAU / 2.0; // no i will not use pi
         if is_key_down(Q) {
-            rot -= delta * sensitivity;
-        }
-        if is_key_down(E) {
             rot += delta * sensitivity;
         }
+        if is_key_down(E) {
+            rot -= delta * sensitivity;
+        }
 
-        if is_mouse_button_pressed(MouseButton::Right) {
+        if is_key_pressed(F) {
             flipped ^= true;
         }
     }
