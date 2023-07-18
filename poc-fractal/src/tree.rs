@@ -1,12 +1,13 @@
-use ::fractory_common::sim::logic::path::TilePos;
+use ::fractory_common::sim::logic::{path::TilePos, tile::Quad};
 use ::std::{
     array,
     fmt::{Debug, Display},
 };
-use fractory_common::sim::logic::tile::Quad;
 
 use ::ergoquad_2d::prelude::*;
 use ::rand::{distributions::Standard, prelude::*};
+
+mod solver;
 
 #[cfg(test)]
 mod tests {
@@ -28,29 +29,22 @@ mod tests {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub struct Node<T>(Option<Box<QuadTree<T>>>);
 
-#[derive(Clone)]
+impl<T: Debug> Debug for Node<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("match the formatting used by QuadTree<T>")
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 pub enum QuadTree<T> {
     Leaf(T),
     Branch(Quad<Node<T>>),
 }
 
-impl<T: Default> Default for QuadTree<T> {
-    fn default() -> Self {
-        Self::Leaf(T::default())
-    }
-}
-
 impl<T> QuadTree<T> {
-    pub fn new() -> Self
-    where
-        T: Default,
-    {
-        Self::default()
-    }
-
     pub fn rand(rng: &mut impl Rng, depth: usize) -> Self
     where
         Standard: Distribution<T>,
@@ -66,18 +60,6 @@ impl<T> QuadTree<T> {
             })))
         }
     }
-
-    // TODO: use a node reference
-    // pub fn set(this: &mut Option<Self>, path: TilePos, value: T) {
-    //     dbg!(path);
-    //     for subtile in path {
-    //         match this {
-    //             QuadTree::Leaf(_) => todo!(),
-    //             QuadTree::Branch(_) => todo!(),
-    //         }
-    //     }
-    //     todo!()
-    // }
 }
 
 impl<T> QuadTree<T> {

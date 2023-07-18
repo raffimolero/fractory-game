@@ -1,9 +1,8 @@
 mod tree;
 
 use crate::tree::QuadTree;
-use ::fractory_common::sim::logic::path::TilePos;
+use ::fractory_common::sim::logic::path::{SubTile, TilePos};
 use ::std::f32::consts::TAU;
-use fractory_common::sim::logic::path::SubTile;
 
 use ::ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
 use ::ergoquad_2d::prelude::*;
@@ -142,13 +141,16 @@ async fn main() {
         .expect("rip varela round");
 
     // initialize tree
-    let mut tree = QuadTree::<u8>::default();
+    // let mut tree = QuadTree::<u8>::default();
 
     let mut rng = thread_rng();
 
     // random path
-    let mut path = TilePos::UNIT;
-    for _ in 0..6 {
+    let mut path_a = TilePos::UNIT;
+    let mut path_b = TilePos::UNIT;
+    path_b.push(SubTile::C);
+
+    for _ in 0..2 {
         let tile = match rng.gen_range(0..4) {
             0 => SubTile::C,
             1 => SubTile::U,
@@ -156,10 +158,12 @@ async fn main() {
             3 => SubTile::L,
             _ => unreachable!(),
         };
-        path.push(tile);
+        path_a.push(tile);
+        path_b.push(tile);
     }
-    // TODO: implement
-    // tree.set(path, 7);
+
+    let mut tree = QuadTree::create_at(path_a, 1);
+    let _ = dbg!(tree.set(path_b, 2));
 
     // random tree
     // let tree = QuadTree::<u8>::rand(&mut rng, 6);
