@@ -1,7 +1,9 @@
 mod tree;
 
 use crate::tree::QuadTree;
+use ::fractory_common::sim::logic::path::TilePos;
 use ::std::f32::consts::TAU;
+use fractory_common::sim::logic::path::SubTile;
 
 use ::ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
 use ::ergoquad_2d::prelude::*;
@@ -28,7 +30,7 @@ fn cam_control() -> Mat4 {
     let (_scroll_x, scroll_y) = mouse_wheel();
     {
         // zoom
-        let scroll_sens = 1.0 / 60.0;
+        let scroll_sens = 1.0 / 120.0;
         zoom *= (2_f32).powf(scroll_y * scroll_sens);
 
         // drag controls
@@ -140,8 +142,29 @@ async fn main() {
         .expect("rip varela round");
 
     // initialize tree
+    let mut tree = QuadTree::<u8>::default();
+
     let mut rng = thread_rng();
-    let tree = QuadTree::<u8>::rand(&mut rng, 6);
+
+    // random path
+    let mut path = TilePos::UNIT;
+    for _ in 0..6 {
+        let tile = match rng.gen_range(0..4) {
+            0 => SubTile::C,
+            1 => SubTile::U,
+            2 => SubTile::R,
+            3 => SubTile::L,
+            _ => unreachable!(),
+        };
+        path.push(tile);
+    }
+    // TODO: implement
+    // tree.set(path, 7);
+
+    // random tree
+    // let tree = QuadTree::<u8>::rand(&mut rng, 6);
+
+    // specific tree
     // let tree = tree! ({
     //     { . , (), (), .  },
     //     { (), (), . , () },

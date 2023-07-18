@@ -1,7 +1,9 @@
+use ::fractory_common::sim::logic::path::TilePos;
 use ::std::{
     array,
     fmt::{Debug, Display},
 };
+use fractory_common::sim::logic::tile::Quad;
 
 use ::ergoquad_2d::prelude::*;
 use ::rand::{distributions::Standard, prelude::*};
@@ -26,12 +28,29 @@ mod tests {
     }
 }
 
+// struct Node<T> = Option<Box<QuadTree<T>>>;
+
+#[derive(Clone)]
 pub enum QuadTree<T> {
     Leaf(T),
-    Branch([Option<Box<Self>>; 4]),
+    // Branch(Quad<Node<T>>),
+    Branch(Quad<Option<Box<Self>>>),
+}
+
+impl<T: Default> Default for QuadTree<T> {
+    fn default() -> Self {
+        Self::Leaf(T::default())
+    }
 }
 
 impl<T> QuadTree<T> {
+    pub fn new() -> Self
+    where
+        T: Default,
+    {
+        Self::default()
+    }
+
     pub fn rand(rng: &mut impl Rng, depth: usize) -> Self
     where
         Standard: Distribution<T>,
@@ -40,12 +59,24 @@ impl<T> QuadTree<T> {
         if is_leaf {
             Self::Leaf(rng.gen())
         } else {
-            Self::Branch(array::from_fn(|_| {
+            Self::Branch(Quad(array::from_fn(|_| {
                 let is_none = rng.gen_ratio(1, 1 << depth);
                 (!is_none).then(|| Box::new(Self::rand(rng, depth - 1)))
-            }))
+            })))
         }
     }
+
+    // TODO: use a node reference
+    // pub fn set(this: &mut Option<Self>, path: TilePos, value: T) {
+    //     dbg!(path);
+    //     for subtile in path {
+    //         match this {
+    //             QuadTree::Leaf(_) => todo!(),
+    //             QuadTree::Branch(_) => todo!(),
+    //         }
+    //     }
+    //     todo!()
+    // }
 }
 
 impl<T> QuadTree<T> {
@@ -62,7 +93,7 @@ impl<T> QuadTree<T> {
 
         let children = match self {
             QuadTree::Leaf(val) => return draw_leaf(val),
-            QuadTree::Branch(children) => children,
+            QuadTree::Branch(Quad(children)) => children,
         };
 
         // margin between child trees
@@ -89,7 +120,7 @@ impl<T: Display> Display for QuadTree<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuadTree::Leaf(val) => val.fmt(f),
-            QuadTree::Branch(children) => {
+            QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
                 for child in children {
                     match child {
@@ -108,7 +139,7 @@ impl<T: Debug> Debug for QuadTree<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuadTree::Leaf(val) => val.fmt(f),
-            QuadTree::Branch(children) => {
+            QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
                 for child in children {
                     match child {
