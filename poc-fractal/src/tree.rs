@@ -28,13 +28,13 @@ mod tests {
     }
 }
 
-// struct Node<T> = Option<Box<QuadTree<T>>>;
+#[derive(Clone)]
+pub struct Node<T>(Option<Box<QuadTree<T>>>);
 
 #[derive(Clone)]
 pub enum QuadTree<T> {
     Leaf(T),
-    // Branch(Quad<Node<T>>),
-    Branch(Quad<Option<Box<Self>>>),
+    Branch(Quad<Node<T>>),
 }
 
 impl<T: Default> Default for QuadTree<T> {
@@ -61,7 +61,8 @@ impl<T> QuadTree<T> {
         } else {
             Self::Branch(Quad(array::from_fn(|_| {
                 let is_none = rng.gen_ratio(1, 1 << depth);
-                (!is_none).then(|| Box::new(Self::rand(rng, depth - 1)))
+                let children = (!is_none).then(|| Box::new(Self::rand(rng, depth - 1)));
+                Node(children)
             })))
         }
     }
@@ -104,7 +105,7 @@ impl<T> QuadTree<T> {
             let y = y as f32 * (0.5 - margin / 2.0) + margin;
             for (x, node) in row.iter().enumerate() {
                 let x = x as f32 * (0.5 - margin / 2.0) + margin;
-                if let Some(node) = node {
+                if let Node(Some(node)) = node {
                     apply(shift(x, y) * scale, || node._draw(draw_leaf, depth + 1));
                 }
             }
@@ -122,7 +123,7 @@ impl<T: Display> Display for QuadTree<T> {
             QuadTree::Leaf(val) => val.fmt(f),
             QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
-                for child in children {
+                for Node(child) in children {
                     match child {
                         Some(val) => write!(f, "{val}")?,
                         None => write!(f, ".")?,
@@ -141,7 +142,7 @@ impl<T: Debug> Debug for QuadTree<T> {
             QuadTree::Leaf(val) => val.fmt(f),
             QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
-                for child in children {
+                for Node(child) in children {
                     match child {
                         Some(val) => write!(f, "{val:?}")?,
                         None => write!(f, ".")?,
@@ -166,19 +167,19 @@ impl<T: Debug> Debug for QuadTree<T> {
 /// ````
 macro_rules! tree {
     (node .) => {
-        None
+        Node(None)
     };
     (node $t:tt) => {
-        Some(Box::new(tree!($t)))
+        Node(Some(Box::new(tree!($t))))
     };
 
     ({ $tl:tt,  $tr:tt, $bl:tt, $br:tt $(,)? }) => {
-        QuadTree::Branch([
+        QuadTree::Branch(Quad([
             tree!(node $tl),
             tree!(node $tr),
             tree!(node $bl),
             tree!(node $br),
-        ])
+        ]))
     };
     ($t:expr) => {
         QuadTree::Leaf($t)
