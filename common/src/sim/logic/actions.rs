@@ -22,7 +22,6 @@ pub enum TileAction<T> {
 
     // /// places a fragment onto the fractal from the player's inventory
     // Place(FragmentId),
-
     /// activates this tile in the next tick
     Activate,
 }
@@ -38,7 +37,7 @@ enum Node<T> {
 /// and be converted into a batch.
 pub struct ActionCollector {
     // note: each node can have an infinite and recursive number of dependents and dependencies.
-    library: Vec<Node<Option<???>>>,
+    // library: Vec<Node<Option<???>>>,
 }
 
 /*
