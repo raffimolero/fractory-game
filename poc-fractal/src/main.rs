@@ -21,7 +21,13 @@ fn cam_control() -> Mat4 {
 
     // check mouse
     // mouse goes downwards, while transforms go upwards
-    let mouse = mouse_position_local();
+    // if the mouse hasn't moved since startup, this will be 0, 0
+    let mut mouse = mouse_position_local();
+    // if mouse out of bounds, default to center of screen
+    if !(-1.0..1.0).contains(&mouse.x) || !(-1.0..1.0).contains(&mouse.y) {
+        mouse = Vec2::ZERO;
+    }
+
     // macroquad calculates delta position wrong, because macroquad
     let mouse_delta = -mouse_delta_position();
 
