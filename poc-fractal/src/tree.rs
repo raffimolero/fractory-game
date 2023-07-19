@@ -1,4 +1,4 @@
-use ::fractory_common::sim::logic::{path::TilePos, tile::Quad};
+use ::fractory_common::sim::logic::tile::Quad;
 use ::std::{
     array,
     fmt::{Debug, Display},
@@ -15,10 +15,50 @@ mod tests {
 
     #[test]
     fn test_macro() {
-        let tre = tree! {
-            { 1, 2, 3, { 4, 5, ., 7} }
+        let tree = tree! {
+            {
+                (1, 2)
+                (3, 4)
+                {
+                    { // this block is an expression, not a branch
+                        let x = 5;
+                        let y = 6;
+                        (x, y)
+                    }
+                    .
+                    .
+                    .
+                } {
+                    (7, 8)
+                    (9, 10)
+                    .
+                    (11, 12)
+                }
+            }
         };
-        println!("{tre}");
+        assert_eq!(
+            tree,
+            QuadTree::Branch(Quad([
+                Node(Some(Box::new(QuadTree::Leaf((1, 2))))),
+                Node(Some(Box::new(QuadTree::Leaf((3, 4))))),
+                Node(Some(Box::new(QuadTree::Branch(Quad([
+                    Node(Some(Box::new(QuadTree::Leaf({
+                        let x = 5;
+                        let y = 6;
+                        (x, y)
+                    })))),
+                    Node(None),
+                    Node(None),
+                    Node(None),
+                ]))))),
+                Node(Some(Box::new(QuadTree::Branch(Quad([
+                    Node(Some(Box::new(QuadTree::Leaf((7, 8))))),
+                    Node(Some(Box::new(QuadTree::Leaf((9, 10))))),
+                    Node(None),
+                    Node(Some(Box::new(QuadTree::Leaf((11, 12))))),
+                ]))))),
+            ])),
+        );
     }
 
     #[test]
@@ -140,13 +180,13 @@ impl<T: Debug> Debug for QuadTree<T> {
 /// builds a quadtree from braces, values, and dots
 /// ```
 /// let tree = tree! ({
-///     { . , (), (), .  },
-///     { (), (), . , () },
-///     { },
-///     .,
+///     { .  () () .  }
+///     { () () .  () }
+///     { }
+///     .
 /// });
 /// println!("{tree:?}");
-/// ````
+/// ```
 macro_rules! tree {
     (node .) => {
         Node(None)
@@ -155,7 +195,7 @@ macro_rules! tree {
         Node(Some(Box::new(tree!($t))))
     };
 
-    ({ $tl:tt,  $tr:tt, $bl:tt, $br:tt $(,)? }) => {
+    ({ $tl:tt $tr:tt $bl:tt $br:tt }) => {
         QuadTree::Branch(Quad([
             tree!(node $tl),
             tree!(node $tr),
