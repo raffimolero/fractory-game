@@ -1,5 +1,5 @@
 use super::*;
-use fractory_common::sim::logic::path::SubTile;
+use fractory_common::sim::logic::path::SubTile::{self, *};
 
 // TODO: more tests
 
@@ -11,12 +11,7 @@ fn test_create_at_root() {
 
 #[test]
 fn test_create_at() {
-    let mut path = TilePos::UNIT;
-    // paths are pushed outwards, from innermost
-    path.push_front(SubTile::L);
-    path.push_front(SubTile::R);
-    path.push_front(SubTile::U);
-    path.push_front(SubTile::C);
+    let mut path = TilePos::from_inward_path(&[C, U, R, L]);
     let tree = QuadTree::create_at(path, 4);
     assert_eq!(
         tree,
