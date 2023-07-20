@@ -1,12 +1,12 @@
 mod tree;
 
-use crate::tree::QuadTree;
-use ::fractory_common::sim::logic::path::{SubTile, TilePos};
-use ::std::f32::consts::TAU;
+use crate::tree::Node;
+use fractory_common::sim::logic::path::{SubTile, TilePos};
+use std::f32::consts::TAU;
 
-use ::ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
-use ::ergoquad_2d::prelude::*;
-use ::rand::prelude::*;
+use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
+use ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
+use ergoquad_2d::prelude::*;
 
 /// returns a Mat4 corresponding to how much the map needs to be moved
 fn cam_control() -> Mat4 {
@@ -168,7 +168,7 @@ async fn main() {
         path_b.push_front(tile);
     }
 
-    let mut tree = QuadTree::create_at(path_a, 1);
+    let mut tree = Node::create_at(path_a, 1);
     let _ = dbg!(tree.set(path_b, 2));
 
     // random tree
