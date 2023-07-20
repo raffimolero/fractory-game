@@ -299,6 +299,16 @@ pub struct TilePos {
     flop: bool,
 }
 
+impl From<&[SubTile]> for TilePos {
+    fn from(value: &[SubTile]) -> Self {
+        let mut out = Self::UNIT;
+        for subtile in value.iter().rev().copied() {
+            out.push_front(subtile);
+        }
+        out
+    }
+}
+
 impl TilePos {
     pub const UNIT: Self = Self {
         depth: 0,
