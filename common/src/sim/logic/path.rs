@@ -323,7 +323,7 @@ impl TilePos {
             && self.row() < self.height()
     }
 
-    pub fn push(&mut self, placement: SubTile) {
+    pub fn push_front(&mut self, placement: SubTile) {
         let h = self.height();
         self.depth += 1;
         match placement {
@@ -344,7 +344,7 @@ impl TilePos {
         }
     }
 
-    pub fn pop(&mut self) -> Option<SubTile> {
+    pub fn pop_front(&mut self) -> Option<SubTile> {
         self.depth = self.depth.checked_sub(1)?;
 
         let h = self.height();
@@ -373,7 +373,7 @@ impl TilePos {
 impl AddAssign<TileOffset> for TilePos {
     fn add_assign(&mut self, mut rhs: TileOffset) {
         for _ in 0..rhs.depth {
-            self.push(SubTile::C);
+            self.push_front(SubTile::C);
         }
         if self.flop {
             rhs.offset *= -1;
@@ -388,7 +388,7 @@ impl Iterator for TilePos {
     type Item = SubTile;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.pop()
+        self.pop_front()
     }
 }
 

@@ -13,10 +13,10 @@ fn test_create_at_root() {
 fn test_create_at() {
     let mut path = TilePos::UNIT;
     // paths are pushed outwards, from innermost
-    path.push(SubTile::L);
-    path.push(SubTile::R);
-    path.push(SubTile::U);
-    path.push(SubTile::C);
+    path.push_front(SubTile::L);
+    path.push_front(SubTile::R);
+    path.push_front(SubTile::U);
+    path.push_front(SubTile::C);
     let tree = QuadTree::create_at(path, 4);
     assert_eq!(
         tree,

@@ -154,7 +154,7 @@ async fn main() {
     // random path
     let mut path_a = TilePos::UNIT;
     let mut path_b = TilePos::UNIT;
-    path_b.push(SubTile::C);
+    path_b.push_front(SubTile::C);
 
     for _ in 0..2 {
         let tile = match rng.gen_range(0..4) {
@@ -164,8 +164,8 @@ async fn main() {
             3 => SubTile::L,
             _ => unreachable!(),
         };
-        path_a.push(tile);
-        path_b.push(tile);
+        path_a.push_front(tile);
+        path_b.push_front(tile);
     }
 
     let mut tree = QuadTree::create_at(path_a, 1);

@@ -31,7 +31,7 @@ impl<T> Node<T> {
 
 impl<T> QuadTree<T> {
     pub fn create_at(mut path: TilePos, value: T) -> Self {
-        match path.pop() {
+        match path.pop_front() {
             Some(subtile) => {
                 let mut children = [Node(None), Node(None), Node(None), Node(None)];
                 children[subtile as usize] = Node::create_at(path, value);
@@ -44,7 +44,7 @@ impl<T> QuadTree<T> {
     pub fn set(&mut self, mut path: TilePos, value: T) -> Result<(), SetErr> {
         match self {
             QuadTree::Leaf(_) => Err(SetErr::EncounteredId),
-            QuadTree::Branch(Quad(children)) => match path.pop() {
+            QuadTree::Branch(Quad(children)) => match path.pop_front() {
                 Some(subtile) => children[subtile as usize].set(path, value),
                 None => Err(SetErr::StoppedAtParent),
             },
