@@ -27,6 +27,8 @@ impl<T> Node<T> {
     }
 
     pub fn set(&mut self, mut path: TilePos, value: T) -> Result<(), SetErr> {
+        // TODO: set self to bad on error
+        // should i return the error?
         match self {
             Node::Bad => Err(SetErr::EncounteredBad),
             Node::Leaf(_) => Err(SetErr::EncounteredLeaf),
