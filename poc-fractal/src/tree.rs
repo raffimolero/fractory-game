@@ -72,9 +72,27 @@ mod tests {
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct Node<T>(Option<Box<QuadTree<T>>>);
 
+impl<T> From<QuadTree<T>> for Node<T> {
+    fn from(value: QuadTree<T>) -> Self {
+        Self(Some(Box::new(value)))
+    }
+}
+
+impl<T: Display> Display for Node<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(val) => val.fmt(f),
+            None => write!(f, "."),
+        }
+    }
+}
+
 impl<T: Debug> Debug for Node<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("match the formatting used by QuadTree<T>")
+        match &self.0 {
+            Some(val) => val.fmt(f),
+            None => write!(f, "."),
+        }
     }
 }
 
@@ -146,10 +164,7 @@ impl<T: Display> Display for QuadTree<T> {
             QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
                 for Node(child) in children {
-                    match child {
-                        Some(val) => write!(f, "{val}")?,
-                        None => write!(f, ".")?,
-                    }
+                    child.fmt(f)?;
                     write!(f, " ")?;
                 }
                 write!(f, "}}")
@@ -165,10 +180,7 @@ impl<T: Debug> Debug for QuadTree<T> {
             QuadTree::Branch(Quad(children)) => {
                 write!(f, "{{ ")?;
                 for Node(child) in children {
-                    match child {
-                        Some(val) => write!(f, "{val:?}")?,
-                        None => write!(f, ".")?,
-                    }
+                    child.fmt(f)?;
                     write!(f, " ")?;
                 }
                 write!(f, "}}")
