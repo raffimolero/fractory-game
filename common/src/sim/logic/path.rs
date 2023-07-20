@@ -299,22 +299,20 @@ pub struct TilePos {
     flop: bool,
 }
 
-impl From<&[SubTile]> for TilePos {
-    fn from(value: &[SubTile]) -> Self {
-        let mut out = Self::UNIT;
-        for subtile in value.iter().rev().copied() {
-            out.push_front(subtile);
-        }
-        out
-    }
-}
-
 impl TilePos {
     pub const UNIT: Self = Self {
         depth: 0,
         pos: IVec2::ZERO,
         flop: false,
     };
+
+    pub fn from_inward_path(path: &[SubTile]) -> Self {
+        let mut out = Self::UNIT;
+        for subtile in path.iter().rev().copied() {
+            out.push_front(subtile);
+        }
+        out
+    }
 
     pub fn height(self) -> i32 {
         1 << self.depth
