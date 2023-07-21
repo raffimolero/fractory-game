@@ -386,6 +386,8 @@ impl Add<TileOffset> for TilePos {
 
     /// returns None if out of bounds.
     fn add(mut self, mut rhs: TileOffset) -> Self::Output {
+        // FIXME: logical error
+        // test TilePos from SubTile::U + TileOffset with depth 1
         for _ in 0..rhs.depth {
             self.push_front(SubTile::C);
         }
