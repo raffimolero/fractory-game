@@ -1,7 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use ::fractory_common::sim::logic::{path::TilePos, tile::Quad};
+use ::rand::distributions::Uniform;
+use fractory_common::sim::logic::{
+    path::{SubTile, TileOffset, TilePos},
+    tile::Quad,
+};
 
 use super::*;
 
@@ -12,10 +16,39 @@ pub enum SetErr {
     StoppedAtParent,
 }
 
+/// temporary struct to represent a bunch of moves
+struct MoveList {
+    moves: Vec<(TilePos, TileOffset)>,
+}
+
+impl MoveList {
+    fn rand(len: usize) -> Self {
+        let rng = thread_rng();
+        let dist = Uniform::new(0, 5);
+        let mut samples = dist.sample_iter(rng);
+        let mut rand_path = || {
+            let mut path = TilePos::UNIT;
+            loop {
+                let subtile = match samples.next().unwrap() {
+                    0 => SubTile::C,
+                    1 => SubTile::U,
+                    2 => SubTile::R,
+                    3 => SubTile::L,
+                    _ => return path,
+                };
+                path.push_front(subtile);
+            }
+        };
+
+        todo!();
+    }
+}
+
 // TODO: double check all pub visibilities
 
-impl<T> Node<T> {
-    pub fn create_at(mut path: TilePos, value: T) -> Self {
+type LeafItem = usize; // TODO: inline later
+impl Node<LeafItem> {
+    pub fn create_at(mut path: TilePos, value: LeafItem) -> Self {
         match path.pop_front() {
             Some(subtile) => {
                 let mut children = Quad([Node::Free, Node::Free, Node::Free, Node::Free]);
@@ -26,20 +59,29 @@ impl<T> Node<T> {
         }
     }
 
-    pub fn set(&mut self, mut path: TilePos, value: T) -> Result<(), SetErr> {
+    /// returns false if a collision happened, else true.
+    pub fn set(&mut self, mut path: TilePos, value: LeafItem) -> bool {
         // TODO: set self to bad on error
         // should i return the error?
-        match self {
-            Node::Bad => Err(SetErr::EncounteredBad),
-            Node::Leaf(_) => Err(SetErr::EncounteredLeaf),
+        // do a direct item removal operation on the original moves vector?
+        // simply consume the entire vector/iterator and turn Nodes themselves into iterators?
+        // what if all 4 children are "Bad"? do we merge them into one?
+        let is_ok = match self {
+            Node::Bad => false,
+            Node::Leaf(_) => false,
             Node::Free => {
                 *self = Self::create_at(path, value);
-                Ok(())
+                true
             }
             Node::Branch(children) => match path.pop_front() {
                 Some(subtile) => children[subtile].set(path, value),
-                None => Err(SetErr::StoppedAtParent),
+                None => false,
             },
+        };
+
+        if !is_ok {
+            *self = Node::Bad;
         }
+        is_ok
     }
 }

@@ -59,7 +59,6 @@ use std::fmt::{Debug, Display};
 use ::rand::{distributions::Standard, prelude::*};
 use ergoquad_2d::prelude::*;
 
-
 #[derive(Clone, PartialEq, Eq, Default)]
 pub enum Node<T> {
     #[default]
@@ -88,7 +87,7 @@ impl<T> Node<T> {
         let draw_base = || {
             draw_rectangle(0.0, 0.0, 1.0, 1.0, col);
 
-            // draw outline
+            // // draw outline
             // let outline_thickness = 1.0 / 64.0;
             // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
         };
@@ -179,4 +178,3 @@ macro_rules! tree {
     };
 }
 pub(crate) use tree;
-

@@ -42,5 +42,5 @@ fn test_node_set_overlapping() {
     node.set(path_a, 0).unwrap();
     node.set(path_b, 0).unwrap_err();
 
-    assert_eq!(node, todo!());
+    assert_eq!(node, tree!({ { . { . . { . . . X } . } . . } . . . }));
 }
