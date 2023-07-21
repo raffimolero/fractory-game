@@ -4,8 +4,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::ops::AddAssign;
-use std::ops::Mul;
+use std::ops::{Add, Mul};
 
 use glam::IVec2;
 
@@ -307,8 +306,12 @@ impl TilePos {
     };
 
     pub fn from_inward_path(path: &[SubTile]) -> Self {
+        Self::from_outward_path_iter(path.iter().rev().copied())
+    }
+
+    pub fn from_outward_path_iter(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
         let mut out = Self::UNIT;
-        for subtile in path.iter().rev().copied() {
+        for subtile in path_iter {
             out.push_front(subtile);
         }
         out
@@ -323,11 +326,11 @@ impl TilePos {
     }
 
     pub fn is_valid(self) -> bool {
-        // must not be negative
+        // x must not be negative
         self.pos.x >= 0
-            // must fit within the row
+            // x must fit within the row
             && self.pos.x <= self.pos.y
-            // must not go beneath its height
+            // y must not go beneath its height
             && self.row() < self.height()
     }
 
@@ -378,8 +381,11 @@ impl TilePos {
     }
 }
 
-impl AddAssign<TileOffset> for TilePos {
-    fn add_assign(&mut self, mut rhs: TileOffset) {
+impl Add<TileOffset> for TilePos {
+    type Output = Option<Self>;
+
+    /// returns None if out of bounds.
+    fn add(mut self, mut rhs: TileOffset) -> Self::Output {
         for _ in 0..rhs.depth {
             self.push_front(SubTile::C);
         }
@@ -388,7 +394,7 @@ impl AddAssign<TileOffset> for TilePos {
         }
         self.pos += rhs.offset;
         self.flop ^= rhs.flop;
-        assert!(self.is_valid());
+        self.is_valid().then_some(self)
     }
 }
 
