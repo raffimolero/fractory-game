@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod tests;
 
+use std::iter::repeat_with;
+
 use ::rand::distributions::Uniform;
 use fractory_common::sim::logic::{
+    actions::TileAction,
     path::{SubTile, TileOffset, TilePos},
     tile::Quad,
 };
@@ -17,8 +20,10 @@ pub enum SetErr {
 }
 
 /// temporary struct to represent a bunch of moves
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct MoveList {
-    moves: Vec<(TilePos, TileOffset)>,
+    // TODO: resolve how to order "store" operations with "move" operations
+    moves: Vec<(TilePos, TilePos)>,
 }
 
 impl MoveList {
@@ -40,7 +45,11 @@ impl MoveList {
             }
         };
 
-        todo!();
+        let moves = repeat_with(|| (rand_path(), rand_path()))
+            .take(len)
+            .collect();
+
+        Self { moves }
     }
 }
 
