@@ -126,37 +126,6 @@ impl Moves {
         let mut cur = 0;
         while cur < moves.len() {
             let Move { src, dst } = moves[cur];
-            // dbg!(&moves);
-            // dbg!(&slots);
-
-            // println!();
-            // println!("Moves");
-            // for (
-            //     i,
-            //     Move {
-            //         src: Idx(src),
-            //         dst: Idx(dst),
-            //     },
-            // ) in moves.iter().enumerate()
-            // {
-            //     if i == cur {
-            //         print!("{i:>2}> ");
-            //     } else {
-            //         print!("    ");
-            //     }
-            //     println!("{src}-{dst}");
-            // }
-
-            // println!("Slots");
-            // for status in &slots.0 {
-            //     match status {
-            //         Free => print!("__, "),
-            //         Taken(idx) => print!("{idx:02}, "),
-            //         Bad => print!("XX, "),
-            //     }
-            // }
-            // println!();
-            // println!("{}^^", "    ".repeat(src.0));
 
             // check if source is empty
             if items[src].is_hole() {
@@ -167,7 +136,7 @@ impl Moves {
             let slot_state = &mut slots[src];
             match *slot_state {
                 Status::Free => *slot_state = Status::Taken(cur),
-                // check if they're actually the same
+                //                 [  dedup the move list  ]
                 Status::Taken(old) if moves[old].dst != dst => {
                     *slot_state = Status::Bad;
                     moves.swap_remove(cur);
@@ -181,11 +150,11 @@ impl Moves {
 
                     moves.swap(old, cur);
                     moves.swap_remove(cur);
-                    continue;
+                    cur -= 1;
                 }
                 _ => {
                     moves.swap_remove(cur);
-                    continue;
+                    cur -= 1;
                 }
             }
 
@@ -211,32 +180,32 @@ impl Moves {
 
         // the index of the move being checked at the moment
         let mut cur = 0;
-        while cur < moves.len() {
-            let Move { src, dst } = moves[cur];
-            // dbg!(&moves);
-            // dbg!(&slots);
-
-            let slot_state = &mut slots[dst];
+        while let Some(mv) = moves.get(cur).copied() {
+            let slot_state = &mut slots[mv.dst];
             match *slot_state {
                 Status::Free => *slot_state = Status::Taken(cur),
+                // dedup is already done by this point
                 Status::Taken(old) /*if moves[old].src != src*/ => {
                     *slot_state = Status::Bad;
                     moves.swap_remove(cur);
                     cur -= 1;
 
-                    let Move { src: _, dst } = moves[cur];
+                    // get last valid move
+                    let mv = moves[cur];
 
-                    if let Status::Taken(addr) = &mut slots[dst] {
+                    // swap remove
+                    moves[old] = mv;
+                    if let Status::Taken(addr) = &mut slots[mv.dst] {
+                        // retarget
                         *addr = old;
                     }
 
-                    moves.swap(old, cur);
                     moves.swap_remove(cur);
-                    continue;
+                    cur -= 1;
                 }
-                _ => {
+                Status::Bad => {
                     moves.swap_remove(cur);
-                    continue;
+                    cur -= 1;
                 }
             }
 
@@ -329,7 +298,7 @@ mod tests {
             .map(Item)
             .collect::<Vec<Item>>();
 
-        Data(items)
+        Items(Data(items))
     }
 
     fn random_moves(item_count: usize, move_count: Range<usize>) -> Moves {
@@ -364,7 +333,7 @@ mod tests {
 
         for (i, (it, mv)) in fails.into_iter().enumerate() {
             println!("{i}");
-            let items = Data(it.into_iter().map(Item).collect());
+            let items = Items(Data(it.into_iter().map(Item).collect()));
             let mut moves = Moves(
                 mv.into_iter()
                     .map(|[src, dst]| Move {
@@ -386,6 +355,7 @@ mod tests {
             let moves = random_moves(items.len(), 2..16);
             let saved_items = items
                 .0
+                 .0
                 .iter()
                 .map(|Item(x)| (*x != 0) as u8)
                 .collect::<Vec<u8>>();
