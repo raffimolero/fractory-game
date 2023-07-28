@@ -16,31 +16,109 @@ fn test_create_at() {
     assert_eq!(tree, tree!({{ . { . . { . . . 4 } . } . . } . . . }));
 }
 
-#[test]
-fn test_node_set() {
-    let paths: &[&[SubTile]] = &[&[C, U, R, L], &[C, U, R, C], &[C, R, U]];
-
+/// iterates through a sequence of paths, expected deletions, and tree snapshots:
+/// - set the item at the path,
+/// - monitor exactly which tiles it deletes through a mock delete function, and
+/// - monitor the state of the tree at every step
+fn mock_node_set(sequence: &[(&[SubTile], &[LeafItem], Node<LeafItem>)]) {
     let mut node = Node::default();
-    for (i, path) in paths.iter().enumerate() {
-        let path = TilePos::from_inward_path(path);
-        assert_eq!(node.set(path, i), NodeResponse::Accept);
-    }
 
-    assert_eq!(
-        node,
-        tree!({ { . { . . { 1 . . 0 } . } { . 2 . . } . } . . .}),
-    );
+    for (i, (path, expected_deletions, expected_tree)) in sequence.iter().enumerate() {
+        // build a mock deletion function that expects to be
+        // called with specific arguments in a specific order
+        let mut iter = expected_deletions.iter().copied();
+        let mut mock_delete = |idx| assert_eq!(iter.next(), Some(idx));
+
+        let path = TilePos::from_inward_path(path);
+        node.set(path, i, &mut mock_delete);
+
+        // must consume the whole sequence
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(node, *expected_tree);
+    }
 }
 
 #[test]
-fn test_node_set_overlapping() {
-    let mut node = Node::default();
+fn test_node_set() {
+    mock_node_set(&[
+        (
+            &[C, U, R, L],
+            &[],
+            tree!({ { . { . . { . . . 0 } . } . . } . . .}),
+        ),
+        (
+            &[C, U, R, C],
+            &[],
+            tree!({ { . { . . { 1 . . 0 } . } . . } . . .}),
+        ),
+        (
+            &[C, R, U],
+            &[],
+            tree!({ { . { . . { 1 . . 0 } . } { . 2 . . } . } . . .}),
+        ),
+    ]);
+}
 
-    let path_a = TilePos::from_inward_path(&[C, U, R, L]);
-    let path_b = TilePos::from_inward_path(&[C, U, R, L]);
+#[test]
+fn test_node_set_same_leaf() {
+    mock_node_set(&[
+        (
+            &[C, U, R, L],
+            &[],
+            tree!({ { . { . . { . . . 0 } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L],
+            &[1, 0],
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
+        ),
+    ])
+}
 
-    assert_eq!(node.set(path_a, 0), NodeResponse::Accept);
-    assert_eq!(node.set(path_b, 1), NodeResponse::Contradict(0));
+#[test]
+fn test_node_set_pass_leaf() {
+    mock_node_set(&[
+        (
+            &[C, U, R, L],
+            &[],
+            tree!({ { . { . . { . . . 0 } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L, C],
+            &[1, 0],
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
+        ),
+    ])
+}
 
-    assert_eq!(node, tree!({ { . { . . { . . . X } . } . . } . . . }));
+#[test]
+fn test_node_set_hit_branch() {
+    mock_node_set(&[
+        (
+            &[C, U, R, L, C],
+            &[],
+            tree!({ { . { . . { . . . { 0 . . . } } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L, U],
+            &[],
+            tree!({ { . { . . { . . . { 0 1 . . } } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L, R],
+            &[],
+            tree!({ { . { . . { . . . { 0 1 2 . } } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L, L],
+            &[],
+            tree!({ { . { . . { . . . { 0 1 2 3 } } . } . . } . . . }),
+        ),
+        (
+            &[C, U, R, L],
+            &[4, 0, 1, 2, 3],
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
+        ),
+    ])
 }

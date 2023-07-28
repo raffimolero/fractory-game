@@ -14,12 +14,12 @@ use super::*;
 
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct MoveList {
+struct RawMoveList {
     // TODO: resolve how to order "store" operations with "move" operations
     moves: Vec<(TilePos, TilePos)>,
 }
 
-impl MoveList {
+impl RawMoveList {
     fn rand(len: usize) -> Self {
         let rng = thread_rng();
         let dist = Uniform::new(0, 5);
@@ -44,22 +44,32 @@ impl MoveList {
 
         Self { moves }
     }
+
+    fn clean_forks(&mut self) {
+        let mut tree = Node::default();
+        let mut holes = vec![];
+        for (i, (src, _dst)) in self.moves.iter().copied().enumerate() {
+            tree.set(src, i, &mut |idx| holes.push(idx));
+        }
+        for idx in holes.iter().rev() {
+            self.moves.swap_remove(*idx);
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct CleanMoveList {
+    inner: RawMoveList,
 }
 
 // TODO: double check all pub visibilities
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NodeResponse {
-    Accept,
-    Reject,
-    Contradict(LeafItem),
-}
 
 type LeafItem = usize; // TODO: inline later
 impl Node<LeafItem> {
     pub fn create_at(mut path: TilePos, value: LeafItem) -> Self {
         match path.pop_front() {
             Some(subtile) => {
+                // Node does not implement Copy, hardcoding 4 frees is easier.
                 let mut children = Quad([Node::Free, Node::Free, Node::Free, Node::Free]);
                 children[subtile] = Self::create_at(path, value);
                 Self::Branch(Box::new(children))
@@ -68,26 +78,40 @@ impl Node<LeafItem> {
         }
     }
 
-    /// returns false if a collision happened, else true.
-    pub fn set(&mut self, mut path: TilePos, value: LeafItem) -> NodeResponse {
-        let response = match self {
-            Node::Bad => NodeResponse::Reject,
-            Node::Leaf(item) => NodeResponse::Contradict(*item),
-            Node::Free => {
-                *self = Self::create_at(path, value);
-                NodeResponse::Accept
+    fn delete(&mut self, delete_item: &mut impl FnMut(LeafItem)) {
+        match self {
+            Node::Free => {}
+            Node::Bad => {}
+            Node::Leaf(item) => delete_item(*item),
+            Node::Branch(children) => {
+                for node in &mut children.0 {
+                    node.delete(delete_item);
+                }
             }
-            Node::Branch(children) => match path.pop_front() {
-                // NOTE: even if all 4 children are "Bad" we do not merge them into one
-                // NOTE: must early return
-                Some(subtile) => return children[subtile].set(path, value),
-                None => NodeResponse::Reject,
-            },
+        }
+        *self = Node::Bad;
+    }
+
+    /// sets a specified value at a specified path.
+    /// calls delete_item if a collision happens.
+    pub fn set(
+        &mut self,
+        mut path: TilePos,
+        value: LeafItem,
+        delete_item: &mut impl FnMut(LeafItem),
+    ) {
+        let mut reject = |this: &mut Self| {
+            delete_item(value);
+            this.delete(delete_item);
         };
 
-        if !matches!(response, NodeResponse::Accept) {
-            *self = Node::Bad;
+        match self {
+            Node::Free => *self = Self::create_at(path, value),
+            Node::Bad | Node::Leaf(_) => reject(self),
+            Node::Branch(children) => match path.pop_front() {
+                Some(subtile) => children[subtile].set(path, value, delete_item),
+                None => reject(self),
+            },
         }
-        response
     }
 }

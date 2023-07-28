@@ -120,7 +120,7 @@ impl<T> Node<T> {
 impl<T: Display> Display for Node<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Free => write!(f, " "),
+            Node::Free => write!(f, "."),
             Node::Bad => write!(f, "X"),
             Node::Leaf(val) => val.fmt(f),
             Node::Branch(children) => {
@@ -138,7 +138,7 @@ impl<T: Display> Display for Node<T> {
 impl<T: Debug> Debug for Node<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Free => write!(f, " "),
+            Node::Free => write!(f, "."),
             Node::Bad => write!(f, "X"),
             Node::Leaf(val) => val.fmt(f),
             Node::Branch(children) => {

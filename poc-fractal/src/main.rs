@@ -169,7 +169,7 @@ async fn main() {
     }
 
     let mut tree = Node::create_at(path_a, 1);
-    let _ = dbg!(tree.set(path_b, 2));
+    // let _ = dbg!(tree.set(path_b, 2));
 
     // random tree
     // let tree = QuadTree::<u8>::rand(&mut rng, 6);
