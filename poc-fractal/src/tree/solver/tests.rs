@@ -23,7 +23,7 @@ fn test_node_set() {
     let mut node = Node::default();
     for (i, path) in paths.iter().enumerate() {
         let path = TilePos::from_inward_path(path);
-        node.set(path, i).unwrap();
+        assert_eq!(node.set(path, i), NodeResponse::Accept);
     }
 
     assert_eq!(
@@ -39,8 +39,8 @@ fn test_node_set_overlapping() {
     let path_a = TilePos::from_inward_path(&[C, U, R, L]);
     let path_b = TilePos::from_inward_path(&[C, U, R, L]);
 
-    node.set(path_a, 0).unwrap();
-    node.set(path_b, 0).unwrap_err();
+    assert_eq!(node.set(path_a, 0), NodeResponse::Accept);
+    assert_eq!(node.set(path_b, 1), NodeResponse::Contradict(0));
 
     assert_eq!(node, tree!({ { . { . . { . . . X } . } . . } . . . }));
 }

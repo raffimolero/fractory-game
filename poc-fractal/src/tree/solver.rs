@@ -12,13 +12,6 @@ use fractory_common::sim::logic::{
 
 use super::*;
 
-#[derive(Debug, Clone, Copy)]
-pub enum SetErr {
-    EncounteredBad,
-    EncounteredLeaf,
-    StoppedAtParent,
-}
-
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct MoveList {
@@ -55,6 +48,13 @@ impl MoveList {
 
 // TODO: double check all pub visibilities
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeResponse {
+    Accept,
+    Reject,
+    Contradict(LeafItem),
+}
+
 type LeafItem = usize; // TODO: inline later
 impl Node<LeafItem> {
     pub fn create_at(mut path: TilePos, value: LeafItem) -> Self {
@@ -69,28 +69,25 @@ impl Node<LeafItem> {
     }
 
     /// returns false if a collision happened, else true.
-    pub fn set(&mut self, mut path: TilePos, value: LeafItem) -> bool {
-        // TODO: set self to bad on error
-        // should i return the error?
-        // do a direct item removal operation on the original moves vector?
-        // simply consume the entire vector/iterator and turn Nodes themselves into iterators?
-        // what if all 4 children are "Bad"? do we merge them into one?
-        let is_ok = match self {
-            Node::Bad => false,
-            Node::Leaf(_) => false,
+    pub fn set(&mut self, mut path: TilePos, value: LeafItem) -> NodeResponse {
+        let response = match self {
+            Node::Bad => NodeResponse::Reject,
+            Node::Leaf(item) => NodeResponse::Contradict(*item),
             Node::Free => {
                 *self = Self::create_at(path, value);
-                true
+                NodeResponse::Accept
             }
             Node::Branch(children) => match path.pop_front() {
-                Some(subtile) => children[subtile].set(path, value),
-                None => false,
+                // NOTE: even if all 4 children are "Bad" we do not merge them into one
+                // NOTE: must early return
+                Some(subtile) => return children[subtile].set(path, value),
+                None => NodeResponse::Reject,
             },
         };
 
-        if !is_ok {
+        if !matches!(response, NodeResponse::Accept) {
             *self = Node::Bad;
         }
-        is_ok
+        response
     }
 }

@@ -112,7 +112,7 @@ fn window_conf() -> Conf {
     }
 }
 
-fn draw_num(font: Font, color: Color) -> impl Fn(&u8) {
+fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
     move |num| {
         let text = num.to_string();
         let params = TextParams {
