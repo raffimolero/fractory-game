@@ -6,6 +6,7 @@ use std::{collections::HashSet, iter::repeat_with};
 use ::rand::distributions::Uniform;
 use fractory_common::sim::logic::{
     actions::TileAction,
+    fractal::Fractal,
     path::{SubTile, TileOffset, TilePos},
     tile::Quad,
 };
@@ -18,6 +19,9 @@ struct RawMoveList {
     // TODO: resolve how to order "store" operations with "move" operations
     moves: Vec<(TilePos, TilePos)>,
 }
+
+// TODO: figure out how to make the coupling with the fractal quadtree clearer,
+// because Fractal <- RawMoveList <- Node<LeafItem> and the dependence is clear
 
 impl RawMoveList {
     fn rand(len: usize) -> Self {
@@ -45,7 +49,8 @@ impl RawMoveList {
         Self { moves }
     }
 
-    fn dedup(&mut self) {
+    fn clean_sources(&mut self, tree: &Fractal) {
+        // TODO: clean attempts to move from tile that contains space
         let mut set = HashSet::new();
         let mut i = 0;
         while let Some(item) = self.moves.get(i).copied() {
@@ -79,8 +84,40 @@ impl RawMoveList {
         }
     }
 
-    fn clean_dead_ends(&mut self) {
-        
+    fn clean_dead_ends(&mut self, tree: &Fractal) {
+        /*
+        "Valid until proven otherwise."
+
+        move is invalid if:
+        - destination contains a single invalid tile
+
+        tile is invalid if:
+        - it is non empty
+        - it is not moved out
+
+        goal: build a chain where each dependency knows how to invalidate its dependents
+        think of moves not as "source->destination", but "dependent<-dependency"
+        dependencies will store which dependents they will invalidate.
+
+        think of the simple case where there are only 2 moves. one after the other.
+        no 2 sources nor 2 destinations will overlap.
+
+        if a destination is under a source, it is free (until the source is marked bad)
+        if a destination is at a source, it is free (until the source is marked bad)
+        if a destination lands on a parent of a source, it is free (until one of the sources is marked bad)
+        if a source is under a destination, it is uhh idk
+        */
+        let mut dsts = Node::default();
+
+        for (src, dst) in self.moves.iter().copied() {
+            root_dependents.insert(dst);
+            dsts.set(dst, src, &mut || unreachable!("destination overlaps"));
+            dsts.set(src, dst, &mut || unreachable!("source overlaps"));
+        }
+
+        for (src, dst) in self.moves.iter().copied() {
+            dst
+        }
     }
 }
 
@@ -90,6 +127,7 @@ struct CleanMoveList {
 }
 
 // TODO: double check all pub visibilities
+// TODO: figure out if you can merge Fractal with Node
 
 type LeafItem = usize; // TODO: inline later
 impl Node<LeafItem> {
