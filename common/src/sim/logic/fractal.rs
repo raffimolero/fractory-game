@@ -4,18 +4,20 @@ mod tests;
 use super::{
     actions::ActionBatch,
     orientation::Transform,
+    path::TilePos,
     tile::{QuadTile, Tile},
 };
 use std::collections::HashMap;
 
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
-struct Fractal {
+pub struct Fractal {
     /// the root node of the fractal; the biggest piece
     root: Tile,
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
+    // TODO: store "is_full", "is_leaf"
     library: Vec<QuadTile>,
 
     /// a mapping from quadtile to tile
@@ -31,6 +33,11 @@ impl Fractal {
             library: vec![QuadTile::SPACE],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
         }
+    }
+
+    pub fn get(&self, path: TilePos) -> Tile {
+        let mut out = self.root;
+        todo!()
     }
 
     // TODO: make Fragment data structure, then implement this function
@@ -66,6 +73,7 @@ impl Fractal {
         Tile { id, orient }
     }
 
+    // TODO: 6 hash inserts per new tile is probably expensive for the common case.
     fn cache(&mut self, mut quad: QuadTile, mut tile: Tile) {
         for _reflection in 0..2 {
             for _rotation in 0..3 {

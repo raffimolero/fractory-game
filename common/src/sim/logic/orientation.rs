@@ -134,6 +134,7 @@ impl Orient {
         }
     }
 
+    /// self == self.flip()
     pub const fn is_rfu(self) -> bool {
         use Orient::*;
         matches!(self, Iso | RfU)
