@@ -5,14 +5,14 @@ use fractory_common::sim::logic::path::SubTile::{self, *};
 
 #[test]
 fn test_create_at_root() {
-    let tree = Node::create_at(TilePos::UNIT, 1);
+    let tree = CollisionCleaner::create_at(TilePos::UNIT, 1);
     assert_eq!(tree, tree!(1));
 }
 
 #[test]
 fn test_create_at() {
     let path = TilePos::from_inward_path(&[C, U, R, L]);
-    let tree = Node::create_at(path, 4);
+    let tree = CollisionCleaner::create_at(path, 4);
     assert_eq!(tree, tree!({{ . { . . { . . . 4 } . } . . } . . . }));
 }
 
@@ -20,8 +20,8 @@ fn test_create_at() {
 /// - set the item at the path,
 /// - monitor exactly which tiles it deletes through a mock delete function, and
 /// - monitor the state of the tree at every step
-fn mock_node_set(sequence: &[(&[SubTile], &[LeafItem], Node<LeafItem>)]) {
-    let mut node = Node::default();
+fn mock_node_set(sequence: &[(&[SubTile], &[LeafItem], CollisionCleaner<LeafItem>)]) {
+    let mut node = CollisionCleaner::default();
 
     for (i, (path, expected_deletions, expected_tree)) in sequence.iter().enumerate() {
         // build a mock deletion function that expects to be

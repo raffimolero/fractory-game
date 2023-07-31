@@ -29,24 +29,24 @@ mod tests {
         };
         assert_eq!(
             tree,
-            Node::Branch(Box::new(Quad([
-                Node::Leaf((1, 2)),
-                Node::Leaf((3, 4)),
-                Node::Branch(Box::new(Quad([
-                    Node::Leaf({
+            CollisionCleaner::Branch(Box::new(Quad([
+                CollisionCleaner::Leaf((1, 2)),
+                CollisionCleaner::Leaf((3, 4)),
+                CollisionCleaner::Branch(Box::new(Quad([
+                    CollisionCleaner::Leaf({
                         let x = 5;
                         let y = 6;
                         (x, y)
                     }),
-                    Node::Free,
-                    Node::Bad,
-                    Node::Free,
+                    CollisionCleaner::Free,
+                    CollisionCleaner::Bad,
+                    CollisionCleaner::Free,
                 ]))),
-                Node::Branch(Box::new(Quad([
-                    Node::Leaf((7, 8)),
-                    Node::Leaf((9, 10)),
-                    Node::Free,
-                    Node::Leaf((11, 12)),
+                CollisionCleaner::Branch(Box::new(Quad([
+                    CollisionCleaner::Leaf((7, 8)),
+                    CollisionCleaner::Leaf((9, 10)),
+                    CollisionCleaner::Free,
+                    CollisionCleaner::Leaf((11, 12)),
                 ]))),
             ]))),
         );
@@ -60,7 +60,7 @@ use ::rand::{distributions::Standard, prelude::*};
 use ergoquad_2d::prelude::*;
 
 #[derive(Clone, PartialEq, Eq, Default)]
-pub enum Node<T> {
+pub enum CollisionCleaner<T> {
     #[default]
     Free,
     Bad,
@@ -68,7 +68,7 @@ pub enum Node<T> {
     Branch(Box<Quad<Self>>),
 }
 
-impl<T> Node<T> {
+impl<T> CollisionCleaner<T> {
     const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
 
     pub fn random_paths(rng: &mut impl Rng, path_count: usize) -> Self
@@ -92,13 +92,13 @@ impl<T> Node<T> {
             // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
         };
         match self {
-            Node::Free => {}
-            Node::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
-            Node::Leaf(val) => {
+            CollisionCleaner::Free => {}
+            CollisionCleaner::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
+            CollisionCleaner::Leaf(val) => {
                 draw_base();
                 draw_leaf(val);
             }
-            Node::Branch(children) => {
+            CollisionCleaner::Branch(children) => {
                 draw_base();
 
                 // margin between child trees
@@ -117,13 +117,13 @@ impl<T> Node<T> {
     }
 }
 
-impl<T: Display> Display for Node<T> {
+impl<T: Display> Display for CollisionCleaner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Free => write!(f, "."),
-            Node::Bad => write!(f, "X"),
-            Node::Leaf(val) => val.fmt(f),
-            Node::Branch(children) => {
+            CollisionCleaner::Free => write!(f, "."),
+            CollisionCleaner::Bad => write!(f, "X"),
+            CollisionCleaner::Leaf(val) => val.fmt(f),
+            CollisionCleaner::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
                     child.fmt(f)?;
@@ -135,13 +135,13 @@ impl<T: Display> Display for Node<T> {
     }
 }
 
-impl<T: Debug> Debug for Node<T> {
+impl<T: Debug> Debug for CollisionCleaner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Free => write!(f, "."),
-            Node::Bad => write!(f, "X"),
-            Node::Leaf(val) => val.fmt(f),
-            Node::Branch(children) => {
+            CollisionCleaner::Free => write!(f, "."),
+            CollisionCleaner::Bad => write!(f, "X"),
+            CollisionCleaner::Leaf(val) => val.fmt(f),
+            CollisionCleaner::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
                     child.fmt(f)?;
