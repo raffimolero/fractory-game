@@ -108,15 +108,17 @@ impl RawMoveList {
         if a source is under a destination, it is uhh idk
         */
         let mut dsts = Node::default();
+        let mut srcs = Node::default();
+        let mut ends = HashSet::new();
 
         for (src, dst) in self.moves.iter().copied() {
-            root_dependents.insert(dst);
-            dsts.set(dst, src, &mut || unreachable!("destination overlaps"));
-            dsts.set(src, dst, &mut || unreachable!("source overlaps"));
+            ends.insert(dst);
+            dsts.set(dst, src, &mut |_| unreachable!("destination overlaps"));
+            srcs.set(src, dst, &mut |_| unreachable!("source overlaps"));
         }
 
         for (src, dst) in self.moves.iter().copied() {
-            dst
+            // dst
         }
     }
 }
@@ -129,9 +131,8 @@ struct CleanMoveList {
 // TODO: double check all pub visibilities
 // TODO: figure out if you can merge Fractal with Node
 
-type LeafItem = usize; // TODO: inline later
-impl Node<LeafItem> {
-    pub fn create_at(mut path: TilePos, value: LeafItem) -> Self {
+impl<T> Node<T> {
+    pub fn create_at(mut path: TilePos, value: T) -> Self {
         match path.pop_front() {
             Some(subtile) => {
                 // Node does not implement Copy, hardcoding 4 frees is easier.
@@ -144,39 +145,33 @@ impl Node<LeafItem> {
     }
 
     /// a workaround for Drop which allows mutating a shared data structure
-    fn drop_with(&mut self, drop_item: &mut impl FnMut(LeafItem)) {
-        match self {
+    fn drop_with(&mut self, drop_item: &mut impl FnMut(T)) {
+        match std::mem::replace(self, Node::Bad) {
             Node::Free => {}
             Node::Bad => {}
-            Node::Leaf(item) => drop_item(*item),
+            Node::Leaf(item) => drop_item(item),
             Node::Branch(children) => {
-                for node in &mut children.0 {
+                for mut node in children.0 {
                     node.drop_with(drop_item);
                 }
             }
         }
-        *self = Node::Bad;
     }
 
     /// sets a specified value at a specified path.
     /// calls drop_item if a collision happens.
-    pub fn set(
-        &mut self,
-        mut path: TilePos,
-        value: LeafItem,
-        drop_item: &mut impl FnMut(LeafItem),
-    ) {
-        let mut reject = |this: &mut Self| {
+    pub fn set(&mut self, mut path: TilePos, value: T, drop_item: &mut impl FnMut(T)) {
+        let mut reject = |this: &mut Self, value: T| {
             drop_item(value);
             this.drop_with(drop_item);
         };
 
         match self {
             Node::Free => *self = Self::create_at(path, value),
-            Node::Bad | Node::Leaf(_) => reject(self),
+            Node::Bad | Node::Leaf(_) => reject(self, value),
             Node::Branch(children) => match path.pop_front() {
                 Some(subtile) => children[subtile].set(path, value, drop_item),
-                None => reject(self),
+                None => reject(self, value),
             },
         }
     }
