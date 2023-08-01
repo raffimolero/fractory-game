@@ -1,6 +1,6 @@
 mod tree;
 
-use crate::tree::CollisionCleaner;
+use crate::tree::Node;
 use fractory_common::sim::logic::path::{SubTile, TilePos};
 use std::f32::consts::TAU;
 
@@ -168,7 +168,7 @@ async fn main() {
         path_b.push_front(tile);
     }
 
-    let mut tree = CollisionCleaner::create_at(path_a, 1);
+    let mut tree = Node::create_at(path_a, 1);
     // let _ = dbg!(tree.set(path_b, 2));
 
     // random tree

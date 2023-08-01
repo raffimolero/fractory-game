@@ -1,88 +1,40 @@
+mod collision;
 mod solver;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_macro() {
-        let tree = tree! {
-            {
-                (1, 2)
-                (3, 4)
-                {
-                    { // this block is an expression, not a branch
-                        let x = 5;
-                        let y = 6;
-                        (x, y)
-                    }
-                    .
-                    X
-                    .
-                } {
-                    (7, 8)
-                    (9, 10)
-                    .
-                    (11, 12)
-                }
-            }
-        };
-        assert_eq!(
-            tree,
-            CollisionCleaner::Branch(Box::new(Quad([
-                CollisionCleaner::Leaf((1, 2)),
-                CollisionCleaner::Leaf((3, 4)),
-                CollisionCleaner::Branch(Box::new(Quad([
-                    CollisionCleaner::Leaf({
-                        let x = 5;
-                        let y = 6;
-                        (x, y)
-                    }),
-                    CollisionCleaner::Free,
-                    CollisionCleaner::Bad,
-                    CollisionCleaner::Free,
-                ]))),
-                CollisionCleaner::Branch(Box::new(Quad([
-                    CollisionCleaner::Leaf((7, 8)),
-                    CollisionCleaner::Leaf((9, 10)),
-                    CollisionCleaner::Free,
-                    CollisionCleaner::Leaf((11, 12)),
-                ]))),
-            ]))),
-        );
-    }
-}
-
-use fractory_common::sim::logic::tile::Quad;
+use fractory_common::sim::logic::{path::TilePos, tile::Quad};
 use std::fmt::{Debug, Display};
 
 use ::rand::{distributions::Standard, prelude::*};
 use ergoquad_2d::prelude::*;
 
+type Index = usize;
+
+// TODO: figure out if you can merge Fractal with CollisionCleaner and DeadEndCleaner
+
 #[derive(Clone, PartialEq, Eq, Default)]
-pub enum CollisionCleaner<T> {
+pub enum Node {
     #[default]
     Free,
     Bad,
-    Leaf(T),
+    Leaf(Index),
     Branch(Box<Quad<Self>>),
 }
 
-impl<T> CollisionCleaner<T> {
+impl Node {
     const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
 
     pub fn random_paths(rng: &mut impl Rng, path_count: usize) -> Self
     where
-        Standard: Distribution<T>,
+        Standard: Distribution<Index>,
     {
         todo!()
     }
 
-    pub fn draw(&self, draw_leaf: &impl Fn(&T)) {
+    pub fn draw(&self, draw_leaf: &impl Fn(Index)) {
         self._draw(draw_leaf, 0);
     }
 
-    fn _draw(&self, draw_leaf: &impl Fn(&T), depth: usize) {
+    fn _draw(&self, draw_leaf: &impl Fn(Index), depth: usize) {
         let col = Self::PALETTE[depth % Self::PALETTE.len()];
         let draw_base = || {
             draw_rectangle(0.0, 0.0, 1.0, 1.0, col);
@@ -92,13 +44,13 @@ impl<T> CollisionCleaner<T> {
             // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
         };
         match self {
-            CollisionCleaner::Free => {}
-            CollisionCleaner::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
-            CollisionCleaner::Leaf(val) => {
+            Node::Free => {}
+            Node::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
+            Node::Leaf(val) => {
                 draw_base();
                 draw_leaf(val);
             }
-            CollisionCleaner::Branch(children) => {
+            Node::Branch(children) => {
                 draw_base();
 
                 // margin between child trees
@@ -115,15 +67,59 @@ impl<T> CollisionCleaner<T> {
             }
         }
     }
+
+    pub fn create_at(mut path: TilePos, value: Index) -> Self {
+        match path.pop_front() {
+            Some(subtile) => {
+                // Node does not implement Copy, hardcoding 4 frees is easier.
+                let mut children = Quad([Node::Free, Node::Free, Node::Free, Node::Free]);
+                children[subtile] = Self::create_at(path, value);
+                Self::Branch(Box::new(children))
+            }
+            None => Self::Leaf(value),
+        }
+    }
+
+    /// a workaround for Drop which allows mutating a shared data structure
+    fn drop_with(&mut self, drop_item: &mut impl FnMut(Index)) {
+        match std::mem::replace(self, Node::Bad) {
+            Node::Free => {}
+            Node::Bad => {}
+            Node::Leaf(item) => drop_item(item),
+            Node::Branch(children) => {
+                for mut node in children.0 {
+                    node.drop_with(drop_item);
+                }
+            }
+        }
+    }
+
+    /// sets a specified value at a specified path.
+    /// calls drop_item if a collision happens.
+    pub fn set(&mut self, mut path: TilePos, value: Index, drop_item: &mut impl FnMut(Index)) {
+        let mut reject = |this: &mut Self| {
+            drop_item(value);
+            this.drop_with(drop_item);
+        };
+
+        match self {
+            Node::Free => *self = Self::create_at(path, value),
+            Node::Bad | Node::Leaf(_) => reject(self),
+            Node::Branch(children) => match path.pop_front() {
+                Some(subtile) => children[subtile].set(path, value, drop_item),
+                None => reject(self),
+            },
+        }
+    }
 }
 
-impl<T: Display> Display for CollisionCleaner<T> {
+impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CollisionCleaner::Free => write!(f, "."),
-            CollisionCleaner::Bad => write!(f, "X"),
-            CollisionCleaner::Leaf(val) => val.fmt(f),
-            CollisionCleaner::Branch(children) => {
+            Node::Free => write!(f, "."),
+            Node::Bad => write!(f, "X"),
+            Node::Leaf(val) => val.fmt(f),
+            Node::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
                     child.fmt(f)?;
@@ -135,13 +131,13 @@ impl<T: Display> Display for CollisionCleaner<T> {
     }
 }
 
-impl<T: Debug> Debug for CollisionCleaner<T> {
+impl Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CollisionCleaner::Free => write!(f, "."),
-            CollisionCleaner::Bad => write!(f, "X"),
-            CollisionCleaner::Leaf(val) => val.fmt(f),
-            CollisionCleaner::Branch(children) => {
+            Node::Free => write!(f, "."),
+            Node::Bad => write!(f, "X"),
+            Node::Leaf(val) => val.fmt(f),
+            Node::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
                     child.fmt(f)?;
@@ -163,18 +159,23 @@ impl<T: Debug> Debug for CollisionCleaner<T> {
 /// });
 /// println!("{tree:?}");
 /// ```
-macro_rules! tree {
+macro_rules! collision_tree {
     (.) => {
-        Node::Free
+        CollisionCleaner::Free
     };
     (X) => {
-        Node::Bad
+        CollisionCleaner::Bad
     };
     ({ $a:tt $b:tt $c:tt $d:tt }) => {
-        Node::Branch(Box::new(Quad([tree!($a), tree!($b), tree!($c), tree!($d)])))
+        CollisionCleaner::Branch(Box::new(Quad([
+            collision_tree!($a),
+            collision_tree!($b),
+            collision_tree!($c),
+            collision_tree!($d),
+        ])))
     };
     ($t:expr) => {
-        Node::Leaf($t)
+        CollisionCleaner::Leaf($t)
     };
 }
-pub(crate) use tree;
+pub(crate) use collision_tree;
