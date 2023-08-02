@@ -304,3 +304,24 @@ impl Transform {
     }
 }
 
+impl From<Orient> for Transform {
+    fn from(value: Orient) -> Self {
+        use Orient::*;
+        use Transform::*;
+        match value {
+            Iso => KU,
+            RtK => KU,
+            RtF => FU,
+            RfU => KU,
+            RfR => KR,
+            RfL => KL,
+            AKU => KU,
+            AKR => KR,
+            AKL => KL,
+            AFU => FU,
+            AFR => FR,
+            AFL => FL,
+        }
+    }
+}
+

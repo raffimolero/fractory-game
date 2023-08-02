@@ -36,7 +36,15 @@ impl Fractal {
     }
 
     pub fn get(&self, path: TilePos) -> Tile {
-        let mut out = self.root;
+        let mut tile = self.root;
+        for subtile in path {
+            tile = self.library[tile.id] + tile.orient;
+        }
+        todo!()
+    }
+
+    pub fn set(&mut self, path: TilePos, tile: Tile) -> Tile {
+        let out = self.root;
         todo!()
     }
 
