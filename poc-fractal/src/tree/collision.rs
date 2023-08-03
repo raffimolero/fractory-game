@@ -53,8 +53,8 @@ impl RawMoveList {
         // TODO: clean attempts to move from tile that contains space
         let mut set = HashSet::new();
         let mut i = 0;
-        while let Some(item) = self.moves.get(i).copied() {
-            if set.insert(item) {
+        while let Some(item @ (src, dst)) = self.moves.get(i).copied() {
+            if set.insert(item) && tree.get_info(tree.get(src)).is_full {
                 i += 1;
             } else {
                 self.moves.swap_remove(i);
@@ -163,7 +163,7 @@ impl RawMoveList {
             old_tiles.push(main_fractal.get(src));
             // srcs.set(src, main_fractal.get(src));
             dsts.set(dst, i);
-            main_fractal.set(src, Tile::SPACE); // TODO
+            main_fractal.set(src, Tile::SPACE);
         }
 
         let mut dead = vec![];

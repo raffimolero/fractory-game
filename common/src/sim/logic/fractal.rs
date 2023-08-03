@@ -9,23 +9,21 @@ use super::{
 };
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy)]
 pub struct SlotInfo {
-    quad: QuadTile,
-    is_full: bool,
+    pub is_full: bool,
     // TODO: use enum instead, leaves are guaranteed to be full
-    is_leaf: bool,
+    pub is_leaf: bool,
 }
 
 impl SlotInfo {
     pub const SPACE: Self = Self {
-        quad: QuadTile::SPACE,
         is_full: false,
         is_leaf: true,
     };
 
     // TODO: FOR TESTING ONLY
     pub const ONE: Self = Self {
-        quad: QuadTile::ONE,
         is_full: true,
         is_leaf: true,
     };
@@ -39,7 +37,7 @@ pub struct Fractal {
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
-    library: Vec<SlotInfo>,
+    library: Vec<(QuadTile, SlotInfo)>,
 
     /// a mapping from quadtile to tile
     /// the opposite of library
@@ -51,7 +49,7 @@ impl Fractal {
     pub fn new() -> Self {
         Self {
             root: Tile::SPACE,
-            library: vec![SlotInfo::SPACE],
+            library: vec![(QuadTile::SPACE, SlotInfo::SPACE)],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
         }
     }
@@ -60,15 +58,22 @@ impl Fractal {
     pub fn new_binary() -> Self {
         Self {
             root: Tile::ONE,
-            library: vec![SlotInfo::SPACE, SlotInfo::ONE],
+            library: vec![
+                (QuadTile::SPACE, SlotInfo::SPACE),
+                (QuadTile::ONE, SlotInfo::ONE),
+            ],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE), (QuadTile::ONE, Tile::ONE)]),
         }
+    }
+
+    pub fn get_info(&self, tile: Tile) -> SlotInfo {
+        self.library[tile.id].1
     }
 
     pub fn get(&self, path: TilePos) -> Tile {
         let mut tile = self.root;
         for subtile in path {
-            let mut quad = self.library[tile.id].quad;
+            let (mut quad, _info) = self.library[tile.id];
             quad += -tile.orient;
             tile = quad[subtile];
         }
@@ -81,7 +86,7 @@ impl Fractal {
         let expansions = path
             .into_iter()
             .map(|subtile| {
-                let mut quad = self.library[replaced_tile.id].quad;
+                let (mut quad, _info) = self.library[replaced_tile.id];
                 quad += -replaced_tile.orient;
                 tile += -replaced_tile.orient;
                 replaced_tile = quad[subtile];
@@ -122,12 +127,14 @@ impl Fractal {
     fn register_new(&mut self, mut quad: QuadTile) -> Tile {
         let orient = quad.reorient();
         let id = self.library.len();
-        let is_full = quad.0.iter().all(|child| self.library[child.id].is_full);
-        self.library.push(SlotInfo {
+        let is_full = quad.0.iter().all(|child| self.library[child.id].1.is_full);
+        self.library.push((
             quad,
-            is_full,
-            is_leaf: false,
-        });
+            SlotInfo {
+                is_full,
+                is_leaf: false,
+            },
+        ));
 
         self.cache(
             quad,
