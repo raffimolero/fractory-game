@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod factory;
 pub mod fractal;
 pub mod orientation;
 pub mod path;

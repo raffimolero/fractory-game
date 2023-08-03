@@ -1,7 +1,9 @@
 mod tree;
 
 use crate::tree::Node;
+use fractory_common::sim::logic::fractal::Fractal;
 use fractory_common::sim::logic::path::{SubTile, TilePos};
+use fractory_common::sim::logic::tile::Tile;
 use std::f32::consts::TAU;
 
 use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
@@ -125,18 +127,46 @@ fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
         let dims = measure_text(&text, Some(font), params.font_size, params.font_scale);
         draw_text_ex(
             &text,
-            (1.0 - dims.width) / 2.0,
-            (1.0 + dims.height) / 2.0,
+            (0.0 - dims.width) / 2.0,
+            (0.5 + dims.height) / 2.0,
             params,
         )
     }
+}
+
+struct Context {
+    font: Font,
+}
+
+fn draw_tree(ctx: &Context, fractal: &Fractal) {
+    draw_rectangle(0.1, 0.1, 0.8, 0.8, BLUE);
+    let w = 1.0;
+    let h = 0.75_f32.sqrt();
+    draw_triangle(
+        Vec2 { x: -1.0, y: h },
+        Vec2 { x: 1.0, y: h },
+        Vec2 { x: 0.0, y: -h },
+        RED,
+    );
+    let draw = draw_num(ctx.font, WHITE);
+    draw(&125);
+
+    // TODO: you have been given access to the fields inside of `Fractal`,
+    // including the root, and the library.
+    // use these to draw a proper fractal.
+    // draw a recursive triangle with the proper transforms, and use `draw_num` for each number.
+
+    // fn inner(fractal: &Fractal, tile: Tile, depth: usize) {
+    //     fractal.library[tile];
+    // }
+    // inner(fractal, fractal.root, 0);
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
     // camera for canvases
     let cam = &mut Camera2D::default();
-    cam.zoom = vec2(1.0, -1.0);
+    cam.zoom = Vec2::new(1.0, -1.0);
     set_camera(cam);
 
     // resource folder
@@ -146,57 +176,12 @@ async fn main() {
         .await
         .expect("rip varela round");
 
-    // initialize tree
-    // let mut tree = QuadTree::<u8>::default();
-
-    let mut rng = thread_rng();
-
-    // random path
-    let mut path_a = TilePos::UNIT;
-    let mut path_b = TilePos::UNIT;
-    path_b.push_front(SubTile::C);
-
-    for _ in 0..2 {
-        let tile = match rng.gen_range(0..4) {
-            0 => SubTile::C,
-            1 => SubTile::U,
-            2 => SubTile::R,
-            3 => SubTile::L,
-            _ => unreachable!(),
-        };
-        path_a.push_front(tile);
-        path_b.push_front(tile);
-    }
-
-    let mut tree = Node::create_at(path_a, 1);
-    // let _ = dbg!(tree.set(path_b, 2));
-
-    // random tree
-    // let tree = QuadTree::<u8>::rand(&mut rng, 6);
-
-    // specific tree
-    // let tree = tree! ({
-    //     { . , (), (), .  },
-    //     { (), (), . , () },
-    //     { },
-    //     .,
-    // });
-    println!("{tree:?}");
+    let mut tree = Fractal::new_binary();
 
     // initialize transform
-    let mut transform = Mat4::from_scale_rotation_translation(
-        Vec3 {
-            x: 2.0,
-            y: 2.0,
-            z: 1.0,
-        },
-        Quat::IDENTITY,
-        Vec3 {
-            x: -1.0,
-            y: -1.0,
-            z: 0.0,
-        },
-    );
+    let mut transform = Mat4::IDENTITY;
+
+    let mut ctx = Context { font };
 
     // main loop
     loop {
@@ -206,7 +191,7 @@ async fn main() {
         }
 
         transform = cam_control() * transform;
-        apply(transform, || tree.draw(&draw_num(font, BLACK)));
+        apply(transform, || draw_tree(&ctx, &tree));
 
         // end frame
         next_frame().await

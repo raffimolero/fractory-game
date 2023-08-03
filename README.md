@@ -5,12 +5,18 @@ Fractory. A game you have never seen before...
 **Most activity is in `src/logic/` and a lot of pretty pictures are under `assets/concepts`**
 
 TODO:
+- test the fractal triangle rendering in poc-fractal
+- add interactivity, so you can..
+- ..test the algorithms for the fractal manipulation
+- common::sim::logic::factory::Fractory
+    * should contain all the activated tiles
+    * should know how to simulate
+    * should be able to hook into a UI to send transition info (what animations should play per tile)
+- Fragment
 
 ```
 document TilePos::{pop, push}
 consider pop_unchecked
-
-reorganize*
 
 create linear factory proof of concept
   separate crate
@@ -24,10 +30,10 @@ create linear factory proof of concept
   interactive TUI binary in a separate crate, using the linear factory as a dependency
 
 create fractal version
-  resolve movelist collisions in fractal space
-  resolve overlapping small+large activations in fractal space
-  try not to get a migraine
-  TUI
+  resolve movelist collisions in fractal space - TO TEST
+  resolve overlapping small+large activations in fractal space - TO TEST
+  try not to get a migraine - IN PROGRESS
+  TUI - SKIP TO ERGOQUAD_2D GUI
 
 create main game behavior
   save data

@@ -29,19 +29,21 @@ impl SlotInfo {
     };
 }
 
+// TODO: double check every pub
+
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
 pub struct Fractal {
     /// the root node of the fractal; the biggest piece
-    root: Tile,
+    pub root: Tile,
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
-    library: Vec<(QuadTile, SlotInfo)>,
+    pub library: Vec<(QuadTile, SlotInfo)>,
 
     /// a mapping from quadtile to tile
     /// the opposite of library
-    recognizer: HashMap<QuadTile, Tile>,
+    pub recognizer: HashMap<QuadTile, Tile>,
 }
 
 impl Fractal {

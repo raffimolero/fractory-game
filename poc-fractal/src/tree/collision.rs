@@ -180,7 +180,7 @@ impl RawMoveList {
         }
 
         impl<T> Tree<T> {
-            fn set(&mut self, pos: TilePos, val: T) {
+            fn set(&mut self, mut pos: TilePos, val: T) {
                 assert!(
                     !matches!(self, Tree::Leaf(_)),
                     "should be no collisions at this point"
@@ -210,7 +210,7 @@ impl RawMoveList {
         // DstTree
         // dsttree will be indexed by src
         impl Tree<Index> {
-            fn invalidate(&mut self, pos: TilePos, drop_item: &mut impl FnMut(Index)) {
+            fn invalidate(&mut self, mut pos: TilePos, drop_item: &mut impl FnMut(Index)) {
                 match self {
                     Tree::Free => {}
                     Tree::Leaf(_) => self.drop_with(drop_item),
@@ -226,7 +226,7 @@ impl RawMoveList {
                     Tree::Free => {}
                     Tree::Leaf(val) => drop_item(val),
                     Tree::Branch(children) => {
-                        for child in children.0 {
+                        for mut child in children.0 {
                             child.drop_with(drop_item);
                         }
                     }
