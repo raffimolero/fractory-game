@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::{collections::HashSet, iter::repeat_with};
+use std::{collections::HashSet, default, iter::repeat_with};
 
 use ::rand::distributions::Uniform;
 use fractory_common::sim::logic::{
@@ -63,7 +63,7 @@ impl RawMoveList {
     }
 
     fn clean_forks(&mut self) {
-        let mut tree = CollisionTree::default();
+        let mut tree = Node::default();
         let mut holes = vec![];
         for (i, (src, _dst)) in self.moves.iter().copied().enumerate() {
             tree.set(src, i, &mut |idx| holes.push(idx));
@@ -74,7 +74,7 @@ impl RawMoveList {
     }
 
     fn clean_merges(&mut self) {
-        let mut tree = CollisionTree::default();
+        let mut tree = Node::default();
         let mut holes = vec![];
         for (i, (_src, dst)) in self.moves.iter().copied().enumerate() {
             tree.set(dst, i, &mut |idx| holes.push(idx));
@@ -261,102 +261,3 @@ struct CleanMoveList {
 // TODO: double check all pub visibilities
 
 // TODO: figure out where to put CollisionTree and DeadEndTree
-
-#[derive(Clone, PartialEq, Eq)]
-pub enum DeadEndTree<T> {
-    Leaf(T),
-    Branch(Box<Quad<Self>>),
-}
-
-impl<T> DeadEndTree<T> {
-    const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
-
-    pub fn random_paths(rng: &mut impl Rng, path_count: usize) -> Self
-    where
-        Standard: Distribution<T>,
-    {
-        todo!()
-    }
-
-    pub fn draw(&self, draw_leaf: &impl Fn(&T)) {
-        self._draw(draw_leaf, 0);
-    }
-
-    fn _draw(&self, draw_leaf: &impl Fn(&T), depth: usize) {
-        let col = Self::PALETTE[depth % Self::PALETTE.len()];
-        let draw_base = || {
-            draw_rectangle(0.0, 0.0, 1.0, 1.0, col);
-
-            // // draw outline
-            // let outline_thickness = 1.0 / 64.0;
-            // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
-        };
-        match self {
-            DeadEndTree::Leaf(val) => {
-                draw_base();
-                draw_leaf(val);
-            }
-            DeadEndTree::Branch(children) => {
-                draw_base();
-
-                // margin between child trees
-                let margin = 1.0 / 16.0;
-
-                let scale = upscale(0.5 - margin * 1.5);
-                for (y, row) in children.0.chunks_exact(2).enumerate() {
-                    let y = y as f32 * (0.5 - margin / 2.0) + margin;
-                    for (x, node) in row.iter().enumerate() {
-                        let x = x as f32 * (0.5 - margin / 2.0) + margin;
-                        apply(shift(x, y) * scale, || node._draw(draw_leaf, depth + 1))
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl<T: Display> Display for DeadEndTree<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DeadEndTree::Leaf(val) => val.fmt(f),
-            DeadEndTree::Branch(children) => {
-                write!(f, "{{ ")?;
-                for child in &children.0 {
-                    child.fmt(f)?;
-                    write!(f, " ")?;
-                }
-                write!(f, "}}")
-            }
-        }
-    }
-}
-
-type Path = TilePos;
-impl DeadEndTree<Path> {
-    pub fn free_children(&mut self) {}
-
-    pub fn mark_src(&mut self, mut src: Path) {
-        match self {
-            DeadEndTree::Leaf(existing_src) => panic!(),
-            DeadEndTree::Branch(children) => match src.pop_front() {
-                Some(subtile) => children[subtile].mark_src(src),
-                None => {
-                    self.free_children();
-                    todo!("hit parent, mark children as free")
-                }
-            },
-        }
-    }
-
-    pub fn set_dst(&mut self, src: Path, mut dst: Path) {
-        match self {
-            DeadEndTree::Free => *self = Self::create_at(dst, src),
-            DeadEndTree::Bad => panic!(),
-            DeadEndTree::Leaf(existing_dst) => panic!(),
-            DeadEndTree::Branch(children) => match dst.pop_front() {
-                Some(subtile) => children[subtile].set_dst(src, dst),
-                None => panic!(),
-            },
-        }
-    }
-}

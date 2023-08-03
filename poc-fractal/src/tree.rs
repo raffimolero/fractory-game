@@ -1,5 +1,4 @@
 mod collision;
-mod solver;
 
 use fractory_common::sim::logic::{path::TilePos, tile::Quad};
 use std::fmt::{Debug, Display};
@@ -48,7 +47,7 @@ impl Node {
             Node::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
             Node::Leaf(val) => {
                 draw_base();
-                draw_leaf(val);
+                draw_leaf(*val);
             }
             Node::Branch(children) => {
                 draw_base();
@@ -118,11 +117,11 @@ impl Display for Node {
         match self {
             Node::Free => write!(f, "."),
             Node::Bad => write!(f, "X"),
-            Node::Leaf(val) => val.fmt(f),
+            Node::Leaf(val) => write!(f, "{val}"),
             Node::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
-                    child.fmt(f)?;
+                    write!(f, "{child}")?;
                     write!(f, " ")?;
                 }
                 write!(f, "}}")
@@ -136,11 +135,11 @@ impl Debug for Node {
         match self {
             Node::Free => write!(f, "."),
             Node::Bad => write!(f, "X"),
-            Node::Leaf(val) => val.fmt(f),
+            Node::Leaf(val) => write!(f, "{val:?}"),
             Node::Branch(children) => {
                 write!(f, "{{ ")?;
                 for child in &children.0 {
-                    child.fmt(f)?;
+                    write!(f, "{child:?}")?;
                     write!(f, " ")?;
                 }
                 write!(f, "}}")
@@ -159,15 +158,15 @@ impl Debug for Node {
 /// });
 /// println!("{tree:?}");
 /// ```
-macro_rules! collision_tree {
+macro_rules! tree {
     (.) => {
-        CollisionCleaner::Free
+        Node::Free
     };
     (X) => {
-        CollisionCleaner::Bad
+        Node::Bad
     };
     ({ $a:tt $b:tt $c:tt $d:tt }) => {
-        CollisionCleaner::Branch(Box::new(Quad([
+        Node::Branch(Box::new(Quad([
             collision_tree!($a),
             collision_tree!($b),
             collision_tree!($c),
@@ -175,7 +174,7 @@ macro_rules! collision_tree {
         ])))
     };
     ($t:expr) => {
-        CollisionCleaner::Leaf($t)
+        Node::Leaf($t)
     };
 }
-pub(crate) use collision_tree;
+pub(crate) use tree;

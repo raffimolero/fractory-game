@@ -5,9 +5,31 @@ use super::{
     actions::ActionBatch,
     orientation::Transform,
     path::TilePos,
-    tile::{QuadTile, Tile},
+    tile::{Quad, QuadTile, Tile},
 };
 use std::collections::HashMap;
+
+pub struct SlotInfo {
+    quad: QuadTile,
+    is_full: bool,
+    // TODO: use enum instead, leaves are guaranteed to be full
+    is_leaf: bool,
+}
+
+impl SlotInfo {
+    pub const SPACE: Self = Self {
+        quad: QuadTile::SPACE,
+        is_full: false,
+        is_leaf: true,
+    };
+
+    // TODO: FOR TESTING ONLY
+    pub const ONE: Self = Self {
+        quad: QuadTile::ONE,
+        is_full: true,
+        is_leaf: true,
+    };
+}
 
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
@@ -17,8 +39,7 @@ pub struct Fractal {
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
-    // TODO: store "is_full", "is_leaf"
-    library: Vec<QuadTile>,
+    library: Vec<SlotInfo>,
 
     /// a mapping from quadtile to tile
     /// the opposite of library
@@ -30,22 +51,58 @@ impl Fractal {
     pub fn new() -> Self {
         Self {
             root: Tile::SPACE,
-            library: vec![QuadTile::SPACE],
+            library: vec![SlotInfo::SPACE],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
+        }
+    }
+
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_binary() -> Self {
+        Self {
+            root: Tile::ONE,
+            library: vec![SlotInfo::SPACE, SlotInfo::ONE],
+            recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE), (QuadTile::ONE, Tile::ONE)]),
         }
     }
 
     pub fn get(&self, path: TilePos) -> Tile {
         let mut tile = self.root;
         for subtile in path {
-            tile = self.library[tile.id] + tile.orient;
+            let mut quad = self.library[tile.id].quad;
+            quad += -tile.orient;
+            tile = quad[subtile];
         }
-        todo!()
+        tile
     }
 
-    pub fn set(&mut self, path: TilePos, tile: Tile) -> Tile {
-        let out = self.root;
-        todo!()
+    pub fn set(&mut self, path: TilePos, mut tile: Tile) -> Tile {
+        // expand each child in the path
+        let mut replaced_tile = self.root;
+        let expansions = path
+            .into_iter()
+            .map(|subtile| {
+                let mut quad = self.library[replaced_tile.id].quad;
+                quad += -replaced_tile.orient;
+                tile += -replaced_tile.orient;
+                replaced_tile = quad[subtile];
+                (quad, subtile)
+            })
+            .collect::<Vec<_>>();
+
+        if replaced_tile == tile {
+            return tile;
+        }
+
+        // backtrack each expansion, replacing the old nodes with new ones each time
+        self.root = expansions
+            .into_iter()
+            .rev()
+            .fold(tile, |cur_node, (mut quad, subtile)| {
+                quad[subtile] = cur_node;
+                self.register(quad)
+            });
+
+        replaced_tile
     }
 
     // TODO: make Fragment data structure, then implement this function
@@ -53,11 +110,7 @@ impl Fractal {
     //     todo!("get fragment data such as symmetries, composition, and behaviors")
     // }
 
-    /// performs a batched set of actions
-    pub fn act(&mut self, actions: ActionBatch) {
-        todo!("")
-    }
-
+    /// finds (or registers) a quadtile, and returns the Tile { id, orientation }
     fn register(&mut self, quad: QuadTile) -> Tile {
         self.recognizer
             .get(&quad)
@@ -65,10 +118,16 @@ impl Fractal {
             .unwrap_or_else(|| self.register_new(quad))
     }
 
+    /// registers a new non-leaf quadtile into the library.
     fn register_new(&mut self, mut quad: QuadTile) -> Tile {
         let orient = quad.reorient();
         let id = self.library.len();
-        self.library.push(quad);
+        let is_full = quad.0.iter().all(|child| self.library[child.id].is_full);
+        self.library.push(SlotInfo {
+            quad,
+            is_full,
+            is_leaf: false,
+        });
 
         self.cache(
             quad,

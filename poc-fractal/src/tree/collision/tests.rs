@@ -5,7 +5,7 @@ use fractory_common::sim::logic::path::SubTile::{self, *};
 
 #[test]
 fn test_macro() {
-    let tree = collision_tree! {
+    let tree = tree! {
         {
             (1, 2)
             (3, 4)
@@ -54,17 +54,14 @@ fn test_macro() {
 #[test]
 fn test_create_at_root() {
     let tree = Node::create_at(TilePos::UNIT, 1);
-    assert_eq!(tree, collision_tree!(1));
+    assert_eq!(tree, tree!(1));
 }
 
 #[test]
 fn test_create_at() {
     let path = TilePos::from_inward_path(&[C, U, R, L]);
     let tree = Node::create_at(path, 4);
-    assert_eq!(
-        tree,
-        collision_tree!({{ . { . . { . . . 4 } . } . . } . . . })
-    );
+    assert_eq!(tree, tree!({{ . { . . { . . . 4 } . } . . } . . . }));
 }
 
 /// iterates through a sequence of paths, expected deletions, and tree snapshots:
@@ -96,17 +93,17 @@ fn test_node_set() {
         (
             &[C, U, R, L],
             &[],
-            collision_tree!({ { . { . . { . . . 0 } . } . . } . . .}),
+            tree!({ { . { . . { . . . 0 } . } . . } . . .}),
         ),
         (
             &[C, U, R, C],
             &[],
-            collision_tree!({ { . { . . { 1 . . 0 } . } . . } . . .}),
+            tree!({ { . { . . { 1 . . 0 } . } . . } . . .}),
         ),
         (
             &[C, R, U],
             &[],
-            collision_tree!({ { . { . . { 1 . . 0 } . } { . 2 . . } . } . . .}),
+            tree!({ { . { . . { 1 . . 0 } . } { . 2 . . } . } . . .}),
         ),
     ]);
 }
@@ -117,12 +114,12 @@ fn test_node_set_same_leaf() {
         (
             &[C, U, R, L],
             &[],
-            collision_tree!({ { . { . . { . . . 0 } . } . . } . . . }),
+            tree!({ { . { . . { . . . 0 } . } . . } . . . }),
         ),
         (
             &[C, U, R, L],
             &[1, 0],
-            collision_tree!({ { . { . . { . . . X } . } . . } . . . }),
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
         ),
     ])
 }
@@ -133,12 +130,12 @@ fn test_node_set_pass_leaf() {
         (
             &[C, U, R, L],
             &[],
-            collision_tree!({ { . { . . { . . . 0 } . } . . } . . . }),
+            tree!({ { . { . . { . . . 0 } . } . . } . . . }),
         ),
         (
             &[C, U, R, L, C],
             &[1, 0],
-            collision_tree!({ { . { . . { . . . X } . } . . } . . . }),
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
         ),
     ])
 }
@@ -149,27 +146,27 @@ fn test_node_set_hit_branch() {
         (
             &[C, U, R, L, C],
             &[],
-            collision_tree!({ { . { . . { . . . { 0 . . . } } . } . . } . . . }),
+            tree!({ { . { . . { . . . { 0 . . . } } . } . . } . . . }),
         ),
         (
             &[C, U, R, L, U],
             &[],
-            collision_tree!({ { . { . . { . . . { 0 1 . . } } . } . . } . . . }),
+            tree!({ { . { . . { . . . { 0 1 . . } } . } . . } . . . }),
         ),
         (
             &[C, U, R, L, R],
             &[],
-            collision_tree!({ { . { . . { . . . { 0 1 2 . } } . } . . } . . . }),
+            tree!({ { . { . . { . . . { 0 1 2 . } } . } . . } . . . }),
         ),
         (
             &[C, U, R, L, L],
             &[],
-            collision_tree!({ { . { . . { . . . { 0 1 2 3 } } . } . . } . . . }),
+            tree!({ { . { . . { . . . { 0 1 2 3 } } . } . . } . . . }),
         ),
         (
             &[C, U, R, L],
             &[4, 0, 1, 2, 3],
-            collision_tree!({ { . { . . { . . . X } . } . . } . . . }),
+            tree!({ { . { . . { . . . X } . } . . } . . . }),
         ),
     ])
 }

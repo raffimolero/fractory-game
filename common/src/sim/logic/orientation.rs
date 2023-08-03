@@ -304,6 +304,22 @@ impl Transform {
     }
 }
 
+impl Neg for Transform {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        use Transform::*;
+        match self {
+            KU => KU,
+            KR => KL,
+            KL => KR,
+            FU => FU,
+            FR => FR,
+            FL => FL,
+        }
+    }
+}
+
 impl From<Orient> for Transform {
     fn from(value: Orient) -> Self {
         use Orient::*;
