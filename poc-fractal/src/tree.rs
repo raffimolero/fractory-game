@@ -8,7 +8,7 @@ use ergoquad_2d::prelude::*;
 
 type Index = usize;
 
-// TODO: figure out if you can merge Fractal with CollisionCleaner and DeadEndCleaner
+// TODO: figure out if you can merge Fractal with CollisionCleaner (Node) and DeadEndCleaner (hidden in collision::clean_dead_ends)
 
 #[derive(Clone, PartialEq, Eq, Default)]
 pub enum Node {
@@ -166,12 +166,7 @@ macro_rules! tree {
         Node::Bad
     };
     ({ $a:tt $b:tt $c:tt $d:tt }) => {
-        Node::Branch(Box::new(Quad([
-            collision_tree!($a),
-            collision_tree!($b),
-            collision_tree!($c),
-            collision_tree!($d),
-        ])))
+        Node::Branch(Box::new(Quad([tree!($a), tree!($b), tree!($c), tree!($d)])))
     };
     ($t:expr) => {
         Node::Leaf($t)

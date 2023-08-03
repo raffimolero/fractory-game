@@ -49,11 +49,18 @@ impl RawMoveList {
         Self { moves }
     }
 
+    fn clean(mut self, tree: &mut Fractal) -> CleanMoveList {
+        self.clean_sources(tree);
+        self.clean_forks();
+        self.clean_merges();
+        self.clean_dead_ends(tree);
+        CleanMoveList { inner: self }
+    }
+
     fn clean_sources(&mut self, tree: &Fractal) {
-        // TODO: clean attempts to move from tile that contains space
         let mut set = HashSet::new();
         let mut i = 0;
-        while let Some(item @ (src, dst)) = self.moves.get(i).copied() {
+        while let Some(item @ (src, _dst)) = self.moves.get(i).copied() {
             if set.insert(item) && tree.get_info(tree.get(src)).is_full {
                 i += 1;
             } else {
@@ -141,8 +148,7 @@ impl RawMoveList {
         // NOTE: this is so f###ing complicated dude
         // i'm dealing with fractals right now
 
-        // TODO: build the rest of algo
-        // then test algo
+        // TODO: test algo
         // this is an in-place algo btw
 
         // hypothetical algorithm
@@ -259,5 +265,3 @@ struct CleanMoveList {
 }
 
 // TODO: double check all pub visibilities
-
-// TODO: figure out where to put CollisionTree and DeadEndTree

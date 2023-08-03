@@ -1,51 +1,49 @@
 use super::*;
 use fractory_common::sim::logic::path::SubTile::{self, *};
 
-// TODO: more tests?
-
 #[test]
 fn test_macro() {
     let tree = tree! {
         {
-            (1, 2)
-            (3, 4)
+            1
+            3
             {
                 { // this block is an expression, not a branch
                     let x = 5;
                     let y = 6;
-                    (x, y)
+                    x + y
                 }
                 .
                 X
                 .
             } {
-                (7, 8)
-                (9, 10)
+                7
+                9
                 .
-                (11, 12)
+                11
             }
         }
     };
     assert_eq!(
         tree,
         Node::Branch(Box::new(Quad([
-            Node::Leaf((1, 2)),
-            Node::Leaf((3, 4)),
+            Node::Leaf(1),
+            Node::Leaf(3),
             Node::Branch(Box::new(Quad([
                 Node::Leaf({
                     let x = 5;
                     let y = 6;
-                    (x, y)
+                    x + y
                 }),
                 Node::Free,
                 Node::Bad,
                 Node::Free,
             ]))),
             Node::Branch(Box::new(Quad([
-                Node::Leaf((7, 8)),
-                Node::Leaf((9, 10)),
+                Node::Leaf(7),
+                Node::Leaf(9),
                 Node::Free,
-                Node::Leaf((11, 12)),
+                Node::Leaf(11),
             ]))),
         ]))),
     );
