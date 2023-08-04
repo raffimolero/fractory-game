@@ -351,6 +351,13 @@ impl TreeElement {
             self.ui_state.cycle();
         }
 
+        if is_key_pressed(KeyCode::Minus) {
+            self.max_depth = self.max_depth.saturating_sub(1);
+        }
+        if is_key_pressed(KeyCode::Equal) {
+            self.max_depth = (self.max_depth + 1).min(6);
+        }
+
         match self.ui_state {
             UiState::View => self.input_view(ctx),
             UiState::Toggle => self.input_toggle(ctx),
