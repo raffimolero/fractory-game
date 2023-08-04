@@ -281,6 +281,7 @@ impl TreeElement {
     }
 
     fn click_tree(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
+        dbg!(depth);
         if depth > self.max_depth {
             return None;
         }
@@ -302,19 +303,17 @@ impl TreeElement {
         .map(|t| downscale(2.0) * t * downscale(1.1))
         .map(|t| t.inverse());
 
-        let mut pos = TilePos::UNIT;
-
         for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
             let hit_pos = self.click_tree(
                 transform.transform_point3(click.extend(0.0)).truncate(),
                 depth + 1,
             );
             if let Some(mut tile_pos) = hit_pos {
-                tile_pos.push_front(subtile);
+                tile_pos.push_front(dbg!(subtile));
                 return Some(tile_pos);
             }
         }
-        None
+        Some(TilePos::UNIT)
     }
 
     fn input_toggle(&mut self, ctx: &mut Context) {
@@ -334,8 +333,10 @@ impl TreeElement {
             };
             let in_range = (down - up).length_squared() < leash_sq;
 
-            if in_range {
-                if let Some(hit_pos) = self.click_tree(down, 0) {
+            let pos = self.camera.transform_point3(down.extend(0.0)).truncate();
+            if in_range && in_triangle(down) {
+                if let Some(hit_pos) = self.click_tree(pos, 0) {
+                    dbg!(hit_pos);
                     let mut tile = self.fractal.get(hit_pos);
                     tile.id = 1 - tile.id;
                     self.fractal.set(hit_pos, tile);

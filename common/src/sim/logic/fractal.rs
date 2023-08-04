@@ -33,6 +33,7 @@ impl SlotInfo {
 
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
+#[derive(Debug)]
 pub struct Fractal {
     /// the root node of the fractal; the biggest piece
     pub root: Tile,
