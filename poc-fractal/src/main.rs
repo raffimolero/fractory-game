@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 mod tree;
 
 use crate::tree::Node;
@@ -6,7 +8,7 @@ use fractory_common::sim::logic::{
     path::SubTile,
     tile::{Quad, Tile},
 };
-use std::{cell::Cell, f32::consts::TAU};
+use std::{cell::Cell, f32::consts::TAU, ops::RangeBounds};
 
 use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
 use ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
@@ -119,9 +121,8 @@ fn window_conf() -> Conf {
     }
 }
 
-fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
-    move |num| {
-        let text = num.to_string();
+fn draw_text_centered(font: Font, color: Color) -> impl Fn(&str) {
+    move |text| {
         let params = TextParams {
             font,
             font_size: 64,
@@ -129,9 +130,9 @@ fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
             color,
             ..Default::default()
         };
-        let dims = measure_text(&text, Some(font), params.font_size, params.font_scale);
+        let dims = measure_text(text, Some(font), params.font_size, params.font_scale);
         draw_text_ex(
-            &text,
+            text,
             (0.0 - dims.width) / 2.0,
             (0.5 + dims.height) / 2.0,
             params,
@@ -139,30 +140,82 @@ fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
     }
 }
 
+#[derive(Default)]
 struct Context {
-    font: Font,
-    mouse: Cell<Option<Vec2>>,
+    mouse: Option<Vec2>,
+    mouse_down: Option<Vec2>,
+    matrix: Mat4,
+    inv_matrix: Mat4,
 }
 
 impl Context {
-    fn apply(&self, matrix: Mat4, f: impl FnOnce()) {
-        let orig = self.mouse.get();
-        self.mouse.replace(orig.map(|pos| {
-            matrix
-                .inverse()
-                .transform_point3(pos.extend(0.0))
-                .truncate()
-        }));
-        ergoquad_2d::prelude::apply(matrix, f);
-        self.mouse.replace(orig);
+    fn apply(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self)) {
+        let orig = (self.matrix, self.inv_matrix);
+        self.matrix = self.matrix * matrix;
+        self.inv_matrix = self.matrix.inverse();
+        ergoquad_2d::prelude::apply(matrix, || f(self));
+        (self.matrix, self.inv_matrix) = orig;
     }
 
     fn mouse_pos(&self) -> Option<Vec2> {
-        self.mouse.get()
+        self.mouse
+            .map(|pos| self.inv_matrix.transform_point3(pos.extend(0.0)).truncate())
+    }
+
+    fn update(&mut self) {
+        self.mouse.replace(mouse_position_local());
+        if is_mouse_button_pressed(MouseButton::Left) {
+            self.mouse_down = self.mouse;
+        }
+        if is_mouse_button_released(MouseButton::Left) {
+            self.mouse_down = None;
+        }
     }
 }
 
-fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
+enum UiState {
+    View,
+    Toggle,
+}
+
+struct TreeElement {
+    // this should eventually be replaced by handles to real images
+    // which would all be contained in Fragment data
+    font: Font,
+
+    fractal: Fractal,
+    max_depth: usize,
+    ui: UiState,
+}
+
+impl TreeElement {
+    fn new(font: Font) -> Self {
+        Self {
+            font,
+            fractal: Fractal::new_binary(),
+            max_depth: 3,
+            ui: UiState::View,
+        }
+    }
+
+    fn draw(&self, ctx: &mut Context) {
+        let mut draw = |ctx: &mut Context, number: usize| {
+            ctx.apply(shift(0.0, -0.3), |_| {
+                draw_text_centered(self.font, WHITE)(&number.to_string());
+            })
+        };
+        draw_tree(ctx, &self.fractal, self.max_depth, &mut draw);
+    }
+
+    fn input(&mut self, ctx: &mut Context) {}
+}
+
+fn draw_tree(
+    ctx: &mut Context,
+    fractal: &Fractal,
+    max_depth: usize,
+    draw_leaf: &mut impl FnMut(&mut Context, usize),
+) {
     // TODO: add a way to test the fractal
 
     fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
@@ -180,12 +233,12 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
     }
 
     fn inner(
-        ctx: &Context,
+        ctx: &mut Context,
         fractal: &Fractal,
         tile: Tile,   // changes
         depth: usize, // changes
         max_depth: usize,
-        mouse_total_oob: bool,
+        draw_leaf: &mut impl FnMut(&mut Context, usize),
     ) {
         if tile.id == 0 || depth > max_depth {
             return;
@@ -197,24 +250,23 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
         let out_r = 3_f32.sqrt() / 3.0 * side;
         let in_r = out_r / 2.0;
 
-        let draw = draw_num(ctx.font, WHITE);
-        let draw_tringle = |number, color| {
+        let mut draw_tringle = |ctx: &mut Context, number, color| {
             draw_triangle(
                 Vec2 { x: -1.0, y: in_r },
                 Vec2 { x: 1.0, y: in_r },
                 Vec2 { x: 0.0, y: -out_r },
                 color,
             );
-            ctx.apply(shift(0.0, -0.3), || draw(&number));
+            draw_leaf(ctx, number);
         };
 
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         if info.is_full && in_triangle(mouse) {
             const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
             let col = PALETTE[depth % PALETTE.len()];
-            draw_tringle(tile.id, col);
+            draw_tringle(ctx, tile.id, col);
         } else {
-            draw_tringle(tile.id, DARKGRAY);
+            draw_tringle(ctx, tile.id, DARKGRAY);
         }
 
         let transforms = [
@@ -224,12 +276,12 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
             downscale(2.0) * shift(-w, in_r) * downscale(1.1),
         ];
         for (transform, tile) in transforms.into_iter().zip(quad.0) {
-            ctx.apply(transform, || {
-                inner(ctx, fractal, tile, depth + 1, max_depth, mouse_total_oob)
+            ctx.apply(transform, |ctx| {
+                inner(ctx, fractal, tile, depth + 1, max_depth, draw_leaf);
             });
         }
     }
-    inner(ctx, fractal, fractal.root, 0, max_depth, false);
+    inner(ctx, fractal, fractal.root, 0, max_depth, draw_leaf);
 }
 
 #[macroquad::main(window_conf)]
@@ -246,15 +298,11 @@ async fn main() {
         .await
         .expect("rip varela round");
 
-    let mut tree = Fractal::new_binary();
+    let mut ctx = Context::default();
+    let mut tree_elem = TreeElement::new(font);
 
     // initialize transform
     let mut transform = Mat4::IDENTITY;
-
-    let mut ctx = Context {
-        font,
-        mouse: Cell::new(None),
-    };
 
     // main loop
     loop {
@@ -263,10 +311,9 @@ async fn main() {
             return;
         }
 
-        ctx.mouse.replace(Some(mouse_position_local()));
-
+        ctx.update();
         transform = cam_control() * transform;
-        ctx.apply(transform, || draw_tree(&ctx, &tree, 4));
+        ctx.apply(transform, |ctx| tree_elem.draw(ctx));
 
         // end frame
         next_frame().await
