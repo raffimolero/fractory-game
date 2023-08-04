@@ -1,9 +1,11 @@
 mod tree;
 
 use crate::tree::Node;
-use fractory_common::sim::logic::fractal::Fractal;
-use fractory_common::sim::logic::path::{SubTile, TilePos};
-use fractory_common::sim::logic::tile::Tile;
+use fractory_common::sim::logic::{
+    fractal::Fractal,
+    path::SubTile,
+    tile::{Quad, Tile},
+};
 use std::f32::consts::TAU;
 
 use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
@@ -138,28 +140,51 @@ struct Context {
     font: Font,
 }
 
-fn draw_tree(ctx: &Context, fractal: &Fractal) {
-    draw_rectangle(0.1, 0.1, 0.8, 0.8, BLUE);
-    let w = 1.0;
-    let h = 0.75_f32.sqrt();
-    draw_triangle(
-        Vec2 { x: -1.0, y: h },
-        Vec2 { x: 1.0, y: h },
-        Vec2 { x: 0.0, y: -h },
-        RED,
-    );
-    let draw = draw_num(ctx.font, WHITE);
-    draw(&125);
+fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
+    // TODO: add a way to test the fractal
 
-    // TODO: you have been given access to the fields inside of `Fractal`,
-    // including the root, and the library.
-    // use these to draw a proper fractal.
-    // draw a recursive triangle with the proper transforms, and use `draw_num` for each number.
+    fn inner(ctx: &Context, fractal: &Fractal, tile: Tile, depth: usize, max_depth: usize) {
+        if tile.id == 0 || depth > max_depth {
+            return;
+        }
+        let (quad, info) = fractal.library[tile.id];
 
-    // fn inner(fractal: &Fractal, tile: Tile, depth: usize) {
-    //     fractal.library[tile];
-    // }
-    // inner(fractal, fractal.root, 0);
+        let w = 1.0;
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+
+        let draw = draw_num(ctx.font, WHITE);
+        let draw_tringle = |number, color| {
+            draw_triangle(
+                Vec2 { x: -1.0, y: in_r },
+                Vec2 { x: 1.0, y: in_r },
+                Vec2 { x: 0.0, y: -out_r },
+                color,
+            );
+            apply(shift(0.0, -0.3), || draw(&number));
+        };
+        if info.is_full {
+            const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+            let col = PALETTE[depth % PALETTE.len()];
+            draw_tringle(tile.id, col);
+        } else {
+            draw_tringle(tile.id, DARKGRAY);
+        }
+
+        let transforms = [
+            downscale(2.0) * flip_xy() * downscale(1.1),
+            downscale(2.0) * shift(0.0, -out_r) * downscale(1.1),
+            downscale(2.0) * shift(w, in_r) * downscale(1.1),
+            downscale(2.0) * shift(-w, in_r) * downscale(1.1),
+        ];
+        for (transform, tile) in transforms.into_iter().zip(quad.0) {
+            apply(transform, || {
+                inner(ctx, fractal, tile, depth + 1, max_depth)
+            });
+        }
+    }
+    inner(ctx, fractal, fractal.root, 0, max_depth);
 }
 
 #[macroquad::main(window_conf)]
@@ -191,7 +216,7 @@ async fn main() {
         }
 
         transform = cam_control() * transform;
-        apply(transform, || draw_tree(&ctx, &tree));
+        apply(transform, || draw_tree(&ctx, &tree, 5));
 
         // end frame
         next_frame().await
