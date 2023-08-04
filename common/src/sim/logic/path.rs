@@ -45,7 +45,7 @@ pub enum SubTile {
 }
 
 impl SubTile {
-    const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
+    pub const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
 }
 
 /*
