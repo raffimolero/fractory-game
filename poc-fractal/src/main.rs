@@ -2,6 +2,7 @@
 
 mod tree;
 
+use self::ctx::Context;
 use crate::tree::Node;
 use fractory_common::sim::logic::{
     fractal::Fractal,
@@ -48,7 +49,7 @@ fn cam_control() -> Mat4 {
         zoom *= (2_f32).powf(scroll_y * scroll_sens);
 
         // drag controls
-        if is_mouse_button_down(MouseButton::Left) {
+        if is_mouse_button_down(MouseButton::Right) {
             x += mouse_delta.x;
             y += mouse_delta.y;
         }
@@ -121,7 +122,7 @@ fn window_conf() -> Conf {
     }
 }
 
-fn draw_text_centered(font: Font, color: Color) -> impl Fn(&str) {
+fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
     move |text| {
         let params = TextParams {
             font,
@@ -140,74 +141,148 @@ fn draw_text_centered(font: Font, color: Color) -> impl Fn(&str) {
     }
 }
 
-#[derive(Default)]
-struct Context {
-    mouse: Option<Vec2>,
-    mouse_down: Option<Vec2>,
-    matrix: Mat4,
-    inv_matrix: Mat4,
+mod ctx {
+    use super::*;
+
+    #[derive(Default)]
+    pub struct Context {
+        mouse: Option<Vec2>,
+        mouse_down: Option<Vec2>,
+        matrix: Mat4,
+        inv_matrix: Mat4,
+    }
+
+    impl Context {
+        pub fn apply(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self)) {
+            let orig = (self.matrix, self.inv_matrix);
+            self.matrix = self.matrix * matrix;
+            self.inv_matrix = self.matrix.inverse();
+            ergoquad_2d::prelude::apply(matrix, || f(self));
+            (self.matrix, self.inv_matrix) = orig;
+        }
+
+        fn project(&self, point: Option<Vec2>) -> Option<Vec2> {
+            point.map(|pos| self.inv_matrix.transform_point3(pos.extend(0.0)).truncate())
+        }
+
+        pub fn mouse_pos(&self) -> Option<Vec2> {
+            self.project(self.mouse)
+        }
+
+        pub fn mouse_down_pos(&self) -> Option<Vec2> {
+            self.project(self.mouse_down)
+        }
+
+        pub fn update(&mut self) {
+            self.mouse.replace(mouse_position_local());
+            if is_mouse_button_pressed(MouseButton::Left) {
+                self.mouse_down = self.mouse;
+            }
+            if is_mouse_button_released(MouseButton::Left) {
+                self.mouse_down = None;
+            }
+        }
+    }
 }
 
-impl Context {
-    fn apply(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self)) {
-        let orig = (self.matrix, self.inv_matrix);
-        self.matrix = self.matrix * matrix;
-        self.inv_matrix = self.matrix.inverse();
-        ergoquad_2d::prelude::apply(matrix, || f(self));
-        (self.matrix, self.inv_matrix) = orig;
-    }
-
-    fn mouse_pos(&self) -> Option<Vec2> {
-        self.mouse
-            .map(|pos| self.inv_matrix.transform_point3(pos.extend(0.0)).truncate())
-    }
-
-    fn update(&mut self) {
-        self.mouse.replace(mouse_position_local());
-        if is_mouse_button_pressed(MouseButton::Left) {
-            self.mouse_down = self.mouse;
-        }
-        if is_mouse_button_released(MouseButton::Left) {
-            self.mouse_down = None;
-        }
-    }
-}
-
+#[derive(Debug)]
 enum UiState {
     View,
     Toggle,
+}
+
+impl UiState {
+    fn cycle(&mut self) {
+        use UiState::*;
+        *self = match self {
+            View => Toggle,
+            Toggle => View,
+        };
+    }
 }
 
 struct TreeElement {
     // this should eventually be replaced by handles to real images
     // which would all be contained in Fragment data
     font: Font,
+    ui_state: UiState,
+
+    camera: Mat4,
 
     fractal: Fractal,
     max_depth: usize,
-    ui: UiState,
 }
 
 impl TreeElement {
     fn new(font: Font) -> Self {
         Self {
             font,
+            ui_state: UiState::View,
+
+            camera: Mat4::IDENTITY,
+
             fractal: Fractal::new_binary(),
             max_depth: 3,
-            ui: UiState::View,
         }
     }
 
     fn draw(&self, ctx: &mut Context) {
-        let mut draw = |ctx: &mut Context, number: usize| {
-            ctx.apply(shift(0.0, -0.3), |_| {
-                draw_text_centered(self.font, WHITE)(&number.to_string());
-            })
-        };
-        draw_tree(ctx, &self.fractal, self.max_depth, &mut draw);
+        let text_tool = new_text_tool(self.font, WHITE);
+        ctx.apply(self.camera, |ctx| {
+            let mut draw_num = |ctx: &mut Context, number: usize| {
+                ctx.apply(shift(0.0, -0.3), |_| {
+                    text_tool(&number.to_string());
+                })
+            };
+            draw_tree(ctx, &self.fractal, self.max_depth, &mut draw_num);
+        });
+
+        ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
+            text_tool(&format!("Mode: {:?}", self.ui_state))
+        });
+        ctx.apply(shift(0.0, 0.8) * downscale(5.0), |_ctx| {
+            text_tool("press Tab to cycle between modes")
+        });
     }
 
-    fn input(&mut self, ctx: &mut Context) {}
+    fn input(&mut self, ctx: &mut Context) {
+        self.camera = cam_control() * self.camera;
+        if is_key_pressed(KeyCode::Tab) {
+            self.ui_state.cycle();
+        }
+
+        if is_mouse_button_released(MouseButton::Right) {
+            // compute if the mouse wasn't dragged too far away
+            let leash = 10.0; // mouse leash radius in pixels
+
+            let leash_sq = leash * leash;
+            let in_range = ctx
+                .mouse_down_pos()
+                .zip(ctx.mouse_pos())
+                .is_some_and(|(down, up)| (down - up).length_squared() < leash_sq);
+
+            if !in_range {
+                println!("out of bounds");
+            } else {
+                println!("in bounds");
+            }
+        }
+    }
+}
+
+fn click_tree(fractal: &mut Fractal) {
+    let w = 1.0;
+    let side = 2.0;
+    let out_r = 3_f32.sqrt() / 3.0 * side;
+    let in_r = out_r / 2.0;
+
+    let transforms = [
+        flip_xy(),
+        shift(0.0, -out_r),
+        shift(w, in_r),
+        shift(-w, in_r),
+    ]
+    .map(|t| downscale(2.0) * t * downscale(1.1));
 }
 
 fn draw_tree(
@@ -301,9 +376,6 @@ async fn main() {
     let mut ctx = Context::default();
     let mut tree_elem = TreeElement::new(font);
 
-    // initialize transform
-    let mut transform = Mat4::IDENTITY;
-
     // main loop
     loop {
         // Quit on Esc
@@ -312,8 +384,8 @@ async fn main() {
         }
 
         ctx.update();
-        transform = cam_control() * transform;
-        ctx.apply(transform, |ctx| tree_elem.draw(ctx));
+        tree_elem.input(&mut ctx);
+        tree_elem.draw(&mut ctx);
 
         // end frame
         next_frame().await
