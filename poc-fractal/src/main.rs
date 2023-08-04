@@ -1,22 +1,21 @@
 #![allow(warnings)]
 
+// TODO: use Affine2 instead of Mat4
+
 mod tree;
 
 use self::ctx::Context;
-use crate::tree::Node;
-use fractory_common::sim::logic::{
-    fractal::Fractal,
-    path::SubTile,
-    tile::{Quad, Tile},
-};
-use std::{cell::Cell, f32::consts::TAU, ops::RangeBounds};
+use fractory_common::sim::logic::path::{SubTile, TilePos};
+use fractory_common::sim::logic::{fractal::Fractal, tile::Tile};
+use std::f32::consts::TAU;
 
-use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
+// use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
 use ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
 use ergoquad_2d::prelude::*;
 
 /// used to catch accidental uses
-fn apply(youre_using_the_wrong_function: ()) {}
+#[allow(dead_code)]
+fn apply(_youre_using_the_wrong_function: ()) {}
 
 /// returns a Mat4 corresponding to how much the map needs to be moved
 fn cam_control() -> Mat4 {
@@ -214,6 +213,17 @@ impl UiState {
             Toggle => View,
         };
     }
+
+    /// how much smaller each subtriangle should be;
+    /// dictates how much margin there is between subtriangles,
+    /// and dictates visibility of the parent triangle
+    fn scaling(&self) -> f32 {
+        use UiState::*;
+        match self {
+            View => 1.0,
+            Toggle => 0.9,
+        }
+    }
 }
 
 struct TreeElement {
@@ -241,7 +251,7 @@ impl TreeElement {
         }
     }
 
-    fn draw(&self, ctx: &mut Context) {
+    fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
         ctx.apply(self.camera, |ctx| {
             let mut draw_num = |ctx: &mut Context, number: usize| {
@@ -249,7 +259,13 @@ impl TreeElement {
                     text_tool(&number.to_string());
                 })
             };
-            draw_tree(ctx, &self.fractal, self.max_depth, &mut draw_num);
+            draw_tree(
+                ctx,
+                &self.fractal,
+                self.max_depth,
+                self.ui_state.scaling(),
+                &mut draw_num,
+            );
         });
 
         ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
@@ -260,70 +276,109 @@ impl TreeElement {
         });
     }
 
-    fn input(&mut self, ctx: &mut Context) {
-        self.camera = cam_control() * self.camera;
-        if is_key_pressed(KeyCode::Tab) {
-            self.ui_state.cycle();
+    fn input_view(&mut self, ctx: &mut Context) {
+        // nothing
+    }
+
+    fn click_tree(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
+        if depth > self.max_depth {
+            return None;
+        }
+        if !in_triangle(click) {
+            return None;
         }
 
+        let w = 1.0;
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+
+        let transforms = [
+            flip_xy(),
+            shift(0.0, -out_r),
+            shift(w, in_r),
+            shift(-w, in_r),
+        ]
+        .map(|t| downscale(2.0) * t * downscale(1.1))
+        .map(|t| t.inverse());
+
+        let mut pos = TilePos::UNIT;
+
+        for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
+            let hit_pos = self.click_tree(
+                transform.transform_point3(click.extend(0.0)).truncate(),
+                depth + 1,
+            );
+            if let Some(mut tile_pos) = hit_pos {
+                tile_pos.push_front(subtile);
+                return Some(tile_pos);
+            }
+        }
+        None
+    }
+
+    fn input_toggle(&mut self, ctx: &mut Context) {
         if is_mouse_button_released(MouseButton::Left) {
             // compute if the mouse wasn't dragged too far away
             // if the mouse is clicked and dragged further than the leash range,
             // then actions should be cancelled.
             let screen_width = 2.0;
             let leash = screen_width / 128.0;
-
             let leash_sq = leash * leash;
-            let in_range = ctx
-                .lmb_pos()
-                .zip(ctx.mouse_pos())
-                .is_some_and(|(down, up)| (down - up).length_squared() < leash_sq);
+
+            let Some(down) = ctx.lmb_pos() else {
+                return;
+            };
+            let Some(up) = ctx.mouse_pos() else {
+                return;
+            };
+            let in_range = (down - up).length_squared() < leash_sq;
 
             if in_range {
-                println!("click.");
-            } else {
-                println!("drag.");
+                if let Some(hit_pos) = self.click_tree(down, 0) {
+                    let mut tile = self.fractal.get(hit_pos);
+                    tile.id = 1 - tile.id;
+                    self.fractal.set(hit_pos, tile);
+                }
             }
+        }
+    }
+
+    fn input(&mut self, ctx: &mut Context) {
+        self.camera = cam_control() * self.camera;
+        if is_key_pressed(KeyCode::Tab) {
+            self.ui_state.cycle();
+        }
+
+        match self.ui_state {
+            UiState::View => self.input_view(ctx),
+            UiState::Toggle => self.input_toggle(ctx),
         }
     }
 }
 
-fn click_tree(fractal: &mut Fractal) {
-    let w = 1.0;
+fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
     let side = 2.0;
     let out_r = 3_f32.sqrt() / 3.0 * side;
     let in_r = out_r / 2.0;
+    let slope = 3_f32.sqrt();
 
-    let transforms = [
-        flip_xy(),
-        shift(0.0, -out_r),
-        shift(w, in_r),
-        shift(-w, in_r),
-    ]
-    .map(|t| downscale(2.0) * t * downscale(1.1));
+    let x = x.abs();
+
+    let top = -out_r + (x * slope);
+    let bot = in_r;
+
+    (top..bot).contains(&y)
 }
 
 fn draw_tree(
     ctx: &mut Context,
     fractal: &Fractal,
     max_depth: usize,
+    scaling: f32,
     draw_leaf: &mut impl FnMut(&mut Context, usize),
 ) {
     // TODO: add a way to test the fractal
-
-    fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
-        let side = 2.0;
-        let out_r = 3_f32.sqrt() / 3.0 * side;
-        let in_r = out_r / 2.0;
-        let slope = 3_f32.sqrt();
-
-        let x = x.abs();
-
-        let top = -out_r + (x * slope);
-        let bot = in_r;
-
-        (top..bot).contains(&y)
-    }
 
     fn inner(
         ctx: &mut Context,
@@ -331,6 +386,7 @@ fn draw_tree(
         tile: Tile,   // changes
         depth: usize, // changes
         max_depth: usize,
+        scaling: f32,
         draw_leaf: &mut impl FnMut(&mut Context, usize),
     ) {
         if tile.id == 0 || depth > max_depth {
@@ -363,18 +419,20 @@ fn draw_tree(
         }
 
         let transforms = [
-            downscale(2.0) * flip_xy() * downscale(1.1),
-            downscale(2.0) * shift(0.0, -out_r) * downscale(1.1),
-            downscale(2.0) * shift(w, in_r) * downscale(1.1),
-            downscale(2.0) * shift(-w, in_r) * downscale(1.1),
-        ];
+            flip_xy(),
+            shift(0.0, -out_r),
+            shift(w, in_r),
+            shift(-w, in_r),
+        ]
+        .map(|t| downscale(2.0) * t * upscale(scaling));
+
         for (transform, tile) in transforms.into_iter().zip(quad.0) {
             ctx.apply(transform, |ctx| {
-                inner(ctx, fractal, tile, depth + 1, max_depth, draw_leaf);
+                inner(ctx, fractal, tile, depth + 1, max_depth, scaling, draw_leaf);
             });
         }
     }
-    inner(ctx, fractal, fractal.root, 0, max_depth, draw_leaf);
+    inner(ctx, fractal, fractal.root, 0, max_depth, scaling, draw_leaf);
 }
 
 #[macroquad::main(window_conf)]
