@@ -147,7 +147,8 @@ mod ctx {
     #[derive(Default)]
     pub struct Context {
         mouse: Option<Vec2>,
-        mouse_down: Option<Vec2>,
+        last_lmb: Option<Vec2>,
+        last_rmb: Option<Vec2>,
         matrix: Mat4,
         inv_matrix: Mat4,
     }
@@ -169,17 +170,31 @@ mod ctx {
             self.project(self.mouse)
         }
 
-        pub fn mouse_down_pos(&self) -> Option<Vec2> {
-            self.project(self.mouse_down)
+        pub fn lmb_pos(&self) -> Option<Vec2> {
+            self.project(self.last_lmb)
+        }
+
+        pub fn rmb_pos(&self) -> Option<Vec2> {
+            self.project(self.last_rmb)
         }
 
         pub fn update(&mut self) {
+            fn detect_click(
+                cur_mouse_pos: Option<Vec2>,
+                click_pos: &mut Option<Vec2>,
+                btn: MouseButton,
+            ) {
+                if is_mouse_button_pressed(btn) {
+                    *click_pos = cur_mouse_pos;
+                }
+            }
+
             self.mouse.replace(mouse_position_local());
             if is_mouse_button_pressed(MouseButton::Left) {
-                self.mouse_down = self.mouse;
+                self.last_lmb = self.mouse;
             }
-            if is_mouse_button_released(MouseButton::Left) {
-                self.mouse_down = None;
+            if is_mouse_button_pressed(MouseButton::Right) {
+                self.last_rmb = self.mouse;
             }
         }
     }
@@ -251,20 +266,23 @@ impl TreeElement {
             self.ui_state.cycle();
         }
 
-        if is_mouse_button_released(MouseButton::Right) {
+        if is_mouse_button_released(MouseButton::Left) {
             // compute if the mouse wasn't dragged too far away
-            let leash = 10.0; // mouse leash radius in pixels
+            // if the mouse is clicked and dragged further than the leash range,
+            // then actions should be cancelled.
+            let screen_width = 2.0;
+            let leash = screen_width / 128.0;
 
             let leash_sq = leash * leash;
             let in_range = ctx
-                .mouse_down_pos()
+                .lmb_pos()
                 .zip(ctx.mouse_pos())
                 .is_some_and(|(down, up)| (down - up).length_squared() < leash_sq);
 
-            if !in_range {
-                println!("out of bounds");
+            if in_range {
+                println!("click.");
             } else {
-                println!("in bounds");
+                println!("drag.");
             }
         }
     }
