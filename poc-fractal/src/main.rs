@@ -5,6 +5,7 @@
 mod tree;
 
 use self::ctx::Context;
+use fractory_common::sim::logic::orientation::{Orient, Rotation, Transform};
 use fractory_common::sim::logic::path::{SubTile, TilePos};
 use fractory_common::sim::logic::{fractal::Fractal, tile::Tile};
 use std::f32::consts::TAU;
@@ -247,7 +248,7 @@ impl TreeElement {
             camera: Mat4::IDENTITY,
 
             fractal: Fractal::new_binary(),
-            max_depth: 3,
+            max_depth: 1,
         }
     }
 
@@ -281,7 +282,6 @@ impl TreeElement {
     }
 
     fn click_tree(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
-        dbg!(depth);
         if depth > self.max_depth {
             return None;
         }
@@ -309,7 +309,7 @@ impl TreeElement {
                 depth + 1,
             );
             if let Some(mut tile_pos) = hit_pos {
-                tile_pos.push_front(dbg!(subtile));
+                tile_pos.push_front(subtile);
                 return Some(tile_pos);
             }
         }
@@ -336,7 +336,6 @@ impl TreeElement {
             let pos = self.camera.transform_point3(down.extend(0.0)).truncate();
             if in_range && in_triangle(down) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
-                    dbg!(hit_pos);
                     let mut tile = self.fractal.get(hit_pos);
                     tile.id = 1 - tile.id;
                     self.fractal.set(hit_pos, tile);
@@ -348,7 +347,15 @@ impl TreeElement {
     fn input(&mut self, ctx: &mut Context) {
         self.camera = cam_control() * self.camera;
         if is_key_pressed(KeyCode::Tab) {
+            println!("{:?}", self.fractal.root);
+            for (quad, info) in self.fractal.library.iter() {
+                for tile in quad.0 {
+                    print!("{} ", tile.id);
+                }
+                println!();
+            }
             self.ui_state.cycle();
+            println!();
         }
 
         if is_key_pressed(KeyCode::Minus) {
@@ -407,24 +414,7 @@ fn draw_tree(
         let out_r = 3_f32.sqrt() / 3.0 * side;
         let in_r = out_r / 2.0;
 
-        let mut draw_tringle = |ctx: &mut Context, number, color| {
-            draw_triangle(
-                Vec2 { x: -1.0, y: in_r },
-                Vec2 { x: 1.0, y: in_r },
-                Vec2 { x: 0.0, y: -out_r },
-                color,
-            );
-            draw_leaf(ctx, number);
-        };
-
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
-        if info.is_full && in_triangle(mouse) {
-            const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
-            let col = PALETTE[depth % PALETTE.len()];
-            draw_tringle(ctx, tile.id, col);
-        } else {
-            draw_tringle(ctx, tile.id, DARKGRAY);
-        }
 
         let transforms = [
             flip_xy(),
@@ -434,13 +424,49 @@ fn draw_tree(
         ]
         .map(|t| downscale(2.0) * t * upscale(scaling));
 
-        for (transform, tile) in transforms.into_iter().zip(quad.0) {
-            ctx.apply(transform, |ctx| {
-                inner(ctx, fractal, tile, depth + 1, max_depth, scaling, draw_leaf);
-            });
-        }
+        let tile_matrix = orient_to_mat4(tile.orient);
+
+        ctx.apply(tile_matrix, |ctx| {
+            let mut draw_tringle = |ctx: &mut Context, number, color| {
+                draw_triangle(
+                    Vec2 { x: -1.0, y: in_r },
+                    Vec2 { x: 1.0, y: in_r },
+                    Vec2 { x: 0.0, y: -out_r },
+                    color,
+                );
+                draw_leaf(ctx, number);
+            };
+
+            if info.is_full && in_triangle(mouse) {
+                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                let col = PALETTE[depth % PALETTE.len()];
+                draw_tringle(ctx, tile.id, col);
+            } else {
+                draw_tringle(ctx, tile.id, DARKGRAY);
+            }
+
+            for (transform, tile) in transforms.into_iter().zip(quad.0) {
+                ctx.apply(transform, |ctx| {
+                    inner(ctx, fractal, tile, depth + 1, max_depth, scaling, draw_leaf);
+                });
+            }
+        });
     }
     inner(ctx, fractal, fractal.root, 0, max_depth, scaling, draw_leaf);
+}
+
+fn orient_to_mat4(orient: Orient) -> Mat4 {
+    let transform = Transform::from(orient);
+    let mut matrix = Mat4::IDENTITY;
+    if transform.reflected() {
+        matrix = flip_x() * matrix;
+    }
+    match transform.rotation() {
+        Rotation::U => {}
+        Rotation::R => matrix = rotate_cw(TAU / 3.0),
+        Rotation::L => matrix = rotate_cc(TAU / 3.0),
+    }
+    matrix
 }
 
 #[macroquad::main(window_conf)]
