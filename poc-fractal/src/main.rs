@@ -165,7 +165,28 @@ impl Context {
 fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
     // TODO: add a way to test the fractal
 
-    fn inner(ctx: &Context, fractal: &Fractal, tile: Tile, depth: usize, max_depth: usize) {
+    fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+        let slope = 3_f32.sqrt();
+
+        let x = x.abs();
+
+        let top = -out_r + (x * slope);
+        let bot = in_r;
+
+        (top..bot).contains(&y)
+    }
+
+    fn inner(
+        ctx: &Context,
+        fractal: &Fractal,
+        tile: Tile,   // changes
+        depth: usize, // changes
+        max_depth: usize,
+        mouse_total_oob: bool,
+    ) {
         if tile.id == 0 || depth > max_depth {
             return;
         }
@@ -187,8 +208,8 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
             ctx.apply(shift(0.0, -0.3), || draw(&number));
         };
 
-        let Vec2 { x, y } = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
-        if info.is_full && (-1.0..1.0).contains(&x) && (-1.0..1.0).contains(&y) {
+        let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
+        if info.is_full && in_triangle(mouse) {
             const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
             let col = PALETTE[depth % PALETTE.len()];
             draw_tringle(tile.id, col);
@@ -204,11 +225,11 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
         ];
         for (transform, tile) in transforms.into_iter().zip(quad.0) {
             ctx.apply(transform, || {
-                inner(ctx, fractal, tile, depth + 1, max_depth)
+                inner(ctx, fractal, tile, depth + 1, max_depth, mouse_total_oob)
             });
         }
     }
-    inner(ctx, fractal, fractal.root, 0, max_depth);
+    inner(ctx, fractal, fractal.root, 0, max_depth, false);
 }
 
 #[macroquad::main(window_conf)]
