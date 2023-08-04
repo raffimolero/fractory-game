@@ -83,10 +83,10 @@ fn cam_control() -> Mat4 {
         // rotation, clockwise
         let sensitivity = TAU / 2.0; // no i will not use pi
         if is_key_down(Q) {
-            rot += delta * sensitivity;
+            rot -= delta * sensitivity;
         }
         if is_key_down(E) {
-            rot -= delta * sensitivity;
+            rot += delta * sensitivity;
         }
 
         if is_key_pressed(F) {
