@@ -6,11 +6,14 @@ use fractory_common::sim::logic::{
     path::SubTile,
     tile::{Quad, Tile},
 };
-use std::f32::consts::TAU;
+use std::{cell::Cell, f32::consts::TAU};
 
 use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
 use ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
 use ergoquad_2d::prelude::*;
+
+/// used to catch accidental uses
+fn apply(youre_using_the_wrong_function: ()) {}
 
 /// returns a Mat4 corresponding to how much the map needs to be moved
 fn cam_control() -> Mat4 {
@@ -138,6 +141,25 @@ fn draw_num(font: Font, color: Color) -> impl Fn(&usize) {
 
 struct Context {
     font: Font,
+    mouse: Cell<Option<Vec2>>,
+}
+
+impl Context {
+    fn apply(&self, matrix: Mat4, f: impl FnOnce()) {
+        let orig = self.mouse.get();
+        self.mouse.replace(orig.map(|pos| {
+            matrix
+                .inverse()
+                .transform_point3(pos.extend(0.0))
+                .truncate()
+        }));
+        ergoquad_2d::prelude::apply(matrix, f);
+        self.mouse.replace(orig);
+    }
+
+    fn mouse_pos(&self) -> Option<Vec2> {
+        self.mouse.get()
+    }
 }
 
 fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
@@ -162,9 +184,11 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
                 Vec2 { x: 0.0, y: -out_r },
                 color,
             );
-            apply(shift(0.0, -0.3), || draw(&number));
+            ctx.apply(shift(0.0, -0.3), || draw(&number));
         };
-        if info.is_full {
+
+        let Vec2 { x, y } = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
+        if info.is_full && (-1.0..1.0).contains(&x) && (-1.0..1.0).contains(&y) {
             const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
             let col = PALETTE[depth % PALETTE.len()];
             draw_tringle(tile.id, col);
@@ -179,7 +203,7 @@ fn draw_tree(ctx: &Context, fractal: &Fractal, max_depth: usize) {
             downscale(2.0) * shift(-w, in_r) * downscale(1.1),
         ];
         for (transform, tile) in transforms.into_iter().zip(quad.0) {
-            apply(transform, || {
+            ctx.apply(transform, || {
                 inner(ctx, fractal, tile, depth + 1, max_depth)
             });
         }
@@ -206,7 +230,10 @@ async fn main() {
     // initialize transform
     let mut transform = Mat4::IDENTITY;
 
-    let mut ctx = Context { font };
+    let mut ctx = Context {
+        font,
+        mouse: Cell::new(None),
+    };
 
     // main loop
     loop {
@@ -215,8 +242,10 @@ async fn main() {
             return;
         }
 
+        ctx.mouse.replace(Some(mouse_position_local()));
+
         transform = cam_control() * transform;
-        apply(transform, || draw_tree(&ctx, &tree, 5));
+        ctx.apply(transform, || draw_tree(&ctx, &tree, 4));
 
         // end frame
         next_frame().await
