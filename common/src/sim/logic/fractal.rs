@@ -89,8 +89,10 @@ impl Fractal {
         let expansions = path
             .into_iter()
             .map(|subtile| {
+                // FIXME: TilePos RR toggles RU instead
                 let (mut quad, _info) = self.library[cur_tile.id];
                 if !cur_tile.orient.is_upright() {
+                    dbg!(cur_tile.orient.is_upright());
                     dbg!(&quad);
                 }
                 quad += Transform::from(cur_tile.orient);

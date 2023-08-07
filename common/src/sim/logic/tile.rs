@@ -85,8 +85,8 @@ impl QuadTile {
     pub fn is_rotational(self) -> bool {
         use SubTile::*;
         self[C].orient.symmetries().is_rotational()
-            && self[U] == self[R] + Transform::KL
-            && self[U] == self[L] + Transform::KR
+            && self[U] + Transform::KR == self[R]
+            && self[U] + Transform::KL == self[L]
     }
 
     /// reorients a tringle upright, and returns its original orientation.
