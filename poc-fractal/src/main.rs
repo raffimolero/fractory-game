@@ -4,14 +4,17 @@
 
 mod tree;
 
-use self::ctx::Context;
+use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
     fractal::Fractal,
     orientation::{Orient, Rotation, Transform},
     path::{SubTile, TilePos},
     tile::Tile,
 };
-use std::f32::consts::TAU;
+use std::{
+    f32::consts::TAU,
+    time::{Duration, Instant},
+};
 
 // use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
 use ergoquad_2d::macroquad; // NOTE: ergoquad2d does not provide its own macro
@@ -145,13 +148,15 @@ fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
 }
 
 mod ctx {
+    use std::time::Instant;
+
     use super::*;
 
     #[derive(Default)]
     pub struct Context {
         mouse: Option<Vec2>,
-        last_lmb: Option<Vec2>,
-        last_rmb: Option<Vec2>,
+        last_lmb: Option<(Vec2, Instant)>,
+        last_rmb: Option<(Vec2, Instant)>,
         matrix: Mat4,
         inv_matrix: Mat4,
     }
@@ -165,20 +170,22 @@ mod ctx {
             (self.matrix, self.inv_matrix) = orig;
         }
 
-        fn project(&self, point: Option<Vec2>) -> Option<Vec2> {
-            point.map(|pos| self.inv_matrix.transform_point3(pos.extend(0.0)).truncate())
+        fn project(&self, point: Vec2) -> Vec2 {
+            self.inv_matrix
+                .transform_point3(point.extend(0.0))
+                .truncate()
         }
 
         pub fn mouse_pos(&self) -> Option<Vec2> {
-            self.project(self.mouse)
+            self.mouse.map(|pos| self.project(pos))
         }
 
-        pub fn lmb_pos(&self) -> Option<Vec2> {
-            self.project(self.last_lmb)
+        pub fn lmb_pos(&self) -> Option<(Vec2, Instant)> {
+            self.last_lmb.map(|(pos, time)| (self.project(pos), time))
         }
 
-        pub fn rmb_pos(&self) -> Option<Vec2> {
-            self.project(self.last_rmb)
+        pub fn rmb_pos(&self) -> Option<(Vec2, Instant)> {
+            self.last_rmb.map(|(pos, time)| (self.project(pos), time))
         }
 
         pub fn update(&mut self) {
@@ -193,12 +200,35 @@ mod ctx {
             }
 
             self.mouse.replace(mouse_position_local());
+            let now = Instant::now();
             if is_mouse_button_pressed(MouseButton::Left) {
-                self.last_lmb = self.mouse;
+                self.last_lmb = self.mouse.map(|pos| (pos, now));
             }
             if is_mouse_button_pressed(MouseButton::Right) {
-                self.last_rmb = self.mouse;
+                self.last_rmb = self.mouse.map(|pos| (pos, now));
             }
+        }
+    }
+    pub struct Click {
+        pub pos: Vec2,
+        pub held: bool,
+    }
+    impl Context {
+        pub fn get_click(&self) -> Option<Click> {
+            const SCREEN_WIDTH: f32 = 2.0;
+            const LEASH_RANGE: f32 = SCREEN_WIDTH / 4.0;
+            const HOLD_DURATION: Duration = Duration::from_secs(1);
+
+            let (down, lmb_time) = self.lmb_pos()?;
+            let up = self.mouse_pos()?;
+
+            let leash_sq = LEASH_RANGE * LEASH_RANGE;
+            let in_range = (down - up).length_squared() < leash_sq;
+
+            let hold_time = Instant::now() - lmb_time;
+            let held = hold_time >= HOLD_DURATION;
+
+            in_range.then(|| Click { pos: down, held })
         }
     }
 }
@@ -255,21 +285,106 @@ impl TreeElement {
         }
     }
 
+    fn draw_leaf(
+        &self,
+        ctx: &mut Context,
+        id: usize,
+        depth: usize,
+        is_full: bool,
+        in_triangle: bool,
+        text_tool: impl Fn(&str),
+    ) {
+        enum ColorMode {
+            ColorByDepth,
+            ColorById,
+            White,
+            Dark,
+        }
+        let color_mode = match self.ui_state {
+            UiState::View => ColorMode::ColorByDepth,
+            UiState::Toggle => {
+                if is_full && in_triangle {
+                    ColorMode::ColorByDepth
+                } else {
+                    ColorMode::Dark
+                }
+            }
+        };
+        let color = match color_mode {
+            ColorMode::ColorByDepth => {
+                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                PALETTE[depth % PALETTE.len()]
+            }
+            ColorMode::ColorById => {
+                // TODO: have a tile palette based on fragments
+                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                PALETTE[id % PALETTE.len()]
+            }
+            ColorMode::White => WHITE,
+            ColorMode::Dark => DARKGRAY,
+        };
+
+        let w = 1.0;
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+        draw_triangle(
+            Vec2 { x: -1.0, y: in_r },
+            Vec2 { x: 1.0, y: in_r },
+            Vec2 { x: 0.0, y: -out_r },
+            color,
+        );
+        ctx.apply(shift(0.0, -0.3), |_| {
+            text_tool(&id.to_string());
+        })
+    }
+
+    // TODO: make the deepest targeted leaf node flash white when you're clicking it
+    // but only when it's within leash range and not held
+    fn draw_subtree(&self, ctx: &mut Context, tile: Tile, depth: usize, text_tool: &impl Fn(&str)) {
+        if tile.id == 0 || depth > self.max_depth {
+            return;
+        }
+        let (quad, info) = self.fractal.library[tile.id];
+
+        let w = 1.0;
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+
+        let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
+
+        let transforms = [
+            flip_xy(),
+            shift(0.0, -out_r),
+            shift(w, in_r),
+            shift(-w, in_r),
+        ]
+        .map(|t| downscale(2.0) * t * upscale(self.ui_state.scaling()));
+
+        let tile_matrix = orient_to_mat4(tile.orient);
+
+        ctx.apply(tile_matrix, |ctx| {
+            self.draw_leaf(
+                ctx,
+                tile.id,
+                depth,
+                info.is_full,
+                in_triangle(mouse),
+                text_tool,
+            );
+            for (transform, tile) in transforms.into_iter().zip(quad.0) {
+                ctx.apply(transform, |ctx| {
+                    self.draw_subtree(ctx, tile, depth + 1, text_tool);
+                });
+            }
+        });
+    }
+
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
         ctx.apply(self.camera, |ctx| {
-            let mut draw_num = |ctx: &mut Context, number: usize| {
-                ctx.apply(shift(0.0, -0.3), |_| {
-                    text_tool(&number.to_string());
-                })
-            };
-            draw_tree(
-                ctx,
-                &self.fractal,
-                self.max_depth,
-                self.ui_state.scaling(),
-                &mut draw_num,
-            );
+            self.draw_subtree(ctx, self.fractal.root, 0, &text_tool);
         });
 
         ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
@@ -321,23 +436,17 @@ impl TreeElement {
 
     fn input_toggle(&mut self, ctx: &mut Context) {
         if is_mouse_button_released(MouseButton::Left) {
-            // compute if the mouse wasn't dragged too far away
-            // if the mouse is clicked and dragged further than the leash range,
-            // then actions should be cancelled.
-            let screen_width = 2.0;
-            let leash = screen_width / 128.0;
-            let leash_sq = leash * leash;
-
-            let Some(down) = ctx.lmb_pos() else {
+            let Some(Click { pos, held: false }) = ctx.get_click() else {
                 return;
             };
-            let Some(up) = ctx.mouse_pos() else {
-                return;
-            };
-            let in_range = (down - up).length_squared() < leash_sq;
 
-            let pos = self.camera.transform_point3(down.extend(0.0)).truncate();
-            if in_range && in_triangle(down) {
+            let pos = self
+                .camera
+                .inverse()
+                .transform_point3(pos.extend(0.0))
+                .truncate();
+
+            if in_triangle(pos) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
                     let mut tile = self.fractal.get(hit_pos);
                     tile.id = if tile.id == 0 { 1 } else { 0 };
@@ -387,75 +496,6 @@ fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
     let bot = in_r;
 
     (top..bot).contains(&y)
-}
-
-fn draw_tree(
-    ctx: &mut Context,
-    fractal: &Fractal,
-    max_depth: usize,
-    scaling: f32,
-    draw_leaf: &mut impl FnMut(&mut Context, usize),
-) {
-    // TODO: add a way to test the fractal
-
-    fn inner(
-        ctx: &mut Context,
-        fractal: &Fractal,
-        tile: Tile,   // changes
-        depth: usize, // changes
-        max_depth: usize,
-        scaling: f32,
-        draw_leaf: &mut impl FnMut(&mut Context, usize),
-    ) {
-        if tile.id == 0 || depth > max_depth {
-            return;
-        }
-        let (quad, info) = fractal.library[tile.id];
-
-        let w = 1.0;
-        let side = 2.0;
-        let out_r = 3_f32.sqrt() / 3.0 * side;
-        let in_r = out_r / 2.0;
-
-        let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
-
-        let transforms = [
-            flip_xy(),
-            shift(0.0, -out_r),
-            shift(w, in_r),
-            shift(-w, in_r),
-        ]
-        .map(|t| downscale(2.0) * t * upscale(scaling));
-
-        let tile_matrix = orient_to_mat4(tile.orient);
-
-        ctx.apply(tile_matrix, |ctx| {
-            let mut draw_tringle = |ctx: &mut Context, number, color| {
-                draw_triangle(
-                    Vec2 { x: -1.0, y: in_r },
-                    Vec2 { x: 1.0, y: in_r },
-                    Vec2 { x: 0.0, y: -out_r },
-                    color,
-                );
-                draw_leaf(ctx, number);
-            };
-
-            if info.is_full && in_triangle(mouse) {
-                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
-                let col = PALETTE[depth % PALETTE.len()];
-                draw_tringle(ctx, tile.id, col);
-            } else {
-                draw_tringle(ctx, tile.id, DARKGRAY);
-            }
-
-            for (transform, tile) in transforms.into_iter().zip(quad.0) {
-                ctx.apply(transform, |ctx| {
-                    inner(ctx, fractal, tile, depth + 1, max_depth, scaling, draw_leaf);
-                });
-            }
-        });
-    }
-    inner(ctx, fractal, fractal.root, 0, max_depth, scaling, draw_leaf);
 }
 
 fn orient_to_mat4(orient: Orient) -> Mat4 {
