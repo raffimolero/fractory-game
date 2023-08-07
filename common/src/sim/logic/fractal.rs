@@ -77,7 +77,7 @@ impl Fractal {
         let mut tile = self.root;
         for subtile in path {
             let (mut quad, _info) = self.library[tile.id];
-            quad += -tile.orient;
+            quad += Transform::from(tile.orient);
             tile = quad[subtile];
         }
         tile
@@ -85,19 +85,19 @@ impl Fractal {
 
     pub fn set(&mut self, path: TilePos, mut tile: Tile) -> Tile {
         // expand each child in the path
-        let mut replaced_tile = self.root;
+        let mut cur_tile = self.root;
         let expansions = path
             .into_iter()
             .map(|subtile| {
-                let (mut quad, _info) = self.library[replaced_tile.id];
-                quad += -replaced_tile.orient;
-                tile += -replaced_tile.orient;
-                replaced_tile = quad[subtile];
+                let (mut quad, _info) = self.library[cur_tile.id];
+                quad += Transform::from(cur_tile.orient);
+                tile += -cur_tile.orient;
+                cur_tile = quad[subtile];
                 (quad, subtile)
             })
             .collect::<Vec<_>>();
 
-        if replaced_tile == tile {
+        if cur_tile == tile {
             return tile;
         }
 
@@ -110,7 +110,7 @@ impl Fractal {
                 self.register(quad)
             });
 
-        replaced_tile
+        cur_tile
     }
 
     // TODO: make Fragment data structure, then implement this function

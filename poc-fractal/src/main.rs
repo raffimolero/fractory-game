@@ -5,9 +5,12 @@
 mod tree;
 
 use self::ctx::Context;
-use fractory_common::sim::logic::orientation::{Orient, Rotation, Transform};
-use fractory_common::sim::logic::path::{SubTile, TilePos};
-use fractory_common::sim::logic::{fractal::Fractal, tile::Tile};
+use fractory_common::sim::logic::{
+    fractal::Fractal,
+    orientation::{Orient, Rotation, Transform},
+    path::{SubTile, TilePos},
+    tile::Tile,
+};
 use std::f32::consts::TAU;
 
 // use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
@@ -337,7 +340,7 @@ impl TreeElement {
             if in_range && in_triangle(down) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
                     let mut tile = self.fractal.get(hit_pos);
-                    tile.id = 1 - tile.id;
+                    tile.id = if tile.id == 0 { 1 } else { 0 };
                     self.fractal.set(hit_pos, tile);
                 }
             }
