@@ -1,0 +1,62 @@
+let quad = Quad([
+    Tile { id: 0, orient: Iso }, // C
+    Tile { id: 4, orient: RfL }, // U
+    Tile { id: 4, orient: RfL }, // R
+    Tile { id: 0, orient: Iso }, // L
+]);
+
+let tile = Tile {
+    id: 26,
+    orient: AFU,
+};
+
+thread 'main' panicked at 'Tringle (Quad([Tile { id: 0, orient: Iso }, Tile { id: 4, orient: RfL }, Tile { id: 4, orient: RfL }, Tile { id: 0, orient: Iso }])) was registered (Tile { id: 26, orient: AFU }) twice!', common\src\sim\logic\fractal.rs:158:17
+stack backtrace:
+   0: std::panicking::begin_panic_handler
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca/library\std\src\panicking.rs:578
+   1: core::panicking::panic_fmt
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca/library\core\src\panicking.rs:67
+   2: common::sim::logic::fractal::Fractal::cache
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:158
+   3: common::sim::logic::fractal::Fractal::register_new
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:142
+   4: common::sim::logic::fractal::impl$1::register::closure$0
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:126
+   5: enum2$<core::option::Option<common::sim::logic::tile::Tile> >::unwrap_or_else<common::sim::logic::tile::Tile,common::sim::logic::fractal::impl$1::register::closure_env$0>
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca\library\core\src\option.rs:1000
+   6: common::sim::logic::fractal::Fractal::register
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:123
+   7: common::sim::logic::fractal::impl$1::set::closure$1
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:110
+   8: core::iter::traits::double_ended::DoubleEndedIterator::rfold<alloc::vec::into_iter::IntoIter<tuple$<common::sim::logic::tile::Quad<common::sim::logic::tile::Tile>,common::sim::logic::path::SubTile>,alloc::alloc::Global>,common::sim::logic::tile::Tile,comm
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca\library\core\src\iter\traits\double_ended.rs:307
+   9: core::iter::adapters::rev::impl$1::fold<alloc::vec::into_iter::IntoIter<tuple$<common::sim::logic::tile::Quad<common::sim::logic::tile::Tile>,common::sim::logic::path::SubTile>,alloc::alloc::Global>,common::sim::logic::tile::Tile,common::sim::logic::fract
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca\library\core\src\iter\adapters\rev.rs:64
+  10: common::sim::logic::fractal::Fractal::set
+             at C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\common\src\sim\logic\fractal.rs:105
+  11: poc_fractal::TreeElement::input_toggle
+             at .\src\main.rs:453
+  12: poc_fractal::TreeElement::input
+             at .\src\main.rs:482
+  13: poc_fractal::amain::async_fn$0
+             at .\src\main.rs:540
+  14: macroquad::exec::resume<tuple$<> >
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\macroquad-0.3.26\src\exec.rs:72
+  15: macroquad::impl$3::draw::closure$0
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\macroquad-0.3.26\src\lib.rs:674
+  16: macroquad::impl$3::draw::maybe_unwind<macroquad::impl$3::draw::closure_env$0>
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\macroquad-0.3.26\src\lib.rs:665
+  17: macroquad::impl$3::draw
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\macroquad-0.3.26\src\lib.rs:670
+  18: miniquad::native::windows::run<macroquad::impl$4::from_config::closure_env$0<enum2$<poc_fractal::amain::async_fn_env$0> > >
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\miniquad-0.3.16\src\native\windows.rs:878
+  19: miniquad::start<macroquad::impl$4::from_config::closure_env$0<enum2$<poc_fractal::amain::async_fn_env$0> > >
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\miniquad-0.3.16\src\lib.rs:222
+  20: macroquad::Window::from_config<enum2$<poc_fractal::amain::async_fn_env$0> >
+             at C:\Users\raffi\.cargo\registry\src\index.crates.io-6f17d22bba15001f\macroquad-0.3.26\src\lib.rs:751
+  21: poc_fractal::main
+             at .\src\main.rs:515
+  22: core::ops::function::FnOnce::call_once<void (*)(),tuple$<> >
+             at /rustc/90c541806f23a127002de5b4038be731ba1458ca\library\core\src\ops\function.rs:250
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+error: process didn't exit successfully: `C:\Users\raffi\Documents\Projects\Rust\github\fractory-game\target\debug\poc-fractal.exe` (exit code: 101)

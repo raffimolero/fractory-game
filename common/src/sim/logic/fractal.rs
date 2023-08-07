@@ -90,7 +90,13 @@ impl Fractal {
             .into_iter()
             .map(|subtile| {
                 let (mut quad, _info) = self.library[cur_tile.id];
+                if !cur_tile.orient.is_upright() {
+                    dbg!(&quad);
+                }
                 quad += Transform::from(cur_tile.orient);
+                if !cur_tile.orient.is_upright() {
+                    dbg!(&quad);
+                }
                 tile += -cur_tile.orient;
                 cur_tile = quad[subtile];
                 (quad, subtile)

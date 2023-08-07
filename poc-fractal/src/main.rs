@@ -369,8 +369,8 @@ impl TreeElement {
         let transforms = [
             flip_xy(),
             shift(0.0, -out_r),
-            shift(w, in_r),
-            shift(-w, in_r),
+            shift(w, in_r) * rotate_cw(TAU / 3.0),
+            shift(-w, in_r) * rotate_cc(TAU / 3.0),
         ]
         .map(|t| downscale(2.0) * t * upscale(self.ui_state.scaling()));
 
@@ -423,8 +423,8 @@ impl TreeElement {
         let transforms = [
             flip_xy(),
             shift(0.0, -out_r),
-            shift(w, in_r),
-            shift(-w, in_r),
+            shift(w, in_r) * rotate_cw(TAU / 3.0),
+            shift(-w, in_r) * rotate_cc(TAU / 3.0),
         ]
         .map(|t| downscale(2.0) * t * self.ui_state.scaling())
         .map(|t| t.inverse());
