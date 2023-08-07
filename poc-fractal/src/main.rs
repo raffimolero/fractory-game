@@ -378,6 +378,9 @@ impl TreeElement {
 
         ctx.apply(tile_matrix, |ctx| {
             self.draw_leaf(ctx, tile.id, depth, info.is_full, hovered, text_tool);
+            if info.is_leaf && !hovered {
+                return;
+            }
             for (transform, tile) in transforms.into_iter().zip(quad.0) {
                 ctx.apply(transform, |ctx| {
                     self.draw_subtree(ctx, tile, depth + 1, text_tool);
