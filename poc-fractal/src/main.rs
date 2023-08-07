@@ -281,7 +281,7 @@ impl TreeElement {
             camera: Mat4::IDENTITY,
 
             fractal: Fractal::new_binary(),
-            max_depth: 1,
+            max_depth: 3,
         }
     }
 
