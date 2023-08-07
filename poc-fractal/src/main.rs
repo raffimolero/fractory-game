@@ -255,7 +255,7 @@ impl UiState {
         use UiState::*;
         match self {
             View => 1.0,
-            Toggle => 0.9,
+            Toggle => 0.8,
         }
     }
 }
@@ -291,37 +291,48 @@ impl TreeElement {
         id: usize,
         depth: usize,
         is_full: bool,
-        in_triangle: bool,
+        hovered: bool,
         text_tool: impl Fn(&str),
     ) {
         enum ColorMode {
             ColorByDepth,
-            ColorById,
-            White,
-            Dark,
+            FragmentColoring,
+            GreyscaleDepth,
+            Empty,
         }
+        use ColorMode::*;
         let color_mode = match self.ui_state {
-            UiState::View => ColorMode::ColorByDepth,
-            UiState::Toggle => {
-                if is_full && in_triangle {
-                    ColorMode::ColorByDepth
-                } else {
-                    ColorMode::Dark
-                }
-            }
+            UiState::View => match (hovered, is_full) {
+                (true, true) => GreyscaleDepth,
+                (true, false) => GreyscaleDepth,
+                (false, true) => FragmentColoring,
+                (false, false) => Empty,
+            },
+            UiState::Toggle => match (hovered, is_full) {
+                (true, true) => ColorByDepth,
+                (true, false) => GreyscaleDepth,
+                (false, true) => GreyscaleDepth,
+                (false, false) => Empty,
+            },
         };
         let color = match color_mode {
-            ColorMode::ColorByDepth => {
+            ColorByDepth => {
                 const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
                 PALETTE[depth % PALETTE.len()]
             }
-            ColorMode::ColorById => {
+            FragmentColoring => {
                 // TODO: have a tile palette based on fragments
                 const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
                 PALETTE[id % PALETTE.len()]
             }
-            ColorMode::White => WHITE,
-            ColorMode::Dark => DARKGRAY,
+            GreyscaleDepth => {
+                const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
+                PALETTE[depth % PALETTE.len()]
+            }
+            Empty => {
+                const PALETTE: &[Color] = &[LIGHTGRAY, DARKGRAY, GRAY];
+                PALETTE[depth % PALETTE.len()]
+            }
         };
 
         let w = 1.0;
@@ -342,7 +353,10 @@ impl TreeElement {
     // TODO: make the deepest targeted leaf node flash white when you're clicking it
     // but only when it's within leash range and not held
     fn draw_subtree(&self, ctx: &mut Context, tile: Tile, depth: usize, text_tool: &impl Fn(&str)) {
-        if tile.id == 0 || depth > self.max_depth {
+        let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
+        let hovered = in_triangle(mouse);
+        let is_empty = tile.id == 0;
+        if (is_empty && !hovered) || depth > self.max_depth {
             return;
         }
         let (quad, info) = self.fractal.library[tile.id];
@@ -351,8 +365,6 @@ impl TreeElement {
         let side = 2.0;
         let out_r = 3_f32.sqrt() / 3.0 * side;
         let in_r = out_r / 2.0;
-
-        let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
 
         let transforms = [
             flip_xy(),
@@ -365,14 +377,7 @@ impl TreeElement {
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            self.draw_leaf(
-                ctx,
-                tile.id,
-                depth,
-                info.is_full,
-                in_triangle(mouse),
-                text_tool,
-            );
+            self.draw_leaf(ctx, tile.id, depth, info.is_full, hovered, text_tool);
             for (transform, tile) in transforms.into_iter().zip(quad.0) {
                 ctx.apply(transform, |ctx| {
                     self.draw_subtree(ctx, tile, depth + 1, text_tool);
@@ -418,7 +423,7 @@ impl TreeElement {
             shift(w, in_r),
             shift(-w, in_r),
         ]
-        .map(|t| downscale(2.0) * t * downscale(1.1))
+        .map(|t| downscale(2.0) * t * self.ui_state.scaling())
         .map(|t| t.inverse());
 
         for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
@@ -459,15 +464,15 @@ impl TreeElement {
     fn input(&mut self, ctx: &mut Context) {
         self.camera = cam_control() * self.camera;
         if is_key_pressed(KeyCode::Tab) {
-            println!("{:?}", self.fractal.root);
-            for (quad, info) in self.fractal.library.iter() {
-                for tile in quad.0 {
-                    print!("{} ", tile.id);
-                }
-                println!();
-            }
+            // println!("{:?}", self.fractal.root);
+            // for (quad, info) in self.fractal.library.iter() {
+            //     for tile in quad.0 {
+            //         print!("{} ", tile.id);
+            //     }
+            //     println!();
+            // }
+            // println!();
             self.ui_state.cycle();
-            println!();
         }
 
         if is_key_pressed(KeyCode::Minus) {
@@ -514,6 +519,18 @@ fn orient_to_mat4(orient: Orient) -> Mat4 {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // // this is a buggy tringle.
+    // let x = Tringle(Quad([
+    //     Tile { id: 0, orient: Iso },
+    //     Tile { id: 4, orient: RfL },
+    //     Tile { id: 4, orient: RfL },
+    //     Tile { id: 0, orient: Iso },
+    // ]));
+    // let y = (Tile {
+    //     id: 26,
+    //     orient: AFU,
+    // });
+
     // camera for canvases
     let cam = &mut Camera2D::default();
     cam.zoom = Vec2::new(1.0, -1.0);
