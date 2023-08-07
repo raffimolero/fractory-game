@@ -456,9 +456,11 @@ impl TreeElement {
 
             if in_triangle(pos) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
+                    // dbg!(hit_pos.into_iter().collect::<Vec<SubTile>>());
                     let mut tile = self.fractal.get(hit_pos);
                     tile.id = if tile.id == 0 { 1 } else { 0 };
                     self.fractal.set(hit_pos, tile);
+                    dbg!(self.fractal.root);
                 }
             }
         }
