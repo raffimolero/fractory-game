@@ -79,7 +79,7 @@ impl<T: AddAssign<Transform>> AddAssign<Transform> for Quad<T> {
 impl QuadTile {
     pub fn is_rfu(self) -> bool {
         use SubTile::*;
-        self[C].orient.is_rfu() && self[U].orient.is_rfu() && self[R] + Transform::FR == self[L]
+        self[C].orient.is_rfu() && self[U].orient.is_rfu() && self[R] + Transform::FU == self[L]
     }
 
     pub fn is_rotational(self) -> bool {

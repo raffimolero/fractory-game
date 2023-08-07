@@ -12,7 +12,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy)]
 pub struct SlotInfo {
     pub is_full: bool,
-    // TODO: use enum instead, leaves are guaranteed to be full
+    // TODO: use enum instead, leaves are guaranteed to be full unless they're 0
     pub is_leaf: bool,
 }
 
@@ -83,23 +83,14 @@ impl Fractal {
         tile
     }
 
-    pub fn set(&mut self, path: TilePos, mut tile: Tile) -> Tile {
+    pub fn set(&mut self, path: TilePos, tile: Tile) -> Tile {
         // expand each child in the path
         let mut cur_tile = self.root;
         let expansions = path
             .into_iter()
             .map(|subtile| {
-                // FIXME: TilePos RR toggles RU instead
                 let (mut quad, _info) = self.library[cur_tile.id];
-                if !cur_tile.orient.is_upright() {
-                    dbg!(cur_tile.orient.is_upright());
-                    dbg!(&quad);
-                }
                 quad += Transform::from(cur_tile.orient);
-                if !cur_tile.orient.is_upright() {
-                    dbg!(&quad);
-                }
-                tile += -cur_tile.orient;
                 cur_tile = quad[subtile];
                 (quad, subtile)
             })

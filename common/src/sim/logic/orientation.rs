@@ -1,3 +1,4 @@
+use super::path::SubTile;
 use std::ops::{Add, Neg, AddAssign};
 
 #[test]
@@ -247,7 +248,7 @@ impl Add<Transform> for Orient {
 
         #[rustfmt::skip]
         const TABLE: [Orient; 12 * 6] = [
-        //  KU   KR   KL   FR   FU  FL
+        //  KU   KR   KL   FU   FR  FL
             Iso, Iso, Iso, Iso, Iso, Iso, 
             RtK, RtK, RtK, RtF, RtF, RtF, 
             RtF, RtF, RtF, RtK, RtK, RtK, 
@@ -337,6 +338,19 @@ impl From<Orient> for Transform {
             AFU => FU,
             AFR => FR,
             AFL => FL,
+        }
+    }
+}
+
+impl From<SubTile> for Transform {
+    fn from(value: SubTile) -> Self {
+        use SubTile::*;
+        use Transform::*;
+        match value {
+            C => KU,
+            U => KU,
+            R => KR,
+            L => KL,
         }
     }
 }

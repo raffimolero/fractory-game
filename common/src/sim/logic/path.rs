@@ -389,6 +389,7 @@ impl Add<TileOffset> for TilePos {
         // FIXME: logical error
         // test TilePos from SubTile::U + TileOffset with depth 1
         for _ in 0..rhs.depth {
+            // should be push_back
             self.push_front(SubTile::C);
         }
         if self.flop {

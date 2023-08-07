@@ -276,12 +276,12 @@ impl TreeElement {
     fn new(font: Font) -> Self {
         Self {
             font,
-            ui_state: UiState::View,
+            ui_state: UiState::Toggle,
 
             camera: Mat4::IDENTITY,
 
             fractal: Fractal::new_binary(),
-            max_depth: 3,
+            max_depth: 2,
         }
     }
 
@@ -369,8 +369,8 @@ impl TreeElement {
         let transforms = [
             flip_xy(),
             shift(0.0, -out_r),
-            shift(w, in_r) * rotate_cw(TAU / 3.0),
-            shift(-w, in_r) * rotate_cc(TAU / 3.0),
+            shift(w, in_r),
+            shift(-w, in_r),
         ]
         .map(|t| downscale(2.0) * t * upscale(self.ui_state.scaling()));
 
@@ -423,8 +423,8 @@ impl TreeElement {
         let transforms = [
             flip_xy(),
             shift(0.0, -out_r),
-            shift(w, in_r) * rotate_cw(TAU / 3.0),
-            shift(-w, in_r) * rotate_cc(TAU / 3.0),
+            shift(w, in_r),
+            shift(-w, in_r),
         ]
         .map(|t| downscale(2.0) * t * self.ui_state.scaling())
         .map(|t| t.inverse());
@@ -456,11 +456,9 @@ impl TreeElement {
 
             if in_triangle(pos) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
-                    // dbg!(hit_pos.into_iter().collect::<Vec<SubTile>>());
                     let mut tile = self.fractal.get(hit_pos);
                     tile.id = if tile.id == 0 { 1 } else { 0 };
                     self.fractal.set(hit_pos, tile);
-                    dbg!(self.fractal.root);
                 }
             }
         }
@@ -516,26 +514,14 @@ fn orient_to_mat4(orient: Orient) -> Mat4 {
     }
     match transform.rotation() {
         Rotation::U => {}
-        Rotation::R => matrix = rotate_cw(TAU / 3.0),
-        Rotation::L => matrix = rotate_cc(TAU / 3.0),
+        Rotation::R => matrix = rotate_cw(TAU / 3.0) * matrix,
+        Rotation::L => matrix = rotate_cc(TAU / 3.0) * matrix,
     }
     matrix
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // // this is a buggy tringle.
-    // let x = Tringle(Quad([
-    //     Tile { id: 0, orient: Iso },
-    //     Tile { id: 4, orient: RfL },
-    //     Tile { id: 4, orient: RfL },
-    //     Tile { id: 0, orient: Iso },
-    // ]));
-    // let y = (Tile {
-    //     id: 26,
-    //     orient: AFU,
-    // });
-
     // camera for canvases
     let cam = &mut Camera2D::default();
     cam.zoom = Vec2::new(1.0, -1.0);
