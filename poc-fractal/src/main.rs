@@ -6,13 +6,14 @@ mod tree;
 
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
-    fractal::Fractal,
+    fractal::{Fractal, SlotInfo},
     orientation::{Orient, Rotation, Transform},
     path::{SubTile, TilePos},
     tile::Tile,
 };
 use std::{
     f32::consts::TAU,
+    ops::ControlFlow,
     time::{Duration, Instant},
 };
 
@@ -289,48 +290,67 @@ impl TreeElement {
         &self,
         ctx: &mut Context,
         id: usize,
+        slot_info: SlotInfo,
         depth: usize,
-        is_full: bool,
         hovered: bool,
         text_tool: impl Fn(&str),
-    ) {
+    ) -> ControlFlow<()> {
         enum ColorMode {
-            ColorByDepth,
-            FragmentColoring,
-            GreyscaleDepth,
-            Empty,
+            Fragment,
+            Depth,
+            Greyscale,
         }
         use ColorMode::*;
-        let color_mode = match self.ui_state {
-            UiState::View => match (hovered, is_full) {
-                (true, true) => GreyscaleDepth,
-                (true, false) => GreyscaleDepth,
-                (false, true) => FragmentColoring,
-                (false, false) => Empty,
-            },
-            UiState::Toggle => match (hovered, is_full) {
-                (true, true) => ColorByDepth,
-                (true, false) => GreyscaleDepth,
-                (false, true) => GreyscaleDepth,
-                (false, false) => Empty,
-            },
-        };
-        let color = match color_mode {
-            ColorByDepth => {
-                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
-                PALETTE[depth % PALETTE.len()]
+
+        fn average(a: Color, b: Color) -> Color {
+            Color {
+                r: a.r + b.r / 2.0,
+                g: a.g + b.g / 2.0,
+                b: a.b + b.b / 2.0,
+                a: a.a + b.a / 2.0,
             }
-            FragmentColoring => {
+        }
+
+        let control_flow = if slot_info.is_leaf() && !hovered || depth >= self.max_depth {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        };
+
+        // TODO: make shift+scroll change the "fractal expansion" threshold
+        // applies to all UI elements, makes it so that you can change how much
+        // you have to zoom for something to expand
+        // maybe solve this once you do bevy tbh
+        // add a cursor follower that visually shows this threshold by size
+        // shift+scroll zooms the mouse cursor, scroll zooms the camera *and* the cursor
+
+        // TODO: fragment coloring should first try to use the fragment sprite,
+        // otherwise use a hash color
+        // these should be specified by the fractal itself
+        let color_mode = match slot_info {
+            SlotInfo::Empty => Greyscale,
+            SlotInfo::Partial => Depth,
+            SlotInfo::Full { .. } => {
+                if control_flow == ControlFlow::Break(()) {
+                    Fragment
+                } else {
+                    Depth
+                }
+            }
+        };
+
+        let color = match color_mode {
+            Depth => {
+                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                average(BLACK, PALETTE[depth % PALETTE.len()])
+            }
+            Fragment => {
                 // TODO: have a tile palette based on fragments
                 const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
                 PALETTE[id % PALETTE.len()]
             }
-            GreyscaleDepth => {
+            Greyscale => {
                 const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
-                PALETTE[depth % PALETTE.len()]
-            }
-            Empty => {
-                const PALETTE: &[Color] = &[LIGHTGRAY, DARKGRAY, GRAY];
                 PALETTE[depth % PALETTE.len()]
             }
         };
@@ -339,15 +359,38 @@ impl TreeElement {
         let side = 2.0;
         let out_r = 3_f32.sqrt() / 3.0 * side;
         let in_r = out_r / 2.0;
-        draw_triangle(
-            Vec2 { x: -1.0, y: in_r },
-            Vec2 { x: 1.0, y: in_r },
-            Vec2 { x: 0.0, y: -out_r },
-            color,
-        );
-        ctx.apply(shift(0.0, -0.3), |_| {
-            text_tool(&id.to_string());
-        })
+
+        ctx.apply(upscale(self.ui_state.scaling()), |ctx| {
+            if hovered {
+                // outline
+                draw_triangle(
+                    Vec2 { x: -1.0, y: in_r },
+                    Vec2 { x: 1.0, y: in_r },
+                    Vec2 { x: 0.0, y: -out_r },
+                    GRAY,
+                );
+                // TODO: math
+                ctx.apply(upscale(0.9), |ctx| {
+                    draw_triangle(
+                        Vec2 { x: -1.0, y: in_r },
+                        Vec2 { x: 1.0, y: in_r },
+                        Vec2 { x: 0.0, y: -out_r },
+                        color,
+                    );
+                });
+            } else {
+                draw_triangle(
+                    Vec2 { x: -1.0, y: in_r },
+                    Vec2 { x: 1.0, y: in_r },
+                    Vec2 { x: 0.0, y: -out_r },
+                    color,
+                );
+            }
+            ctx.apply(shift(0.0, -0.3), |_| {
+                text_tool(&id.to_string());
+            });
+        });
+        control_flow
     }
 
     // TODO: make the deepest targeted leaf node flash white when you're clicking it
@@ -356,9 +399,6 @@ impl TreeElement {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
         let is_empty = tile.id == 0;
-        if (is_empty && !hovered) || depth > self.max_depth {
-            return;
-        }
         let (quad, info) = self.fractal.library[tile.id];
 
         let w = 1.0;
@@ -372,14 +412,14 @@ impl TreeElement {
             shift(w, in_r),
             shift(-w, in_r),
         ]
-        .map(|t| downscale(2.0) * t * upscale(self.ui_state.scaling()));
+        .map(|t| downscale(2.0) * t);
 
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            self.draw_leaf(ctx, tile.id, depth, info.is_full, hovered, text_tool);
-            if info.is_leaf && !hovered {
-                return;
+            match self.draw_leaf(ctx, tile.id, info, depth, hovered, text_tool) {
+                ControlFlow::Continue(()) => {}
+                ControlFlow::Break(()) => return,
             }
             for (transform, tile) in transforms.into_iter().zip(quad.0) {
                 ctx.apply(transform, |ctx| {
@@ -426,7 +466,7 @@ impl TreeElement {
             shift(w, in_r),
             shift(-w, in_r),
         ]
-        .map(|t| downscale(2.0) * t * self.ui_state.scaling())
+        .map(|t| downscale(2.0) * t)
         .map(|t| t.inverse());
 
         for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
