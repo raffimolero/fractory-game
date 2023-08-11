@@ -238,6 +238,7 @@ mod ctx {
 enum UiState {
     View,
     Edit,
+    Act,
 }
 
 impl UiState {
@@ -245,7 +246,8 @@ impl UiState {
         use UiState::*;
         *self = match self {
             View => Edit,
-            Edit => View,
+            Edit => Act,
+            Act => View,
         };
     }
 
@@ -257,6 +259,7 @@ impl UiState {
         match self {
             View => 1.0,
             Edit => 0.8,
+            Act => 0.8,
         }
     }
 }
@@ -447,7 +450,7 @@ impl TreeElement {
         // nothing
     }
 
-    fn click_tree(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
+    fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
         if depth > self.max_depth {
             return None;
         }
@@ -470,7 +473,7 @@ impl TreeElement {
         .map(|t| t.inverse());
 
         for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
-            let hit_pos = self.click_tree(
+            let hit_pos = self.subtree_click_pos(
                 transform.transform_point3(click.extend(0.0)).truncate(),
                 depth + 1,
             );
@@ -482,30 +485,52 @@ impl TreeElement {
         Some(TilePos::UNIT)
     }
 
-    fn input_toggle(&mut self, ctx: &mut Context) {
-        if is_mouse_button_released(MouseButton::Left) {
-            let Some(Click { pos, held: false }) = ctx.get_click() else {
-                return;
-            };
+    fn tree_click_pos(&mut self, ctx: &mut Context) -> Option<TilePos> {
+        let Click { pos, held } = ctx.get_click()?;
 
-            let pos = self
-                .camera
-                .inverse()
-                .transform_point3(pos.extend(0.0))
-                .truncate();
-
-            if in_triangle(pos) {
-                if let Some(hit_pos) = self.click_tree(pos, 0) {
-                    let mut tile = self.fractal.get(hit_pos);
-                    tile.id = if tile.id < self.fractal.leaf_count - 1 {
-                        tile.id + 1
-                    } else {
-                        0
-                    };
-                    self.fractal.set(hit_pos, tile);
-                }
-            }
+        if held {
+            return None;
         }
+
+        let pos = self
+            .camera
+            .inverse()
+            .transform_point3(pos.extend(0.0))
+            .truncate();
+
+        if !in_triangle(pos) {
+            return None;
+        }
+
+        self.subtree_click_pos(pos, 0)
+    }
+
+    fn input_toggle(&mut self, ctx: &mut Context) {
+        if !is_mouse_button_released(MouseButton::Left) {
+            return;
+        }
+        let Some(hit_pos) = self.tree_click_pos(ctx) else {
+            return;
+        };
+
+        let mut tile = self.fractal.get(hit_pos);
+        tile.id = if tile.id < self.fractal.leaf_count - 1 {
+            tile.id + 1
+        } else {
+            0
+        };
+        self.fractal.set(hit_pos, tile);
+    }
+
+    fn input_act(&mut self, ctx: &mut Context) {
+        if !is_mouse_button_released(MouseButton::Left) {
+            return;
+        }
+        let Some(hit_pos) = self.tree_click_pos(ctx) else {
+            return;
+        };
+
+        todo!("activate a fractal tile (put the activated tiles inside a Fractory, not a Fractal)");
     }
 
     fn input(&mut self, ctx: &mut Context) {
@@ -532,6 +557,7 @@ impl TreeElement {
         match self.ui_state {
             UiState::View => self.input_view(ctx),
             UiState::Edit => self.input_toggle(ctx),
+            UiState::Act => self.input_act(ctx),
         }
     }
 }
