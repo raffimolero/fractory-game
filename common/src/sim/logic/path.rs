@@ -166,19 +166,11 @@ template
 /// Can only move within the same level or deeper, not higher.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TileOffset {
-    depth: u8,
-    offset: IVec2,
-    flop: bool,
+    pub depth: u8,
+    pub offset: IVec2,
+    pub flop: bool,
 }
 impl TileOffset {
-    fn new(x: i32, y: i32, flop: bool) -> Self {
-        Self {
-            depth: 0,
-            offset: IVec2 { x, y },
-            flop,
-        }
-    }
-
     // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
     // i decided not to do that
 
@@ -186,11 +178,11 @@ impl TileOffset {
     const ROT_CW: IMat2 = IMat2::new([0, 1], [-1, -1]);
     const ROT_CC: IMat2 = IMat2::new([-1, -1], [1, 0]);
 
-    fn flip_x(&mut self) {
+    pub fn flip_x(&mut self) {
         self.offset = Self::FLIP_X * self.offset;
     }
 
-    fn rotate_cw(&mut self) {
+    pub fn rotate_cw(&mut self) {
         self.offset = Self::ROT_CW * self.offset;
         if self.flop {
             self.offset.x -= 1;
@@ -198,7 +190,7 @@ impl TileOffset {
         }
     }
 
-    fn rotate_cc(&mut self) {
+    pub fn rotate_cc(&mut self) {
         self.offset = Self::ROT_CC * self.offset;
         if self.flop {
             self.offset.y -= 1;

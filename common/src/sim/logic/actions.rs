@@ -8,8 +8,8 @@ use super::{
 /// where T is a position that is either relative (TileOffset)
 /// or absolute (TilePos)
 pub struct TargetedAction<T> {
-    target: T,
-    act: TileAction<T>,
+    pub target: T,
+    pub act: TileAction<T>,
 }
 
 /// action to do at an exact node

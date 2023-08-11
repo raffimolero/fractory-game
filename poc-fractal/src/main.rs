@@ -6,6 +6,7 @@ mod tree;
 
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
+    factory::Fractory,
     fractal::{Fractal, SlotInfo},
     orientation::{Orient, Rotation, Transform},
     path::{SubTile, TilePos},
@@ -272,7 +273,7 @@ struct TreeElement {
 
     camera: Mat4,
 
-    fractal: Fractal,
+    fractory: Fractory,
     max_depth: usize,
 }
 
@@ -284,7 +285,7 @@ impl TreeElement {
 
             camera: Mat4::IDENTITY,
 
-            fractal: Fractal::new_xyyy(),
+            fractory: Fractory::new_xyyy(),
             max_depth: 2,
         }
     }
@@ -366,6 +367,7 @@ impl TreeElement {
         ctx.apply(upscale(self.ui_state.scaling()), |ctx| {
             if hovered {
                 // outline
+                // TODO: outline all tiles affected by act in uistate act
                 draw_triangle(
                     Vec2 { x: -1.0, y: in_r },
                     Vec2 { x: 1.0, y: in_r },
@@ -402,7 +404,7 @@ impl TreeElement {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
         let is_empty = tile.id == 0;
-        let (quad, info) = self.fractal.library[tile.id];
+        let (quad, info) = self.fractory.fractal.library[tile.id];
 
         let w = 1.0;
         let side = 2.0;
@@ -435,7 +437,7 @@ impl TreeElement {
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
         ctx.apply(self.camera, |ctx| {
-            self.draw_subtree(ctx, self.fractal.root, 0, &text_tool);
+            self.draw_subtree(ctx, self.fractory.fractal.root, 0, &text_tool);
         });
 
         ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
@@ -444,6 +446,8 @@ impl TreeElement {
         ctx.apply(shift(0.0, 0.8) * downscale(5.0), |_ctx| {
             text_tool("press Tab to cycle between modes")
         });
+
+        // TODO: draw inventory
     }
 
     fn input_view(&mut self, ctx: &mut Context) {
@@ -513,13 +517,13 @@ impl TreeElement {
             return;
         };
 
-        let mut tile = self.fractal.get(hit_pos);
-        tile.id = if tile.id < self.fractal.leaf_count - 1 {
+        let mut tile = self.fractory.fractal.get(hit_pos);
+        tile.id = if tile.id < self.fractory.fractal.leaf_count - 1 {
             tile.id + 1
         } else {
             0
         };
-        self.fractal.set(hit_pos, tile);
+        self.fractory.fractal.set(hit_pos, tile);
     }
 
     fn input_act(&mut self, ctx: &mut Context) {
@@ -552,6 +556,9 @@ impl TreeElement {
         }
         if is_key_pressed(KeyCode::Equal) {
             self.max_depth = (self.max_depth + 1).min(6);
+        }
+        if is_key_pressed(KeyCode::Enter) {
+            self.fractory.tick();
         }
 
         match self.ui_state {
