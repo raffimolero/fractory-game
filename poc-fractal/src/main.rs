@@ -237,15 +237,15 @@ mod ctx {
 #[derive(Debug)]
 enum UiState {
     View,
-    Toggle,
+    Edit,
 }
 
 impl UiState {
     fn cycle(&mut self) {
         use UiState::*;
         *self = match self {
-            View => Toggle,
-            Toggle => View,
+            View => Edit,
+            Edit => View,
         };
     }
 
@@ -256,7 +256,7 @@ impl UiState {
         use UiState::*;
         match self {
             View => 1.0,
-            Toggle => 0.8,
+            Edit => 0.8,
         }
     }
 }
@@ -277,7 +277,7 @@ impl TreeElement {
     fn new(font: Font) -> Self {
         Self {
             font,
-            ui_state: UiState::Toggle,
+            ui_state: UiState::Edit,
 
             camera: Mat4::IDENTITY,
 
@@ -531,7 +531,7 @@ impl TreeElement {
 
         match self.ui_state {
             UiState::View => self.input_view(ctx),
-            UiState::Toggle => self.input_toggle(ctx),
+            UiState::Edit => self.input_toggle(ctx),
         }
     }
 }
