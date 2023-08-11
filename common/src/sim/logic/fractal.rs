@@ -2,34 +2,51 @@
 mod tests;
 
 use super::{
-    actions::ActionBatch,
     orientation::Transform,
     path::TilePos,
     tile::{Quad, QuadTile, Tile},
 };
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy)]
-pub struct SlotInfo {
-    pub is_full: bool,
-    // TODO: use enum instead, leaves are guaranteed to be full unless they're 0
-    pub is_leaf: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotInfo {
+    Empty,
+    Partial,
+    Full { is_leaf: bool },
 }
 
 impl SlotInfo {
-    pub const SPACE: Self = Self {
-        is_full: false,
-        is_leaf: true,
-    };
+    pub fn is_leaf(self) -> bool {
+        matches!(self, Self::Empty | Self::Full { is_leaf: true })
+    }
 
-    // TODO: FOR TESTING ONLY
-    pub const ONE: Self = Self {
-        is_full: true,
-        is_leaf: true,
-    };
+    fn infer(quad: Quad<Self>) -> Self {
+        use SlotInfo::*;
+        let mut info = None;
+        for child in quad.0.into_iter() {
+            match (info, child) {
+                (Some(Partial), _) => unreachable!(),
+                (Some(Full { is_leaf: true }), _) => unreachable!(),
+
+                (None, Empty) => info = Some(Empty),
+                (None, Full { .. }) => info = Some(Full { is_leaf: false }),
+
+                (Some(Empty), Empty) => {}
+                (Some(Full { .. }), Full { .. }) => {}
+
+                (_, Partial) => return Partial,
+                (Some(Empty), Full { .. }) => return Partial,
+                (Some(Full { .. }), Empty) => return Partial,
+            }
+        }
+        info.unwrap()
+    }
 }
 
 // TODO: double check every pub
+// separate { recognizer, leaf_count } from Fractal into Biome
+// make Fractal just a normal quadtree with leaf and branch nodes
+// garbage collection
 
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
@@ -37,6 +54,9 @@ impl SlotInfo {
 pub struct Fractal {
     /// the root node of the fractal; the biggest piece
     pub root: Tile,
+
+    /// How many predefined leaf nodes exist in this biome
+    pub leaf_count: usize,
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
@@ -52,7 +72,8 @@ impl Fractal {
     pub fn new() -> Self {
         Self {
             root: Tile::SPACE,
-            library: vec![(QuadTile::SPACE, SlotInfo::SPACE)],
+            leaf_count: 1,
+            library: vec![(QuadTile::SPACE, SlotInfo::Empty)],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
         }
     }
@@ -61,11 +82,30 @@ impl Fractal {
     pub fn new_binary() -> Self {
         Self {
             root: Tile::ONE,
+            leaf_count: 2,
             library: vec![
-                (QuadTile::SPACE, SlotInfo::SPACE),
-                (QuadTile::ONE, SlotInfo::ONE),
+                (QuadTile::SPACE, SlotInfo::Empty),
+                (QuadTile::ONE, SlotInfo::Full { is_leaf: true }),
             ],
             recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE), (QuadTile::ONE, Tile::ONE)]),
+        }
+    }
+
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy() -> Self {
+        Self {
+            root: Tile::ONE,
+            leaf_count: 3,
+            library: vec![
+                (QuadTile::SPACE, SlotInfo::Empty),
+                (QuadTile::XYYY, SlotInfo::Full { is_leaf: true }),
+                (QuadTile::YXXX, SlotInfo::Full { is_leaf: true }),
+            ],
+            recognizer: HashMap::from([
+                (QuadTile::SPACE, Tile::SPACE),
+                (QuadTile::XYYY, Tile::XYYY),
+                (QuadTile::YXXX, Tile::YXXX),
+            ]),
         }
     }
 
@@ -129,14 +169,9 @@ impl Fractal {
     fn register_new(&mut self, mut quad: QuadTile) -> Tile {
         let orient = quad.reorient();
         let id = self.library.len();
-        let is_full = quad.0.iter().all(|child| self.library[child.id].1.is_full);
-        self.library.push((
-            quad,
-            SlotInfo {
-                is_full,
-                is_leaf: false,
-            },
-        ));
+
+        let sub_info = Quad(quad.0.map(|child| self.library[child.id].1));
+        self.library.push((quad, SlotInfo::infer(sub_info)));
 
         self.cache(
             quad,

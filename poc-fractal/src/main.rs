@@ -281,7 +281,7 @@ impl TreeElement {
 
             camera: Mat4::IDENTITY,
 
-            fractal: Fractal::new_binary(),
+            fractal: Fractal::new_xyyy(),
             max_depth: 2,
         }
     }
@@ -314,7 +314,7 @@ impl TreeElement {
         let control_flow = if slot_info.is_leaf() && !hovered || depth >= self.max_depth {
             ControlFlow::Break(())
         } else {
-            ControlFlow::Continue(())
+            return ControlFlow::Continue(());
         };
 
         // TODO: make shift+scroll change the "fractal expansion" threshold
@@ -341,12 +341,12 @@ impl TreeElement {
 
         let color = match color_mode {
             Depth => {
-                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
                 average(BLACK, PALETTE[depth % PALETTE.len()])
             }
             Fragment => {
                 // TODO: have a tile palette based on fragments
-                const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+                const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
                 PALETTE[id % PALETTE.len()]
             }
             Greyscale => {
@@ -497,7 +497,11 @@ impl TreeElement {
             if in_triangle(pos) {
                 if let Some(hit_pos) = self.click_tree(pos, 0) {
                     let mut tile = self.fractal.get(hit_pos);
-                    tile.id = if tile.id == 0 { 1 } else { 0 };
+                    tile.id = if tile.id < self.fractal.leaf_count - 1 {
+                        tile.id + 1
+                    } else {
+                        0
+                    };
                     self.fractal.set(hit_pos, tile);
                 }
             }

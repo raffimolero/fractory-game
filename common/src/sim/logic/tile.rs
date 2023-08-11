@@ -21,6 +21,16 @@ impl Tile {
         id: 1,
         orient: Orient::Iso,
     };
+
+    // TODO: FOR TESTING
+    pub const XYYY: Self = Self {
+        id: 1,
+        orient: Orient::Iso,
+    };
+    pub const YXXX: Self = Self {
+        id: 2,
+        orient: Orient::Iso,
+    };
 }
 
 impl AddAssign<Transform> for Tile {
@@ -48,6 +58,10 @@ impl QuadTile {
 
     // TODO: FOR TESTING
     pub const ONE: Self = Self([Tile::ONE; 4]);
+
+    // TODO: FOR TESTING
+    pub const XYYY: Self = Self([Tile::XYYY, Tile::YXXX, Tile::YXXX, Tile::YXXX]);
+    pub const YXXX: Self = Self([Tile::YXXX, Tile::XYYY, Tile::XYYY, Tile::XYYY]);
 }
 
 impl<T> Index<SubTile> for Quad<T> {
