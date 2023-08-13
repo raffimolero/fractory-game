@@ -150,10 +150,17 @@ impl Mul for FractalCam {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self {
-            camera: self.camera * rhs.camera,
-            depth: self.depth * rhs.depth,
-        }
+        let camera = self.camera * rhs.camera;
+        let depth = self.depth * rhs.depth;
+
+        let (scale, _, _) = camera.to_scale_rotation_translation();
+        let scale = scale.x;
+
+        let largest = -3;
+        let smallest = 6;
+        let depth = depth.clamp(scale * 2_f32.powi(largest), scale * 2_f32.powi(smallest));
+
+        Self { camera, depth }
     }
 }
 
@@ -327,7 +334,7 @@ impl TreeElement {
     }
 
     fn max_depth(&self) -> usize {
-        self.frac_cam.depth.log2().clamp(0.0, 6.0) as usize
+        self.frac_cam.depth.log2() as usize
     }
 
     fn draw_leaf(
@@ -414,15 +421,14 @@ impl TreeElement {
                     Vec2 { x: 0.0, y: -out_r },
                     GRAY,
                 );
-                // TODO: math
-                ctx.apply(upscale(0.9), |ctx| {
-                    draw_triangle(
-                        Vec2 { x: -1.0, y: in_r },
-                        Vec2 { x: 1.0, y: in_r },
-                        Vec2 { x: 0.0, y: -out_r },
-                        color,
-                    );
-                });
+                let in_sz = 0.8;
+                let (in_r, out_r) = (in_r * in_sz, out_r * in_sz);
+                draw_triangle(
+                    Vec2 { x: -in_sz, y: in_r },
+                    Vec2 { x: in_sz, y: in_r },
+                    Vec2 { x: 0.0, y: -out_r },
+                    color,
+                );
             } else {
                 draw_triangle(
                     Vec2 { x: -1.0, y: in_r },
@@ -438,8 +444,6 @@ impl TreeElement {
         control_flow
     }
 
-    // TODO: make the deepest targeted leaf node flash white when you're clicking it
-    // but only when it's within leash range and not held
     fn draw_subtree(&self, ctx: &mut Context, tile: Tile, depth: usize, text_tool: &impl Fn(&str)) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
