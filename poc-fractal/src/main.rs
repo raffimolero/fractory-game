@@ -144,6 +144,19 @@ impl FractalCam {
         let camera = shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y);
         FractalCam { camera, depth }
     }
+
+    fn clamp_depth(self, largest: i32, smallest: i32) -> Self {
+        let (scale, _, _) = self.camera.to_scale_rotation_translation();
+        let scale = scale.x; // scale.x == scale.y
+
+        let min = scale * 2_f32.powi(largest);
+        let max = scale * 2_f32.powi(smallest);
+
+        Self {
+            depth: self.depth.clamp(min, max),
+            ..self
+        }
+    }
 }
 
 impl Mul for FractalCam {
@@ -152,14 +165,6 @@ impl Mul for FractalCam {
     fn mul(self, rhs: Self) -> Self::Output {
         let camera = self.camera * rhs.camera;
         let depth = self.depth * rhs.depth;
-
-        let (scale, _, _) = camera.to_scale_rotation_translation();
-        let scale = scale.x;
-
-        let largest = -3;
-        let smallest = 6;
-        let depth = depth.clamp(scale * 2_f32.powi(largest), scale * 2_f32.powi(smallest));
-
         Self { camera, depth }
     }
 }
@@ -583,7 +588,7 @@ impl TreeElement {
     }
 
     fn input(&mut self, ctx: &mut Context) {
-        self.frac_cam = FractalCam::input() * self.frac_cam;
+        self.frac_cam = (FractalCam::input() * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Tab) {
             // println!("{:?}", self.fractal.root);
