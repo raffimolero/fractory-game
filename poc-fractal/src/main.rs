@@ -14,7 +14,7 @@ use fractory_common::sim::logic::{
 };
 use std::{
     f32::consts::TAU,
-    ops::ControlFlow,
+    ops::{ControlFlow, Mul},
     time::{Duration, Instant},
 };
 
@@ -26,97 +26,135 @@ use ergoquad_2d::prelude::*;
 #[allow(dead_code)]
 fn apply(_youre_using_the_wrong_function: ()) {}
 
-/// returns a Mat4 corresponding to how much the map needs to be moved
-fn cam_control() -> Mat4 {
-    let [mut x, mut y, mut rot] = [0.0; 3];
-    let mut flipped = false;
-    let mut zoom = 1.0;
+#[derive(Debug, Clone, Copy)]
+struct FractalCam {
+    camera: Mat4,
+    depth: f32,
+}
 
-    // // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
-    // let time = get_time() as f32;
-    // for some reason this uses f32s already
-    let delta = get_frame_time();
-
-    // check mouse
-    // mouse goes downwards, while transforms go upwards
-    // if the mouse hasn't moved since startup, this will be 0, 0
-    let mut mouse = mouse_position_local();
-    // if mouse out of bounds, default to center of screen
-    if !(-1.0..1.0).contains(&mouse.x) || !(-1.0..1.0).contains(&mouse.y) {
-        mouse = Vec2::ZERO;
-    }
-
-    // macroquad calculates delta position wrong, because macroquad
-    let mouse_delta = -mouse_delta_position();
-
-    // scroll goes up, transforms zoom in
-    let (_scroll_x, scroll_y) = mouse_wheel();
-    {
-        // zoom
-        let scroll_sens = 1.0 / 120.0;
-        zoom *= (2_f32).powf(scroll_y * scroll_sens);
-
-        // drag controls
-        if is_mouse_button_down(MouseButton::Right) {
-            x += mouse_delta.x;
-            y += mouse_delta.y;
+impl Default for FractalCam {
+    fn default() -> Self {
+        Self {
+            camera: Mat4::IDENTITY,
+            depth: 1.0,
         }
     }
+}
 
-    // check keypresses
-    {
-        use KeyCode::*;
+impl FractalCam {
+    /// returns a Mat4 corresponding to how much the map needs to be moved
+    fn input() -> Self {
+        let [mut x, mut y, mut rot] = [0.0; 3];
+        let mut flipped = false;
+        let mut zoom = 1.0;
+        let mut depth = 1.0;
 
-        // zoom
-        let zoom_sens = 4.0;
-        if is_key_down(LeftShift) {
-            zoom *= (2_f32).powf(delta * zoom_sens);
-        }
-        if is_key_down(Space) {
-            zoom /= (2_f32).powf(delta * zoom_sens);
-        }
+        // // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
+        // let time = get_time() as f32;
+        // for some reason this uses f32s already
+        let delta = get_frame_time();
 
-        let speed = 4.0;
-        // WASD movement, y goes down
-        if is_key_down(W) {
-            y += delta * speed;
-        }
-        if is_key_down(S) {
-            y -= delta * speed;
-        }
-        if is_key_down(A) {
-            x += delta * speed;
-        }
-        if is_key_down(D) {
-            x -= delta * speed;
+        // check mouse
+        // mouse goes downwards, while transforms go upwards
+        // if the mouse hasn't moved since startup, this will be 0, 0
+        let mut mouse = mouse_position_local();
+        // if mouse out of bounds, default to center of screen
+        if !(-1.0..1.0).contains(&mouse.x) || !(-1.0..1.0).contains(&mouse.y) {
+            mouse = Vec2::ZERO;
         }
 
-        // rotation, clockwise
-        let sensitivity = TAU / 2.0; // no i will not use pi
-        if is_key_down(Q) {
-            rot -= delta * sensitivity;
-        }
-        if is_key_down(E) {
-            rot += delta * sensitivity;
+        // macroquad calculates delta position wrong, because macroquad
+        let mouse_delta = -mouse_delta_position();
+
+        // scroll goes up, transforms zoom in
+        let (_scroll_x, scroll_y) = mouse_wheel();
+        {
+            use KeyCode::*;
+
+            // zoom
+            let scroll_sens = 1.0 / 120.0;
+            if !is_key_down(LeftControl) {
+                depth *= (2_f32).powf(scroll_y * scroll_sens);
+            }
+            if !is_key_down(LeftShift) {
+                zoom *= (2_f32).powf(scroll_y * scroll_sens);
+            }
+
+            // drag controls
+            if is_mouse_button_down(MouseButton::Right) {
+                x += mouse_delta.x;
+                y += mouse_delta.y;
+            }
         }
 
-        if is_key_pressed(F) {
-            flipped ^= true;
+        // check keypresses
+        {
+            use KeyCode::*;
+
+            // zoom
+            let zoom_sens = 4.0;
+            if is_key_down(Space) {
+                if is_key_down(LeftShift) {
+                    zoom *= (2_f32).powf(delta * zoom_sens);
+                } else {
+                    zoom /= (2_f32).powf(delta * zoom_sens);
+                }
+            }
+
+            let speed = 4.0;
+            // WASD movement, y goes down
+            if is_key_down(W) {
+                y += delta * speed;
+            }
+            if is_key_down(S) {
+                y -= delta * speed;
+            }
+            if is_key_down(A) {
+                x += delta * speed;
+            }
+            if is_key_down(D) {
+                x -= delta * speed;
+            }
+
+            // rotation, clockwise
+            let sensitivity = TAU / 2.0; // no i will not use pi
+            if is_key_down(Q) {
+                rot -= delta * sensitivity;
+            }
+            if is_key_down(E) {
+                rot += delta * sensitivity;
+            }
+
+            if is_key_pressed(F) {
+                flipped ^= true;
+            }
+        }
+
+        let main_transform = Mat4::from_scale_rotation_translation(
+            Vec3 {
+                x: if flipped { -zoom } else { zoom },
+                y: zoom,
+                z: 1.0,
+            },
+            Quat::from_rotation_z(rot),
+            Vec3 { x, y, z: 0.0 },
+        );
+
+        // center the transform at the mouse
+        let camera = shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y);
+        FractalCam { camera, depth }
+    }
+}
+
+impl Mul for FractalCam {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self {
+            camera: self.camera * rhs.camera,
+            depth: self.depth * rhs.depth,
         }
     }
-
-    let main_transform = Mat4::from_scale_rotation_translation(
-        Vec3 {
-            x: if flipped { -zoom } else { zoom },
-            y: zoom,
-            z: 1.0,
-        },
-        Quat::from_rotation_z(rot),
-        Vec3 { x, y, z: 0.0 },
-    );
-
-    // center the transform at the mouse
-    shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y)
 }
 
 fn window_conf() -> Conf {
@@ -271,10 +309,9 @@ struct TreeElement {
     font: Font,
     ui_state: UiState,
 
-    camera: Mat4,
+    frac_cam: FractalCam,
 
     fractory: Fractory,
-    max_depth: usize,
 }
 
 impl TreeElement {
@@ -283,11 +320,14 @@ impl TreeElement {
             font,
             ui_state: UiState::Edit,
 
-            camera: Mat4::IDENTITY,
+            frac_cam: FractalCam::default(),
 
             fractory: Fractory::new_xyyy(),
-            max_depth: 2,
         }
+    }
+
+    fn max_depth(&self) -> usize {
+        self.frac_cam.depth.log2().clamp(0.0, 6.0) as usize
     }
 
     fn draw_leaf(
@@ -315,7 +355,7 @@ impl TreeElement {
             }
         }
 
-        let control_flow = if slot_info.is_leaf() && !hovered || depth >= self.max_depth {
+        let control_flow = if slot_info.is_leaf() && !hovered || depth >= self.max_depth() {
             ControlFlow::Break(())
         } else {
             return ControlFlow::Continue(());
@@ -436,7 +476,7 @@ impl TreeElement {
 
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
-        ctx.apply(self.camera, |ctx| {
+        ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(ctx, self.fractory.fractal.root, 0, &text_tool);
         });
 
@@ -455,7 +495,7 @@ impl TreeElement {
     }
 
     fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
-        if depth > self.max_depth {
+        if depth > self.max_depth() {
             return None;
         }
         if !in_triangle(click) {
@@ -497,6 +537,7 @@ impl TreeElement {
         }
 
         let pos = self
+            .frac_cam
             .camera
             .inverse()
             .transform_point3(pos.extend(0.0))
@@ -538,7 +579,8 @@ impl TreeElement {
     }
 
     fn input(&mut self, ctx: &mut Context) {
-        self.camera = cam_control() * self.camera;
+        self.frac_cam = FractalCam::input() * self.frac_cam;
+
         if is_key_pressed(KeyCode::Tab) {
             // println!("{:?}", self.fractal.root);
             // for (quad, info) in self.fractal.library.iter() {
@@ -551,12 +593,6 @@ impl TreeElement {
             self.ui_state.cycle();
         }
 
-        if is_key_pressed(KeyCode::Minus) {
-            self.max_depth = self.max_depth.saturating_sub(1);
-        }
-        if is_key_pressed(KeyCode::Equal) {
-            self.max_depth = (self.max_depth + 1).min(6);
-        }
         if is_key_pressed(KeyCode::Enter) {
             self.fractory.tick();
         }
