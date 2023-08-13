@@ -384,7 +384,7 @@ impl TreeElement {
         let control_flow = if slot_info.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
             ControlFlow::Break(())
         } else {
-            return ControlFlow::Continue(());
+            ControlFlow::Continue(())
         };
 
         // TODO: make shift+scroll change the "fractal expansion" threshold

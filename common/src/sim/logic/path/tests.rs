@@ -95,17 +95,32 @@ fn test_supertile_path() {
 
 #[test]
 fn test_flip() {
-    let original = TileOffset::new(0, 2, true);
+    let original = TileOffset {
+        depth: 0,
+        offset: IVec2 { x: 0, y: 2 },
+        flop: true,
+    };
     let mut temp = original;
     temp.flip_x();
-    assert_eq!(temp, TileOffset::new(2, 2, true));
+    assert_eq!(
+        temp,
+        TileOffset {
+            depth: 0,
+            offset: IVec2 { x: 2, y: 2 },
+            flop: true
+        }
+    );
     temp.flip_x();
     assert_eq!(temp, original);
 }
 
 #[test]
 fn test_rotate_identities() {
-    let mut temp = TileOffset::new(15, 27, true);
+    let mut temp = TileOffset {
+        depth: 0,
+        offset: IVec2 { x: 15, y: 27 },
+        flop: true,
+    };
     let a = temp;
 
     temp.rotate_cc();
