@@ -342,12 +342,26 @@ impl TreeElement {
         self.frac_cam.depth.log2() as usize
     }
 
+    fn draw_triangle(color: Color) {
+        let w = 1.0;
+        let side = 2.0;
+        let out_r = 3_f32.sqrt() / 3.0 * side;
+        let in_r = out_r / 2.0;
+
+        draw_triangle(
+            Vec2 { x: -1.0, y: in_r },
+            Vec2 { x: 1.0, y: in_r },
+            Vec2 { x: 0.0, y: -out_r },
+            color,
+        );
+    }
+
     fn draw_leaf(
         &self,
         ctx: &mut Context,
         id: usize,
         slot_info: SlotInfo,
-        depth: usize,
+        pos: TilePos,
         hovered: bool,
         text_tool: impl Fn(&str),
     ) -> ControlFlow<()> {
@@ -367,7 +381,7 @@ impl TreeElement {
             }
         }
 
-        let control_flow = if slot_info.is_leaf() && !hovered || depth >= self.max_depth() {
+        let control_flow = if slot_info.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
             ControlFlow::Break(())
         } else {
             return ControlFlow::Continue(());
@@ -398,7 +412,7 @@ impl TreeElement {
         let color = match color_mode {
             Depth => {
                 const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
-                average(BLACK, PALETTE[depth % PALETTE.len()])
+                average(BLACK, PALETTE[pos.depth() % PALETTE.len()])
             }
             Fragment => {
                 // TODO: have a tile palette based on fragments
@@ -407,40 +421,23 @@ impl TreeElement {
             }
             Greyscale => {
                 const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
-                PALETTE[depth % PALETTE.len()]
+                PALETTE[pos.depth() % PALETTE.len()]
             }
         };
 
-        let w = 1.0;
-        let side = 2.0;
-        let out_r = 3_f32.sqrt() / 3.0 * side;
-        let in_r = out_r / 2.0;
-
         ctx.apply(upscale(self.ui_state.scaling()), |ctx| {
             if hovered {
-                // outline
-                // TODO: outline all tiles affected by act in uistate act
-                draw_triangle(
-                    Vec2 { x: -1.0, y: in_r },
-                    Vec2 { x: 1.0, y: in_r },
-                    Vec2 { x: 0.0, y: -out_r },
-                    GRAY,
-                );
-                let in_sz = 0.8;
-                let (in_r, out_r) = (in_r * in_sz, out_r * in_sz);
-                draw_triangle(
-                    Vec2 { x: -in_sz, y: in_r },
-                    Vec2 { x: in_sz, y: in_r },
-                    Vec2 { x: 0.0, y: -out_r },
-                    color,
-                );
+                let border_color = if self.fractory.activated.contains_key(&pos) {
+                    WHITE
+                } else {
+                    GRAY
+                };
+                Self::draw_triangle(border_color);
+                ctx.apply(upscale(0.8), |ctx| {
+                    Self::draw_triangle(color);
+                });
             } else {
-                draw_triangle(
-                    Vec2 { x: -1.0, y: in_r },
-                    Vec2 { x: 1.0, y: in_r },
-                    Vec2 { x: 0.0, y: -out_r },
-                    color,
-                );
+                Self::draw_triangle(color);
             }
             ctx.apply(shift(0.0, -0.3), |_| {
                 text_tool(&id.to_string());
@@ -449,7 +446,7 @@ impl TreeElement {
         control_flow
     }
 
-    fn draw_subtree(&self, ctx: &mut Context, tile: Tile, depth: usize, text_tool: &impl Fn(&str)) {
+    fn draw_subtree(&self, ctx: &mut Context, tile: Tile, pos: TilePos, text_tool: &impl Fn(&str)) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
         let is_empty = tile.id == 0;
@@ -471,13 +468,17 @@ impl TreeElement {
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            match self.draw_leaf(ctx, tile.id, info, depth, hovered, text_tool) {
+            match self.draw_leaf(ctx, tile.id, info, pos, hovered, text_tool) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
-            for (transform, tile) in transforms.into_iter().zip(quad.0) {
+            for ((transform, tile), subtile) in
+                transforms.into_iter().zip(quad.0).zip(SubTile::ORDER)
+            {
+                let mut pos = pos;
+                pos.push_back(subtile);
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, tile, depth + 1, text_tool);
+                    self.draw_subtree(ctx, tile, pos, text_tool);
                 });
             }
         });
@@ -486,7 +487,7 @@ impl TreeElement {
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
         ctx.apply(self.frac_cam.camera, |ctx| {
-            self.draw_subtree(ctx, self.fractory.fractal.root, 0, &text_tool);
+            self.draw_subtree(ctx, self.fractory.fractal.root, TilePos::UNIT, &text_tool);
         });
 
         ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
@@ -584,7 +585,7 @@ impl TreeElement {
             return;
         };
 
-        todo!("activate a fractal tile (put the activated tiles inside a Fractory, not a Fractal)");
+        self.fractory.toggle_activation(hit_pos);
     }
 
     fn input(&mut self, ctx: &mut Context) {

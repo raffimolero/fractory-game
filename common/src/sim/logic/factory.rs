@@ -1,6 +1,6 @@
 // TODO: fractory game logic
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{hash_map::Entry, BTreeMap, HashMap};
 
 use super::{
     actions::{TargetedAction, TileAction},
@@ -89,6 +89,26 @@ impl Fractory {
         }
     }
 
+    pub fn toggle_activation(&mut self, pos: TilePos) {
+        match self.activated.entry(pos) {
+            Entry::Occupied(entry) => {
+                entry.remove_entry();
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(self.fractal.get(pos));
+            }
+        }
+    }
+
+    pub fn activate(&mut self, pos: TilePos) {
+        self.activated
+            .entry(pos)
+            .or_insert_with(|| self.fractal.get(pos));
+    }
+
+    pub fn deactivate(&mut self, pos: TilePos) {
+        self.activated.remove(&pos);
+    }
     /// Simulates 1 tick of the Fractory.
     pub fn tick(&mut self) {
         todo!();

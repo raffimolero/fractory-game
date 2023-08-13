@@ -309,6 +309,10 @@ impl TilePos {
         out
     }
 
+    pub fn depth(self) -> usize {
+        self.depth as usize
+    }
+
     pub fn height(self) -> i32 {
         1 << self.depth
     }
@@ -344,6 +348,18 @@ impl TilePos {
             SubTile::L => {
                 self.pos.y += h;
             }
+        }
+    }
+
+    // HACK: pancakes the whole thing
+    pub fn push_back(&mut self, placement: SubTile) {
+        let mut out = Self::UNIT;
+        while let Some(st) = self.pop_front() {
+            out.push_front(st);
+        }
+        out.push_front(placement);
+        for st in out {
+            self.push_front(st);
         }
     }
 
