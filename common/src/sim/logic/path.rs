@@ -209,12 +209,15 @@ on upscaling
   \/
 
 
-    U      L      R            D
+    U      L      R            C
    /\     /\     /\           /\
   /00\   /10\   /11\         /00\
  /____\ /____\ /____\       /_f__\
-   ==     y+h   +h+h    b*2-y b-x flop
+   ==     y+h   +h+h    b*2-y b-x flop      <== push front
                          where b=h-1
+
+ x*2+f  U,y+f  L,x+f        U flop          <== push back
+ y*2+2f                                        let f = if base.flop { -1 } else { 1 }
 
      /\            /\            /\            /\
     /00\          /20\          /22\          /21\
@@ -351,15 +354,21 @@ impl TilePos {
         }
     }
 
-    // HACK: pancakes the whole thing
     pub fn push_back(&mut self, placement: SubTile) {
-        let mut out = Self::UNIT;
-        while let Some(st) = self.pop_front() {
-            out.push_front(st);
-        }
-        out.push_front(placement);
-        for st in out {
-            self.push_front(st);
+        self.depth += 1;
+        self.pos *= 2;
+        let f = if self.flop {
+            self.pos += IVec2 { x: 1, y: 2 };
+            -1
+        } else {
+            1
+        };
+
+        match placement {
+            SubTile::C => self.flop ^= true,
+            SubTile::U => {}
+            SubTile::R => self.pos += IVec2::splat(f),
+            SubTile::L => self.pos.y += f,
         }
     }
 
@@ -394,11 +403,8 @@ impl Add<TileOffset> for TilePos {
 
     /// returns None if out of bounds.
     fn add(mut self, mut rhs: TileOffset) -> Self::Output {
-        // FIXME: logical error
-        // test TilePos from SubTile::U + TileOffset with depth 1
         for _ in 0..rhs.depth {
-            // should be push_back
-            self.push_front(SubTile::C);
+            self.push_back(SubTile::U);
         }
         if self.flop {
             rhs.offset *= -1;
