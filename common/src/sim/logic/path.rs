@@ -284,8 +284,7 @@ on upscaling
 
 /// Locates a specific triangle inside of a fractal.
 ///
-/// Functions like a Vec<SubTile> with its push/pop methods.
-/// Can only iterate in reverse; from broad to narrow.
+/// Functions like a VecDeque<SubTile> with its push/pop methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
     depth: u8,
@@ -344,13 +343,8 @@ impl TilePos {
                 self.flop ^= true;
             }
             SubTile::U => {}
-            SubTile::R => {
-                self.pos.x += h;
-                self.pos.y += h;
-            }
-            SubTile::L => {
-                self.pos.y += h;
-            }
+            SubTile::R => self.pos += IVec2::splat(h),
+            SubTile::L => self.pos.y += h,
         }
     }
 
@@ -395,6 +389,20 @@ impl TilePos {
         self.pos.x = h - 1 - self.pos.x;
         self.flop ^= true;
         Some(SubTile::C)
+    }
+
+    pub fn pop_back(&mut self) -> Option<SubTile> {
+        todo!("appropriate calculations based on flop and subtile");
+        self.depth = self.depth.checked_sub(1)?;
+        let p = self.pos % 2;
+        self.pos /= 2;
+        Some(match p {
+            IVec2 { x: 1, y: 0 } => SubTile::C,
+            IVec2 { x: 0, y: 0 } => SubTile::U,
+            IVec2 { x: 1, y: 1 } => SubTile::R,
+            IVec2 { x: 0, y: 1 } => SubTile::L,
+            _ => unreachable!(),
+        })
     }
 }
 
