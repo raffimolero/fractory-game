@@ -4,7 +4,10 @@
 #[cfg(test)]
 mod tests;
 
-use super::{orientation::Transform, tile::Quad};
+use super::{
+    orientation::{Rotation, Transform},
+    tile::Quad,
+};
 use std::ops::{Add, AddAssign, Mul};
 
 use glam::IVec2;
@@ -190,6 +193,7 @@ pub struct TileOffset {
     pub offset: IVec2,
     pub flop: bool,
 }
+
 impl TileOffset {
     // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
     // i decided not to do that
@@ -214,6 +218,19 @@ impl TileOffset {
         self.offset = Self::ROT_CC * self.offset;
         if self.flop {
             self.offset.y -= 1;
+        }
+    }
+}
+
+impl AddAssign<Transform> for TileOffset {
+    fn add_assign(&mut self, rhs: Transform) {
+        if rhs.reflected() {
+            self.flip_x();
+        }
+        match rhs.rotation() {
+            Rotation::U => {}
+            Rotation::R => self.rotate_cw(),
+            Rotation::L => self.rotate_cc(),
         }
     }
 }

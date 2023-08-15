@@ -7,7 +7,7 @@ mod tree;
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
     factory::Fractory,
-    fractal::{Fractal, SlotInfo},
+    fractal::SlotInfo,
     orientation::{Orient, Rotation, Transform},
     path::{SubTile, TilePos},
     tile::Tile,
@@ -15,7 +15,7 @@ use fractory_common::sim::logic::{
 use std::{
     f32::consts::TAU,
     ops::{ControlFlow, Mul},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 // use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
@@ -247,16 +247,6 @@ mod ctx {
         }
 
         pub fn update(&mut self) {
-            fn detect_click(
-                cur_mouse_pos: Option<Vec2>,
-                click_pos: &mut Option<Vec2>,
-                btn: MouseButton,
-            ) {
-                if is_mouse_button_pressed(btn) {
-                    *click_pos = cur_mouse_pos;
-                }
-            }
-
             self.mouse.replace(mouse_position_local());
             let now = Instant::now();
             if is_mouse_button_pressed(MouseButton::Left) {
@@ -349,7 +339,6 @@ impl TreeElement {
     }
 
     fn draw_triangle(color: Color) {
-        let w = 1.0;
         let side = 2.0;
         let out_r = 3_f32.sqrt() / 3.0 * side;
         let in_r = out_r / 2.0;
@@ -439,15 +428,14 @@ impl TreeElement {
                     GRAY
                 };
                 Self::draw_triangle(border_color);
-                ctx.apply(upscale(0.8), |ctx| {
+                ctx.apply(upscale(0.8), |_ctx| {
                     Self::draw_triangle(color);
                 });
             } else {
                 Self::draw_triangle(color);
             }
             ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
-                let mut text = format!("{pos:#?}");
-                // text = text.lines().map(|line| line.trim()).collect::<String>();
+                let text = format!("{pos:#?}");
                 text_tool(&text);
                 // text_tool(&id.to_string());
             });
@@ -465,7 +453,6 @@ impl TreeElement {
     ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
-        let is_empty = tile.id == 0;
         let (quad, info) = self.fractory.fractal.library[tile.id];
 
         let w = 1.0;
@@ -491,11 +478,10 @@ impl TreeElement {
             for ((transform, child), mut subtile) in
                 transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
-                let mut pos = pos;
-                let before = subtile;
                 let orient = cur_orient + Transform::from(tile.orient);
                 subtile += orient;
 
+                let mut pos = pos;
                 pos.push_back(subtile);
                 ctx.apply(transform, |ctx| {
                     self.draw_subtree(ctx, orient, child, pos, text_tool);
@@ -526,7 +512,7 @@ impl TreeElement {
         // TODO: draw inventory
     }
 
-    fn input_view(&mut self, ctx: &mut Context) {
+    fn input_view(&mut self, _ctx: &mut Context) {
         // nothing
     }
 
@@ -612,7 +598,6 @@ impl TreeElement {
         };
 
         self.fractory.toggle_activation(hit_pos);
-        println!("{:?}", self.fractory.activated);
     }
 
     fn input(&mut self, ctx: &mut Context) {

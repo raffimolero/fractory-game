@@ -49,14 +49,15 @@ impl Biome {
                         offset: glam::IVec2 { x: 1, y: 0 },
                         flop: false,
                     },
-                    act: TileAction::Move(
-                        TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 0, y: 1 },
-                            flop: false,
-                        },
-                        Transform::KU,
-                    ),
+                    act: TileAction::Activate,
+                    // act: TileAction::Move(
+                    //     TileOffset {
+                    //         depth: 0,
+                    //         offset: glam::IVec2 { x: 0, y: 1 },
+                    //         flop: false,
+                    //     },
+                    //     Transform::KU,
+                    // ),
                 }],
             ],
         }
@@ -136,13 +137,14 @@ impl Fractory {
 
         // let mut actions = RawMoveList::default();
 
-        let prev_activated = std::mem::replace(activated, HashMap::new());
+        let prev_activated = std::mem::take(activated);
         for (pos, Tile { id, orient }) in prev_activated {
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };
-            for TargetedAction { target, act } in behaviors {
-                let Some(target) = pos + *target else {
+            for TargetedAction { mut target, act } in behaviors.iter().copied() {
+                target += Transform::from(orient);
+                let Some(target) = pos + target else {
                     continue;
                 };
                 match act {

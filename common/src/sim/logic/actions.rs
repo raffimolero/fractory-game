@@ -7,12 +7,14 @@ use super::{
 /// a complete action that can be done to the tree,
 /// where T is a position that is either relative (TileOffset)
 /// or absolute (TilePos)
+#[derive(Debug, Clone, Copy)]
 pub struct TargetedAction<T> {
     pub target: T,
     pub act: TileAction<T>,
 }
 
 /// action to do at an exact node
+#[derive(Debug, Clone, Copy)]
 pub enum TileAction<T> {
     /// moves this fragment to another tile
     Move(T, Transform),
