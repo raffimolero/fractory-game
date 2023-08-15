@@ -1,52 +1,116 @@
-// // TODO: fractory game logic
+// TODO: fractory game logic
 
-// use super::fractal::Fractal;
-// use crate::api::ui::Draw;
+use std::collections::{hash_map::Entry, BTreeMap, HashMap};
 
-// pub struct Fractory {
-//     fractal: Fractal,
-// }
+use super::{
+    actions::{TargetedAction, TileAction},
+    fractal::Fractal,
+    orientation::Transform,
+    path::{TileOffset, TilePos},
+    tile::Tile,
+};
 
-// impl Fractory {
-//     fn _draw(&self, tile: Tile, depth: usize) {
-//         const PALETTE: &[Color] = &[RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
-//         let col = PALETTE[depth % PALETTE.len()];
+/// A single biome, containing information about the fragments within it.
+pub struct Biome {
+    // Fragment data: struct of arrays
+    names: Vec<String>,
+    behaviors: Vec<Vec<TargetedAction<TileOffset>>>,
+    // sprites: Vec<Sprite>,
 
-//         let draw_base = || {
-//             draw_rectangle(0.0, 0.0, 1.0, 1.0, col);
+    // /// this will store both leaf and full non-leaf nodes
+    // ///
+    // /// currently, leaf tiles must be made of 4 full leaf nodes
+    // base_library: Vec<(QuadTile, SlotInfo)>,
 
-//             // // draw outline
-//             // let outline_thickness = 1.0 / 64.0;
-//             // draw_rectangle_lines(0.0, 0.0, 1.0, 1.0, outline_thickness, BLACK);
-//         };
-//         match self {
-//             Node::Free => {}
-//             Node::Bad => draw_poly(0.0, 0.0, 4, 1.0, 45.0, col),
-//             Node::Leaf(val) => {
-//                 draw_base();
-//                 draw_leaf(*val);
-//             }
-//             Node::Branch(children) => {
-//                 draw_base();
+    // missions: Vec<Mission>,
+}
 
-//                 // margin between child trees
-//                 let margin = 1.0 / 16.0;
+impl Biome {
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy() -> Self {
+        Self {
+            names: vec!["Space".into(), "X".into(), "Y".into()],
+            behaviors: vec![
+                // Space: nothing
+                vec![],
+                // X: store self
+                vec![TargetedAction {
+                    target: TileOffset {
+                        depth: 0,
+                        offset: glam::IVec2 { x: 0, y: 0 },
+                        flop: false,
+                    },
+                    act: TileAction::Store,
+                }],
+                // Y: move East to NE
+                vec![TargetedAction {
+                    target: TileOffset {
+                        depth: 0,
+                        offset: glam::IVec2 { x: 1, y: 0 },
+                        flop: false,
+                    },
+                    act: TileAction::Move(
+                        TileOffset {
+                            depth: 0,
+                            offset: glam::IVec2 { x: 0, y: 1 },
+                            flop: false,
+                        },
+                        Transform::KU,
+                    ),
+                }],
+            ],
+        }
+    }
+}
 
-//                 let scale = upscale(0.5 - margin * 1.5);
-//                 for (y, row) in children.0.chunks_exact(2).enumerate() {
-//                     let y = y as f32 * (0.5 - margin / 2.0) + margin;
-//                     for (x, node) in row.iter().enumerate() {
-//                         let x = x as f32 * (0.5 - margin / 2.0) + margin;
-//                         apply(shift(x, y) * scale, || node._draw(draw_leaf, depth + 1))
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
+pub struct Fractory {
+    pub biome: Biome,
+    pub fractal: Fractal,
 
-// impl Draw for Fractory {
-//     type Context = ();
+    /// Which tiles are activated this tick.
+    pub activated: HashMap<TilePos, Tile>,
 
-//     fn draw(&self, ctx: Self::Context) {}
-// }
+    /// The player's inventory.
+    /// Each index corresponds to how many of a tile the player has.
+    pub inventory: BTreeMap<usize, usize>,
+    // creation_date: Instant,
+    // age: Duration,
+    // name: String,
+}
+
+impl Fractory {
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy() -> Self {
+        Self {
+            biome: Biome::new_xyyy(),
+            fractal: Fractal::new_xyyy(),
+            activated: HashMap::new(),
+            inventory: BTreeMap::new(),
+        }
+    }
+
+    pub fn toggle_activation(&mut self, pos: TilePos) {
+        match self.activated.entry(pos) {
+            Entry::Occupied(entry) => {
+                entry.remove_entry();
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(self.fractal.get(pos));
+            }
+        }
+    }
+
+    pub fn activate(&mut self, pos: TilePos) {
+        self.activated
+            .entry(pos)
+            .or_insert_with(|| self.fractal.get(pos));
+    }
+
+    pub fn deactivate(&mut self, pos: TilePos) {
+        self.activated.remove(&pos);
+    }
+    /// Simulates 1 tick of the Fractory.
+    pub fn tick(&mut self) {
+        todo!();
+    }
+}

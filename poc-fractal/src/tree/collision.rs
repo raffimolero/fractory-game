@@ -6,7 +6,7 @@ use std::{collections::HashSet, default, iter::repeat_with};
 use ::rand::distributions::Uniform;
 use fractory_common::sim::logic::{
     actions::TileAction,
-    fractal::Fractal,
+    fractal::{Fractal, SlotInfo},
     path::{SubTile, TileOffset, TilePos},
     tile::{Quad, Tile},
 };
@@ -61,7 +61,7 @@ impl RawMoveList {
         let mut set = HashSet::new();
         let mut i = 0;
         while let Some(item @ (src, _dst)) = self.moves.get(i).copied() {
-            if set.insert(item) && tree.get_info(tree.get(src)).is_full {
+            if set.insert(item) && matches!(tree.get_info(tree.get(src)), SlotInfo::Full { .. }) {
                 i += 1;
             } else {
                 self.moves.swap_remove(i);

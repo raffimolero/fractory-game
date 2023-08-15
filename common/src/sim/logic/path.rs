@@ -166,19 +166,11 @@ template
 /// Can only move within the same level or deeper, not higher.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TileOffset {
-    depth: u8,
-    offset: IVec2,
-    flop: bool,
+    pub depth: u8,
+    pub offset: IVec2,
+    pub flop: bool,
 }
 impl TileOffset {
-    fn new(x: i32, y: i32, flop: bool) -> Self {
-        Self {
-            depth: 0,
-            offset: IVec2 { x, y },
-            flop,
-        }
-    }
-
     // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
     // i decided not to do that
 
@@ -186,11 +178,11 @@ impl TileOffset {
     const ROT_CW: IMat2 = IMat2::new([0, 1], [-1, -1]);
     const ROT_CC: IMat2 = IMat2::new([-1, -1], [1, 0]);
 
-    fn flip_x(&mut self) {
+    pub fn flip_x(&mut self) {
         self.offset = Self::FLIP_X * self.offset;
     }
 
-    fn rotate_cw(&mut self) {
+    pub fn rotate_cw(&mut self) {
         self.offset = Self::ROT_CW * self.offset;
         if self.flop {
             self.offset.x -= 1;
@@ -198,7 +190,7 @@ impl TileOffset {
         }
     }
 
-    fn rotate_cc(&mut self) {
+    pub fn rotate_cc(&mut self) {
         self.offset = Self::ROT_CC * self.offset;
         if self.flop {
             self.offset.y -= 1;
@@ -217,12 +209,15 @@ on upscaling
   \/
 
 
-    U      L      R            D
+    U      L      R            C
    /\     /\     /\           /\
   /00\   /10\   /11\         /00\
  /____\ /____\ /____\       /_f__\
-   ==     y+h   +h+h    b*2-y b-x flop
+   ==     y+h   +h+h    b*2-y b-x flop      <== push front
                          where b=h-1
+
+ x*2+f  U,y+f  L,x+f        U flop          <== push back
+ y*2+2f                                        let f = if base.flop { -1 } else { 1 }
 
      /\            /\            /\            /\
     /00\          /20\          /22\          /21\
@@ -289,8 +284,7 @@ on upscaling
 
 /// Locates a specific triangle inside of a fractal.
 ///
-/// Functions like a Vec<SubTile> with its push/pop methods.
-/// Can only iterate in reverse; from broad to narrow.
+/// Functions like a VecDeque<SubTile> with its push/pop methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
     depth: u8,
@@ -305,8 +299,12 @@ impl TilePos {
         flop: false,
     };
 
-    pub fn from_inward_path(path: &[SubTile]) -> Self {
-        Self::from_outward_path_iter(path.iter().rev().copied())
+    pub fn from_inward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
+        let mut out = Self::UNIT;
+        for subtile in path_iter {
+            out.push_back(subtile);
+        }
+        out
     }
 
     pub fn from_outward_path_iter(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
@@ -315,6 +313,10 @@ impl TilePos {
             out.push_front(subtile);
         }
         out
+    }
+
+    pub fn depth(self) -> usize {
+        self.depth as usize
     }
 
     pub fn height(self) -> i32 {
@@ -345,13 +347,26 @@ impl TilePos {
                 self.flop ^= true;
             }
             SubTile::U => {}
-            SubTile::R => {
-                self.pos.x += h;
-                self.pos.y += h;
-            }
-            SubTile::L => {
-                self.pos.y += h;
-            }
+            SubTile::R => self.pos += IVec2::splat(h),
+            SubTile::L => self.pos.y += h,
+        }
+    }
+
+    pub fn push_back(&mut self, placement: SubTile) {
+        self.depth += 1;
+        self.pos *= 2;
+        let f = if self.flop {
+            self.pos += IVec2 { x: 1, y: 2 };
+            -1
+        } else {
+            1
+        };
+
+        match placement {
+            SubTile::C => self.flop ^= true,
+            SubTile::U => {}
+            SubTile::R => self.pos += IVec2::splat(f),
+            SubTile::L => self.pos.y += f,
         }
     }
 
@@ -379,6 +394,30 @@ impl TilePos {
         self.flop ^= true;
         Some(SubTile::C)
     }
+
+    pub fn pop_back(&mut self) -> Option<SubTile> {
+        self.depth = self.depth.checked_sub(1)?;
+
+        let IVec2 { x, y } = self.pos % 2;
+        self.pos /= 2;
+
+        let parity = y << 1 | x;
+
+        if parity == 0b_01 {
+            self.pos.y -= 1;
+        }
+
+        Some(match parity ^ self.flop as i32 {
+            0b_00 => {
+                self.flop ^= true;
+                SubTile::C
+            }
+            0b_01 => SubTile::U,
+            0b_10 => SubTile::R,
+            0b_11 => SubTile::L,
+            _ => unreachable!(),
+        })
+    }
 }
 
 impl Add<TileOffset> for TilePos {
@@ -386,11 +425,8 @@ impl Add<TileOffset> for TilePos {
 
     /// returns None if out of bounds.
     fn add(mut self, mut rhs: TileOffset) -> Self::Output {
-        // FIXME: logical error
-        // test TilePos from SubTile::U + TileOffset with depth 1
         for _ in 0..rhs.depth {
-            // should be push_back
-            self.push_front(SubTile::C);
+            self.push_back(SubTile::U);
         }
         if self.flop {
             rhs.offset *= -1;
@@ -406,6 +442,12 @@ impl Iterator for TilePos {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.pop_front()
+    }
+}
+
+impl DoubleEndedIterator for TilePos {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.pop_back()
     }
 }
 
