@@ -299,8 +299,12 @@ impl TilePos {
         flop: false,
     };
 
-    pub fn from_inward_path(path: &[SubTile]) -> Self {
-        Self::from_outward_path_iter(path.iter().rev().copied())
+    pub fn from_inward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
+        let mut out = Self::UNIT;
+        for subtile in path_iter {
+            out.push_back(subtile);
+        }
+        out
     }
 
     pub fn from_outward_path_iter(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
@@ -438,6 +442,12 @@ impl Iterator for TilePos {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.pop_front()
+    }
+}
+
+impl DoubleEndedIterator for TilePos {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.pop_back()
     }
 }
 
