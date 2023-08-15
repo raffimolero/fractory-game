@@ -4,7 +4,8 @@
 #[cfg(test)]
 mod tests;
 
-use std::ops::{Add, Mul};
+use super::{orientation::Transform, tile::Quad};
+use std::ops::{Add, AddAssign, Mul};
 
 use glam::IVec2;
 
@@ -31,11 +32,7 @@ impl Mul<IVec2> for IMat2 {
     }
 }
 
-// pub mod flop {
-//     pub const DOWN: u8 = 1;
-//     pub const LEFT: u8 = 2;
-//     pub const RIGHT: u8 = 3;
-// }
+// TODO: move this to tile.rs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SubTile {
     C, // Center/Core
@@ -45,7 +42,30 @@ pub enum SubTile {
 }
 
 impl SubTile {
-    pub const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
+    pub const QUAD: Quad<Self> = Quad([Self::C, Self::U, Self::R, Self::L]);
+}
+
+impl AddAssign<Transform> for SubTile {
+    fn add_assign(&mut self, rhs: Transform) {
+        use SubTile::*;
+        use Transform::*;
+        match (*self, rhs) {
+            (C, _) => {}
+            (_, KU) => {}
+
+            (U, FU) => {}
+            (U, KL | FL) => *self = L,
+            (U, KR | FR) => *self = R,
+
+            (R, FL) => {}
+            (R, FU | KR) => *self = L,
+            (R, FR | KL) => *self = U,
+
+            (L, FR) => {}
+            (L, FU | KL) => *self = R,
+            (L, FL | KR) => *self = U,
+        }
+    }
 }
 
 /*

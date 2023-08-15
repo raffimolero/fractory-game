@@ -189,13 +189,19 @@ fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
             color,
             ..Default::default()
         };
-        let dims = measure_text(text, Some(font), params.font_size, params.font_scale);
-        draw_text_ex(
-            text,
-            (0.0 - dims.width) / 2.0,
-            (0.5 + dims.height) / 2.0,
-            params,
-        )
+        const SPACING: f32 = 0.7;
+        let mut w = 0.0;
+        let mut max_h = 0.0;
+        let mut h = 0.0;
+
+        for line in text.lines() {
+            let dims = measure_text(line, Some(font), params.font_size, params.font_scale);
+            w = dims.width.max(w);
+            max_h = dims.height.max(max_h);
+            h -= SPACING;
+        }
+        h += max_h;
+        draw_multiline_text(text, (0.0 - w) / 2.0, (0.5 + h) / 2.0, SPACING, params)
     }
 }
 
@@ -439,14 +445,24 @@ impl TreeElement {
             } else {
                 Self::draw_triangle(color);
             }
-            ctx.apply(shift(0.0, -0.3), |_| {
-                text_tool(&id.to_string());
+            ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
+                let mut text = format!("{pos:#?}");
+                // text = text.lines().map(|line| line.trim()).collect::<String>();
+                text_tool(&text);
+                // text_tool(&id.to_string());
             });
         });
         control_flow
     }
 
-    fn draw_subtree(&self, ctx: &mut Context, tile: Tile, pos: TilePos, text_tool: &impl Fn(&str)) {
+    fn draw_subtree(
+        &self,
+        ctx: &mut Context,
+        cur_orient: Transform,
+        tile: Tile,
+        pos: TilePos,
+        text_tool: &impl Fn(&str),
+    ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
         let is_empty = tile.id == 0;
@@ -472,13 +488,17 @@ impl TreeElement {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
-            for ((transform, tile), subtile) in
-                transforms.into_iter().zip(quad.0).zip(SubTile::ORDER)
+            for ((transform, child), mut subtile) in
+                transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
                 let mut pos = pos;
+                let before = subtile;
+                let orient = cur_orient + Transform::from(tile.orient);
+                subtile += orient;
+
                 pos.push_back(subtile);
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, tile, pos, text_tool);
+                    self.draw_subtree(ctx, orient, child, pos, text_tool);
                 });
             }
         });
@@ -487,7 +507,13 @@ impl TreeElement {
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
         ctx.apply(self.frac_cam.camera, |ctx| {
-            self.draw_subtree(ctx, self.fractory.fractal.root, TilePos::UNIT, &text_tool);
+            self.draw_subtree(
+                ctx,
+                Transform::KU,
+                self.fractory.fractal.root,
+                TilePos::UNIT,
+                &text_tool,
+            );
         });
 
         ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
@@ -526,7 +552,7 @@ impl TreeElement {
         .map(|t| downscale(2.0) * t)
         .map(|t| t.inverse());
 
-        for (transform, subtile) in transforms.into_iter().zip(SubTile::ORDER) {
+        for (transform, subtile) in transforms.into_iter().zip(SubTile::QUAD.0) {
             let hit_pos = self.subtree_click_pos(
                 transform.transform_point3(click.extend(0.0)).truncate(),
                 depth + 1,
@@ -586,6 +612,7 @@ impl TreeElement {
         };
 
         self.fractory.toggle_activation(hit_pos);
+        println!("{:?}", self.fractory.activated);
     }
 
     fn input(&mut self, ctx: &mut Context) {

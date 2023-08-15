@@ -100,17 +100,64 @@ impl Fractory {
         }
     }
 
+    fn _activate(activated: &mut HashMap<TilePos, Tile>, fractal: &mut Fractal, pos: TilePos) {
+        activated.entry(pos).or_insert_with(|| fractal.get(pos));
+    }
+
     pub fn activate(&mut self, pos: TilePos) {
-        self.activated
-            .entry(pos)
-            .or_insert_with(|| self.fractal.get(pos));
+        Self::_activate(&mut self.activated, &mut self.fractal, pos)
     }
 
     pub fn deactivate(&mut self, pos: TilePos) {
         self.activated.remove(&pos);
     }
+
+    fn _store(fractal: &mut Fractal, inventory: &mut BTreeMap<usize, usize>, pos: TilePos) {
+        let tile = fractal.set(pos, Tile::SPACE);
+        *inventory.entry(tile.id).or_insert(0) += 1;
+    }
+
+    pub fn store(&mut self, pos: TilePos) {
+        Self::_store(&mut self.fractal, &mut self.inventory, pos)
+    }
+
     /// Simulates 1 tick of the Fractory.
     pub fn tick(&mut self) {
-        todo!();
+        // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
+        // to be under common/src/sim/logic/actions.rs
+        // and finish RawMoveList::apply();
+
+        let Self {
+            biome,
+            fractal,
+            activated,
+            inventory,
+        } = self;
+
+        // let mut actions = RawMoveList::default();
+
+        let prev_activated = std::mem::replace(activated, HashMap::new());
+        for (pos, Tile { id, orient }) in prev_activated {
+            let Some(behaviors) = biome.behaviors.get(id) else {
+                continue;
+            };
+            for TargetedAction { target, act } in behaviors {
+                let Some(target) = pos + *target else {
+                    continue;
+                };
+                match act {
+                    TileAction::Move(destination, transform) => {
+                        todo!()
+                        // let Some(destination) = pos + *destination else {
+                        //     continue;
+                        // };
+                        // actions.push((target, destination));
+                    }
+                    TileAction::Store => Self::_store(fractal, inventory, target),
+                    TileAction::Activate => Self::_activate(activated, fractal, target),
+                }
+            }
+        }
+        // let actions = actions.apply(&mut self.fractal);
     }
 }

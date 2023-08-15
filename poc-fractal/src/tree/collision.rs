@@ -15,7 +15,7 @@ use super::*;
 
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct RawMoveList {
+pub struct RawMoveList {
     // TODO: resolve how to order "store" operations with "move" operations
     moves: Vec<(TilePos, TilePos)>,
 }
@@ -49,7 +49,13 @@ impl RawMoveList {
         Self { moves }
     }
 
-    fn clean(mut self, tree: &mut Fractal) -> CleanMoveList {
+    pub fn push(&mut self, action: (TilePos, TilePos)) {
+        self.moves.push(action);
+    }
+
+    /// applies all the moves, resolving conflicts on the way,
+    /// and returning only the moves that were executed.
+    pub fn apply(mut self, tree: &mut Fractal) -> CleanMoveList {
         self.clean_sources(tree);
         self.clean_forks();
         self.clean_merges();
@@ -260,7 +266,7 @@ impl RawMoveList {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct CleanMoveList {
+pub struct CleanMoveList {
     inner: RawMoveList,
 }
 

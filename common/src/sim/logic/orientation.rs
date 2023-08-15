@@ -1,5 +1,5 @@
 use super::path::SubTile;
-use std::ops::{Add, Neg, AddAssign};
+use std::ops::{Add, AddAssign, Neg};
 
 #[test]
 fn test_reorient_table() {
@@ -39,7 +39,7 @@ pub enum Rotation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Symmetries {
     #[default]
-    Isotropic  = 0b_00,
+    Isotropic = 0b_00,
     Rotational = 0b_01,
     Reflective = 0b_10,
     Asymmetric = 0b_11,
@@ -206,8 +206,8 @@ impl Orient {
 
 impl From<Symmetries> for Orient {
     fn from(symmetries: Symmetries) -> Self {
-        use Symmetries::*;
         use Orient::*;
+        use Symmetries::*;
         match symmetries {
             Isotropic => Iso,
             Rotational => RtK,
@@ -248,18 +248,18 @@ impl Add<Transform> for Orient {
 
         #[rustfmt::skip]
         const TABLE: [Orient; 12 * 6] = [
-        //  KU   KR   KL   FU   FR  FL
-            Iso, Iso, Iso, Iso, Iso, Iso, 
-            RtK, RtK, RtK, RtF, RtF, RtF, 
-            RtF, RtF, RtF, RtK, RtK, RtK, 
-            RfU, RfR, RfL, RfU, RfR, RfL, 
-            RfR, RfL, RfU, RfL, RfU, RfR, 
-            RfL, RfU, RfR, RfR, RfL, RfU, 
-            AKU, AKR, AKL, AFU, AFR, AFL, 
-            AKR, AKL, AKU, AFL, AFU, AFR, 
-            AKL, AKU, AKR, AFR, AFL, AFU, 
-            AFU, AFR, AFL, AKU, AKR, AKL, 
-            AFR, AFL, AFU, AKL, AKU, AKR, 
+        //  KU   KR   KL   FU   FR   FL
+            Iso, Iso, Iso, Iso, Iso, Iso,
+            RtK, RtK, RtK, RtF, RtF, RtF,
+            RtF, RtF, RtF, RtK, RtK, RtK,
+            RfU, RfR, RfL, RfU, RfR, RfL,
+            RfR, RfL, RfU, RfL, RfU, RfR,
+            RfL, RfU, RfR, RfR, RfL, RfU,
+            AKU, AKR, AKL, AFU, AFR, AFL,
+            AKR, AKL, AKU, AFL, AFU, AFR,
+            AKL, AKU, AKR, AFR, AFL, AFU,
+            AFU, AFR, AFL, AKU, AKR, AKL,
+            AFR, AFL, AFU, AKL, AKU, AKR,
             AFL, AFU, AFR, AKR, AKL, AKU,
         ];
 
@@ -302,6 +302,27 @@ impl Transform {
             KR | FR => R,
             KL | FL => L,
         }
+    }
+}
+
+impl Add for Transform {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        use Transform::*;
+
+        #[rustfmt::skip]
+        const TABLE: [Transform; 6 * 6] = [
+        //  KU  KR  KL  FU  FR  FL
+            KU, KR, KL, FU, FR, FL,
+            KR, KL, KU, FL, FU, FR,
+            KL, KU, KR, FR, FL, FU,
+            FU, FR, FL, KU, KR, KL,
+            FR, FL, FU, KL, KU, KR,
+            FL, FU, FR, KR, KL, KU,
+        ];
+
+        TABLE[self as usize * 6 + rhs as usize]
     }
 }
 
@@ -354,4 +375,3 @@ impl From<SubTile> for Transform {
         }
     }
 }
-

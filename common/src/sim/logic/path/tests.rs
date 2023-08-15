@@ -16,7 +16,7 @@ fn test_subtiles() {
         if depth == 0 {
             return;
         }
-        for subtile in SubTile::ORDER {
+        for subtile in SubTile::QUAD {
             let save = *pos;
             pos.push_front(subtile);
             assert!(pos.is_valid());
