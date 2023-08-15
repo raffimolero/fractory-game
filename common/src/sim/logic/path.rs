@@ -392,15 +392,25 @@ impl TilePos {
     }
 
     pub fn pop_back(&mut self) -> Option<SubTile> {
-        todo!("appropriate calculations based on flop and subtile");
         self.depth = self.depth.checked_sub(1)?;
-        let p = self.pos % 2;
+
+        let IVec2 { x, y } = self.pos % 2;
         self.pos /= 2;
-        Some(match p {
-            IVec2 { x: 1, y: 0 } => SubTile::C,
-            IVec2 { x: 0, y: 0 } => SubTile::U,
-            IVec2 { x: 1, y: 1 } => SubTile::R,
-            IVec2 { x: 0, y: 1 } => SubTile::L,
+
+        let parity = y << 1 | x;
+
+        if parity == 0b_01 {
+            self.pos.y -= 1;
+        }
+
+        Some(match parity ^ self.flop as i32 {
+            0b_00 => {
+                self.flop ^= true;
+                SubTile::C
+            }
+            0b_01 => SubTile::U,
+            0b_10 => SubTile::R,
+            0b_11 => SubTile::L,
             _ => unreachable!(),
         })
     }

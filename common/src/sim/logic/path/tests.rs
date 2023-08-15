@@ -4,10 +4,15 @@ use super::*;
 
 /// enumerates all possible permutations of subtiles,
 /// checks if all positions are unique,
-/// and verifies that every operation is reversible
+/// and verifies that every (push/pop)_(front/back) operation works
 #[test]
 fn test_subtiles() {
-    fn inner(pos: &mut TilePos, set: &mut HashSet<TilePos>, depth: u8) {
+    fn inner(
+        pos: &mut TilePos,
+        set_front: &mut HashSet<TilePos>,
+        set_back: &mut HashSet<TilePos>,
+        depth: u8,
+    ) {
         if depth == 0 {
             return;
         }
@@ -15,10 +20,11 @@ fn test_subtiles() {
             let save = *pos;
             pos.push_front(subtile);
             assert!(pos.is_valid());
-            assert!(set.insert(*pos));
+            assert!(set_front.insert(*pos));
+            assert!(set_back.insert(*pos));
             println!("{pos:?}");
 
-            inner(pos, set, depth - 1);
+            inner(pos, set_front, set_back, depth - 1);
 
             assert_eq!(pos.pop_front(), Some(subtile));
             assert_eq!(*pos, save);
@@ -27,9 +33,12 @@ fn test_subtiles() {
 
     let mut pos = TilePos::UNIT;
     assert_eq!(pos.pop_front(), None);
-    let mut set = HashSet::new();
-    inner(&mut pos, &mut set, 5);
+    assert_eq!(pos.pop_back(), None);
+    let mut set_front = HashSet::new();
+    let mut set_back = HashSet::new();
+    inner(&mut pos, &mut set_front, &mut set_back, 5);
     assert_eq!(pos.pop_front(), None);
+    assert_eq!(pos.pop_back(), None);
 }
 
 #[test]
