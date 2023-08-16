@@ -7,7 +7,7 @@ use super::{
     fractal::Fractal,
     orientation::Transform,
     path::{TileOffset, TilePos},
-    tile::Tile,
+    tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
 
@@ -35,37 +35,71 @@ impl Biome {
                 // Space: nothing
                 vec![],
                 // X: store self
-                vec![TargetedAction {
-                    target: TileOffset {
-                        depth: 0,
-                        offset: glam::IVec2 { x: 0, y: 1 },
-                        flop: false,
-                    },
-                    act: TileAction::Move(
-                        TileOffset {
+                vec![
+                    TargetedAction {
+                        target: TileOffset {
                             depth: 0,
                             offset: glam::IVec2 { x: 1, y: 0 },
                             flop: false,
                         },
-                        Transform::KU,
-                    ),
-                }],
-                // Y: move East to NE
-                vec![TargetedAction {
-                    target: TileOffset {
-                        depth: 0,
-                        offset: glam::IVec2 { x: 1, y: 0 },
-                        flop: false,
+                        act: TileAction::Move(
+                            TileOffset {
+                                depth: 0,
+                                offset: glam::IVec2 { x: 0, y: 1 },
+                                flop: false,
+                            },
+                            Transform::KU,
+                        ),
                     },
-                    act: TileAction::Move(
-                        TileOffset {
+                    TargetedAction {
+                        target: TileOffset {
                             depth: 0,
                             offset: glam::IVec2 { x: 0, y: 1 },
                             flop: false,
                         },
-                        Transform::KU,
-                    ),
-                }],
+                        act: TileAction::Move(
+                            TileOffset {
+                                depth: 0,
+                                offset: glam::IVec2 { x: 1, y: 0 },
+                                flop: false,
+                            },
+                            Transform::KU,
+                        ),
+                    },
+                ],
+                // Y: move East to NE
+                vec![
+                    TargetedAction {
+                        target: TileOffset {
+                            depth: 0,
+                            offset: glam::IVec2 { x: 1, y: 0 },
+                            flop: false,
+                        },
+                        act: TileAction::Move(
+                            TileOffset {
+                                depth: 0,
+                                offset: glam::IVec2 { x: 0, y: 1 },
+                                flop: false,
+                            },
+                            Transform::KU,
+                        ),
+                    },
+                    TargetedAction {
+                        target: TileOffset {
+                            depth: 0,
+                            offset: glam::IVec2 { x: 0, y: 1 },
+                            flop: false,
+                        },
+                        act: TileAction::Move(
+                            TileOffset {
+                                depth: 0,
+                                offset: glam::IVec2 { x: 1, y: 0 },
+                                flop: false,
+                            },
+                            Transform::KU,
+                        ),
+                    },
+                ],
             ],
         }
     }
@@ -89,12 +123,52 @@ pub struct Fractory {
 impl Fractory {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        Self {
+        let mut out = Self {
             biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
             activated: HashMap::new(),
             inventory: BTreeMap::new(),
-        }
+        };
+
+        out.fractal.set(TilePos::UNIT, Tile::SPACE);
+
+        out.fractal.set(
+            TilePos {
+                depth: 3,
+                pos: glam::IVec2 { x: 4, y: 5 },
+                flop: false,
+            },
+            Tile::XYYY,
+        );
+        out.fractal.set(
+            TilePos {
+                depth: 3,
+                pos: glam::IVec2 { x: 3, y: 6 },
+                flop: false,
+            },
+            Tile::YXXX,
+        );
+        out.fractal.set(
+            TilePos {
+                depth: 3,
+                pos: glam::IVec2 { x: 4, y: 6 },
+                flop: false,
+            },
+            Tile::XYYY,
+        );
+
+        out.activate(TilePos {
+            depth: 3,
+            pos: glam::IVec2 { x: 4, y: 5 },
+            flop: false,
+        });
+        out.activate(TilePos {
+            depth: 3,
+            pos: glam::IVec2 { x: 3, y: 6 },
+            flop: false,
+        });
+
+        out
     }
 
     pub fn toggle_activation(&mut self, pos: TilePos) {

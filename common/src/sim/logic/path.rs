@@ -288,9 +288,9 @@ on upscaling
 /// Functions like a VecDeque<SubTile> with its push/pop methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TilePos {
-    depth: u8,
-    pos: IVec2,
-    flop: bool,
+    pub depth: u8,
+    pub pos: IVec2,
+    pub flop: bool,
 }
 
 impl TilePos {

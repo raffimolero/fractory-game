@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use crate::sim::logic::{
     fractal::{Fractal, SlotInfo},
@@ -54,23 +54,27 @@ impl RawMoveList {
 
     fn clean_forks(&mut self) {
         let mut tree = Node::default();
-        let mut holes = vec![];
+        let mut holes = BTreeSet::new();
         for (i, (src, _dst)) in self.moves.iter().copied().enumerate() {
-            tree.set(src, i, &mut |idx| holes.push(idx));
+            tree.set(src, i, &mut |idx| {
+                holes.insert(idx);
+            });
         }
-        for idx in holes.iter().rev() {
-            self.moves.swap_remove(*idx);
+        for idx in holes.into_iter().rev() {
+            self.moves.swap_remove(idx);
         }
     }
 
     fn clean_merges(&mut self) {
         let mut tree = Node::default();
-        let mut holes = vec![];
+        let mut holes = BTreeSet::new();
         for (i, (_src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
-            tree.set(dst, i, &mut |idx| holes.push(idx));
+            tree.set(dst, i, &mut |idx| {
+                holes.insert(idx);
+            });
         }
-        for idx in holes.iter().rev() {
-            self.moves.swap_remove(*idx);
+        for idx in holes.into_iter().rev() {
+            self.moves.swap_remove(idx);
         }
     }
 
