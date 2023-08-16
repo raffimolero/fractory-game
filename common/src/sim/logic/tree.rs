@@ -6,6 +6,7 @@ use std::fmt::{Debug, Display};
 type Index = usize;
 
 // TODO: figure out if you can merge Fractal with CollisionCleaner (Node) and DeadEndCleaner (hidden in collision::clean_dead_ends)
+// TODO: move self::{self, collision} to Actions?
 
 #[derive(Clone, PartialEq, Eq, Default)]
 pub enum Node {
