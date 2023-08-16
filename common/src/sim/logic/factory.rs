@@ -38,10 +38,17 @@ impl Biome {
                 vec![TargetedAction {
                     target: TileOffset {
                         depth: 0,
-                        offset: glam::IVec2 { x: 0, y: 0 },
+                        offset: glam::IVec2 { x: 0, y: 1 },
                         flop: false,
                     },
-                    act: TileAction::Store,
+                    act: TileAction::Move(
+                        TileOffset {
+                            depth: 0,
+                            offset: glam::IVec2 { x: 1, y: 0 },
+                            flop: false,
+                        },
+                        Transform::KU,
+                    ),
                 }],
                 // Y: move East to NE
                 vec![TargetedAction {
@@ -50,15 +57,14 @@ impl Biome {
                         offset: glam::IVec2 { x: 1, y: 0 },
                         flop: false,
                     },
-                    act: TileAction::Activate,
-                    // act: TileAction::Move(
-                    //     TileOffset {
-                    //         depth: 0,
-                    //         offset: glam::IVec2 { x: 0, y: 1 },
-                    //         flop: false,
-                    //     },
-                    //     Transform::KU,
-                    // ),
+                    act: TileAction::Move(
+                        TileOffset {
+                            depth: 0,
+                            offset: glam::IVec2 { x: 0, y: 1 },
+                            flop: false,
+                        },
+                        Transform::KU,
+                    ),
                 }],
             ],
         }

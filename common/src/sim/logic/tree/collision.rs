@@ -29,9 +29,13 @@ impl RawMoveList {
     /// applies all the moves, resolving conflicts on the way,
     /// and returning only the moves that were executed.
     pub fn apply(mut self, tree: &mut Fractal) -> CleanMoveList {
+        dbg!(&self);
         self.clean_sources(tree);
+        dbg!(&self);
         self.clean_forks();
+        dbg!(&self);
         self.clean_merges();
+        dbg!(&self);
         self.clean_dead_ends(tree);
         CleanMoveList { inner: self }
     }
@@ -163,9 +167,9 @@ impl RawMoveList {
         // invalidate dead ends and mark their dependents
         // preserve ordering
         while let Some(i) = dead.pop() {
-            old_tiles[i] = Tile::SPACE;
             let (src, _dst_tf) = self.moves[i];
             main_fractal.set(src, old_tiles[i]);
+            old_tiles[i] = Tile::SPACE;
             dsts.invalidate(src, &mut |i| dead.push(i));
         }
 
