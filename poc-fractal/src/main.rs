@@ -2,15 +2,13 @@
 
 // TODO: use Affine2 instead of Mat4
 
-mod tree;
-
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
     factory::Fractory,
     fractal::SlotInfo,
     orientation::{Orient, Rotation, Transform},
-    path::{SubTile, TilePos},
-    tile::Tile,
+    path::TilePos,
+    tile::{SubTile, Tile},
 };
 use std::{
     f32::consts::TAU,

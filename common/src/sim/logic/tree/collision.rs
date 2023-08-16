@@ -1,13 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use std::{collections::HashSet, default, iter::repeat_with};
+use std::collections::HashSet;
 
-use ::rand::distributions::Uniform;
-use fractory_common::sim::logic::{
-    actions::TileAction,
+use crate::sim::logic::{
     fractal::{Fractal, SlotInfo},
-    path::{SubTile, TileOffset, TilePos},
+    path::{TileOffset, TilePos},
     tile::{Quad, Tile},
 };
 
@@ -24,32 +22,7 @@ pub struct RawMoveList {
 // because Fractal <- RawMoveList <- Node<LeafItem> and the dependence is clear
 
 impl RawMoveList {
-    fn rand(len: usize) -> Self {
-        let rng = thread_rng();
-        let dist = Uniform::new(0, 5);
-        let mut samples = dist.sample_iter(rng);
-        let mut rand_path = || {
-            let mut path = TilePos::UNIT;
-            loop {
-                let subtile = match samples.next().unwrap() {
-                    0 => SubTile::C,
-                    1 => SubTile::U,
-                    2 => SubTile::R,
-                    3 => SubTile::L,
-                    _ => return path,
-                };
-                path.push_front(subtile);
-            }
-        };
-
-        let moves = repeat_with(|| (rand_path(), rand_path()))
-            .take(len)
-            .collect();
-
-        Self { moves }
-    }
-
-    pub fn push(&mut self, action: (TilePos, TilePos)) {
+    pub fn add(&mut self, action: (TilePos, TilePos)) {
         self.moves.push(action);
     }
 

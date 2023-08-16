@@ -1,7 +1,4 @@
-use super::{
-    orientation::{Orient, Transform},
-    path::SubTile,
-};
+use super::orientation::{Orient, Transform};
 use std::ops::{Add, AddAssign, Index, IndexMut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -48,12 +45,45 @@ impl Add<Transform> for Tile {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SubTile {
+    C, // Center/Core
+    U, // Up
+    R, // Right
+    L, // Left
+}
+
+impl SubTile {
+    pub const QUAD: Quad<Self> = Quad([Self::C, Self::U, Self::R, Self::L]);
+}
+
+impl AddAssign<Transform> for SubTile {
+    fn add_assign(&mut self, rhs: Transform) {
+        use SubTile::*;
+        use Transform::*;
+        match (*self, rhs) {
+            (C, _) => {}
+            (_, KU) => {}
+
+            (U, FU) => {}
+            (U, KL | FL) => *self = L,
+            (U, KR | FR) => *self = R,
+
+            (R, FL) => {}
+            (R, FU | KR) => *self = L,
+            (R, FR | KL) => *self = U,
+
+            (L, FR) => {}
+            (L, FU | KL) => *self = R,
+            (L, FL | KR) => *self = U,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Quad<T>(pub [T; 4]);
 
-pub type QuadTile = Quad<Tile>;
-
-impl QuadTile {
+impl Quad<Tile> {
     pub const SPACE: Self = Self([Tile::SPACE; 4]);
 
     // TODO: FOR TESTING
@@ -90,7 +120,7 @@ impl<T: AddAssign<Transform>> AddAssign<Transform> for Quad<T> {
     }
 }
 
-impl QuadTile {
+impl Quad<Tile> {
     pub fn is_rfu(self) -> bool {
         use SubTile::*;
         self[C].orient.is_rfu() && self[U].orient.is_rfu() && self[R] + Transform::FU == self[L]

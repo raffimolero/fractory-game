@@ -4,7 +4,7 @@ mod tests;
 use super::{
     orientation::Transform,
     path::TilePos,
-    tile::{Quad, QuadTile, Tile},
+    tile::{Quad, SubTile, Tile},
 };
 use std::collections::HashMap;
 
@@ -60,11 +60,11 @@ pub struct Fractal {
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
-    pub library: Vec<(QuadTile, SlotInfo)>,
+    pub library: Vec<(Quad<Tile>, SlotInfo)>,
 
     /// a mapping from quadtile to tile
     /// the opposite of library
-    pub recognizer: HashMap<QuadTile, Tile>,
+    pub recognizer: HashMap<Quad<Tile>, Tile>,
 }
 
 impl Fractal {
@@ -73,8 +73,8 @@ impl Fractal {
         Self {
             root: Tile::SPACE,
             leaf_count: 1,
-            library: vec![(QuadTile::SPACE, SlotInfo::Empty)],
-            recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE)]),
+            library: vec![(Quad::SPACE, SlotInfo::Empty)],
+            recognizer: HashMap::from([(Quad::SPACE, Tile::SPACE)]),
         }
     }
 
@@ -84,10 +84,10 @@ impl Fractal {
             root: Tile::ONE,
             leaf_count: 2,
             library: vec![
-                (QuadTile::SPACE, SlotInfo::Empty),
-                (QuadTile::ONE, SlotInfo::Full { is_leaf: true }),
+                (Quad::SPACE, SlotInfo::Empty),
+                (Quad::ONE, SlotInfo::Full { is_leaf: true }),
             ],
-            recognizer: HashMap::from([(QuadTile::SPACE, Tile::SPACE), (QuadTile::ONE, Tile::ONE)]),
+            recognizer: HashMap::from([(Quad::SPACE, Tile::SPACE), (Quad::ONE, Tile::ONE)]),
         }
     }
 
@@ -97,14 +97,14 @@ impl Fractal {
             root: Tile::ONE,
             leaf_count: 3,
             library: vec![
-                (QuadTile::SPACE, SlotInfo::Empty),
-                (QuadTile::XYYY, SlotInfo::Full { is_leaf: true }),
-                (QuadTile::YXXX, SlotInfo::Full { is_leaf: true }),
+                (Quad::SPACE, SlotInfo::Empty),
+                (Quad::XYYY, SlotInfo::Full { is_leaf: true }),
+                (Quad::YXXX, SlotInfo::Full { is_leaf: true }),
             ],
             recognizer: HashMap::from([
-                (QuadTile::SPACE, Tile::SPACE),
-                (QuadTile::XYYY, Tile::XYYY),
-                (QuadTile::YXXX, Tile::YXXX),
+                (Quad::SPACE, Tile::SPACE),
+                (Quad::XYYY, Tile::XYYY),
+                (Quad::YXXX, Tile::YXXX),
             ]),
         }
     }
@@ -134,7 +134,7 @@ impl Fractal {
                 cur_tile = quad[subtile];
                 (quad, subtile)
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<(Quad<Tile>, SubTile)>>();
 
         if cur_tile == tile {
             return tile;
@@ -158,7 +158,7 @@ impl Fractal {
     // }
 
     /// finds (or registers) a quadtile, and returns the Tile { id, orientation }
-    fn register(&mut self, quad: QuadTile) -> Tile {
+    fn register(&mut self, quad: Quad<Tile>) -> Tile {
         self.recognizer
             .get(&quad)
             .copied()
@@ -166,7 +166,7 @@ impl Fractal {
     }
 
     /// registers a new non-leaf quadtile into the library.
-    fn register_new(&mut self, mut quad: QuadTile) -> Tile {
+    fn register_new(&mut self, mut quad: Quad<Tile>) -> Tile {
         let orient = quad.reorient();
         let id = self.library.len();
 
@@ -185,7 +185,7 @@ impl Fractal {
     }
 
     // TODO: 6 hash inserts per new tile is probably expensive for the common case.
-    fn cache(&mut self, mut quad: QuadTile, mut tile: Tile) {
+    fn cache(&mut self, mut quad: Quad<Tile>, mut tile: Tile) {
         for _reflection in 0..2 {
             for _rotation in 0..3 {
                 let result = self.recognizer.insert(quad, tile);

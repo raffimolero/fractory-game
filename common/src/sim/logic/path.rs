@@ -6,7 +6,7 @@ mod tests;
 
 use super::{
     orientation::{Rotation, Transform},
-    tile::Quad,
+    tile::SubTile,
 };
 use std::ops::{Add, AddAssign, Mul};
 
@@ -32,42 +32,6 @@ impl Mul<IVec2> for IMat2 {
 
     fn mul(self, rhs: IVec2) -> Self::Output {
         self.x_axis * rhs.x + self.y_axis * rhs.y
-    }
-}
-
-// TODO: move this to tile.rs
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum SubTile {
-    C, // Center/Core
-    U, // Up
-    R, // Right
-    L, // Left
-}
-
-impl SubTile {
-    pub const QUAD: Quad<Self> = Quad([Self::C, Self::U, Self::R, Self::L]);
-}
-
-impl AddAssign<Transform> for SubTile {
-    fn add_assign(&mut self, rhs: Transform) {
-        use SubTile::*;
-        use Transform::*;
-        match (*self, rhs) {
-            (C, _) => {}
-            (_, KU) => {}
-
-            (U, FU) => {}
-            (U, KL | FL) => *self = L,
-            (U, KR | FR) => *self = R,
-
-            (R, FL) => {}
-            (R, FU | KR) => *self = L,
-            (R, FR | KL) => *self = U,
-
-            (L, FR) => {}
-            (L, FU | KL) => *self = R,
-            (L, FL | KR) => *self = U,
-        }
     }
 }
 

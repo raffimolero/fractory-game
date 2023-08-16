@@ -1,4 +1,4 @@
-use super::path::SubTile;
+use super::tile::SubTile;
 use std::ops::{Add, AddAssign, Neg};
 
 #[test]
@@ -273,7 +273,7 @@ impl AddAssign<Transform> for Orient {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Transform {
     KU,
     KR,
