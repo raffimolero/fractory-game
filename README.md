@@ -2,36 +2,57 @@ Fractory. A game you have never seen before...
 
 ...mostly because it hasn't been made yet.
 
-**Most activity is in `src/logic/` and a lot of pretty pictures are under `assets/concepts`**
+**Most activity is in `common/ and poc-fractal/` and a lot of pretty pictures are under `assets/concepts`**
+The main branch is updated for major milestones, while the dev branch is updated constantly and is not guaranteed to compile.
+
+- Esc to quit
+- mouse over the fractal to explore the subdivisions
+- WASD/right mouse drag to move the camera around
+- Scroll to zoom, automatically expanding the fractal as you go (going too far crashes the program)
+- Shift+Scroll to change recursion depth without zooming
+- Ctrl+Scroll to zoom without changing recursion depth
+- Q/E to rotate the camera (do tell me if you would like to reverse this direction)
+- Space to zoom in
+- Shift+Space to zoom out
+- F to flip the camera horizontally
+- -/+ to increase/decrease the depth of fractal recursion, capped to [0, 6]
+- Tab to switch modes (Edit/Act/View)
+  * `Edit` mode: Clicking a tile cycles it between 0, 1, 2. specifically, `tile.id = if tile.id < 2 { tile.id + 1 } else { 0 }`
+  * `Act` mode: Activates a clicked tile, priming it for action in the next tick
+  * `View` mode: does nothing, just lets you explore the fractal in its solid arrangement.
+- Enter to simulate one tick of the simulation
+  * Orange and Yellow tiles will try to swap between the tile on their right and the tile on their lower left:
+```
+  *activating an orange or yellow T will try to swap a and b.
+       /\    /\
+      /T \  /a \
+     /____\/____\
+    /\
+   /b \
+  /____\
+
+*orientation matters. upside-down tiles will of course do an upside-down version of this.
+*if a tile tries to move to 2 different positions, both moves are cancelled and nothing happens.
+*if 2 tiles try to move to the same position, both moves are cancelled and nothing happens.
+*if a tile tries to move into an occupied position, the move is cancelled and nothing happens.
+
+*currently, symmetry is being broken. tile orientations will be fixed later.
+```
 
 TODO:
-- test the fractal triangle rendering in poc-fractal
-- add interactivity, so you can..
-- ..test the algorithms for the fractal manipulation
-- common::sim::logic::factory::Fractory
-    * should contain all the activated tiles
-    * should know how to simulate
+- test the fractal triangle rendering in poc-fractal /
+- add interactivity, so you can.. /
+- ..test the algorithms for the fractal manipulation /
+- common::sim::logic::factory::Fractory /
+    * should contain all the activated tiles /
+    * should know how to simulate /
     * should be able to hook into a UI to send transition info (what animations should play per tile)
 - Fragment
 
 ```
-document TilePos::{pop, push}
-consider pop_unchecked
-
-create linear factory proof of concept
-  separate crate
-  array of items (internally just IDs)
-  list of activations
-  each item has an associated behavior
-    list of moves it wants to do
-    list of tiles it wants to activate
-  perform the whole simulation starting with a random item/activation/behavior combo
-  multiple tests with predefined items/activations/behaviors
-  interactive TUI binary in a separate crate, using the linear factory as a dependency
-
 create fractal version
-  resolve movelist collisions in fractal space - TO TEST
-  resolve overlapping small+large activations in fractal space - TO TEST
+  resolve movelist collisions in fractal space - ok
+  resolve overlapping small+large activations in fractal space - TO TEST FURTHER
   try not to get a migraine - IN PROGRESS
   TUI - SKIP TO ERGOQUAD_2D GUI
 
@@ -41,7 +62,7 @@ create main game behavior
   menu..?
 
 
-*REORGANIZING: (not final, some decisions are very awkward and will require trial and error)
+File structure:
   common/       crate, holds application logic
     src/
       api/          holds a bunch of traits that downstream users have to implement, "how to"
@@ -68,4 +89,3 @@ create main game behavior
   .git          large scale t&e
 ```
 =======
-Go to the dev branch.
