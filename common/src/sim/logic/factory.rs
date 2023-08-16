@@ -8,6 +8,7 @@ use super::{
     orientation::Transform,
     path::{TileOffset, TilePos},
     tile::Tile,
+    tree::collision::RawMoveList,
 };
 
 /// A single biome, containing information about the fragments within it.
@@ -115,6 +116,7 @@ impl Fractory {
 
     fn _store(fractal: &mut Fractal, inventory: &mut BTreeMap<usize, usize>, pos: TilePos) {
         let tile = fractal.set(pos, Tile::SPACE);
+        // let the factory pick up empty tiles for a secret achievement
         *inventory.entry(tile.id).or_insert(0) += 1;
     }
 
@@ -135,7 +137,7 @@ impl Fractory {
             inventory,
         } = self;
 
-        // let mut actions = RawMoveList::default();
+        let mut actions = RawMoveList::default();
 
         let prev_activated = std::mem::take(activated);
         for (pos, Tile { id, orient }) in prev_activated {
@@ -149,17 +151,17 @@ impl Fractory {
                 };
                 match act {
                     TileAction::Move(destination, transform) => {
-                        todo!()
-                        // let Some(destination) = pos + *destination else {
-                        //     continue;
-                        // };
-                        // actions.push((target, destination));
+                        let Some(destination) = pos + destination else {
+                            continue;
+                        };
+                        actions.add(target, destination, transform);
                     }
                     TileAction::Store => Self::_store(fractal, inventory, target),
                     TileAction::Activate => Self::_activate(activated, fractal, target),
                 }
             }
         }
-        // let actions = actions.apply(&mut self.fractal);
+        let actions = actions.apply(&mut self.fractal);
+        dbg!(actions);
     }
 }

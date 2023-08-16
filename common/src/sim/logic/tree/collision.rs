@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use crate::sim::logic::{
     fractal::{Fractal, SlotInfo},
+    orientation::Transform,
     path::{TileOffset, TilePos},
     tile::{Quad, Tile},
 };
@@ -14,16 +15,15 @@ use super::*;
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RawMoveList {
-    // TODO: resolve how to order "store" operations with "move" operations
-    moves: Vec<(TilePos, TilePos)>,
+    moves: Vec<(TilePos, (TilePos, Transform))>,
 }
 
 // TODO: figure out how to make the coupling with the fractal quadtree clearer,
 // because Fractal <- RawMoveList <- Node<LeafItem> and the dependence is clear
 
 impl RawMoveList {
-    pub fn add(&mut self, action: (TilePos, TilePos)) {
-        self.moves.push(action);
+    pub fn add(&mut self, from: TilePos, to: TilePos, transform: Transform) {
+        self.moves.push((from, (to, transform)));
     }
 
     /// applies all the moves, resolving conflicts on the way,
@@ -62,7 +62,7 @@ impl RawMoveList {
     fn clean_merges(&mut self) {
         let mut tree = Node::default();
         let mut holes = vec![];
-        for (i, (_src, dst)) in self.moves.iter().copied().enumerate() {
+        for (i, (_src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
             tree.set(dst, i, &mut |idx| holes.push(idx));
         }
         for idx in holes.iter().rev() {
@@ -143,26 +143,42 @@ impl RawMoveList {
         // let mut srcs = Tree::Free;
         let mut dsts = Tree::Free;
 
+        // take out all the source tiles
         let mut old_tiles = vec![];
-        for (i, (src, dst)) in self.moves.iter().copied().enumerate() {
-            old_tiles.push(main_fractal.get(src));
-            // srcs.set(src, main_fractal.get(src));
+        for (i, (src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
+            let old_tile = main_fractal.set(src, Tile::SPACE);
+            assert_ne!(old_tile, Tile::SPACE);
+            old_tiles.push(old_tile);
             dsts.set(dst, i);
-            main_fractal.set(src, Tile::SPACE);
         }
 
+        // mark dead ends as dead
         let mut dead = vec![];
-        for (i, (src, dst)) in self.moves.iter().copied().enumerate() {
+        for (i, (_src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
             if main_fractal.get(dst) != Tile::SPACE {
                 dead.push(i);
             }
         }
 
+        // invalidate dead ends and mark their dependents
+        // preserve ordering
         while let Some(i) = dead.pop() {
-            let (src, dst) = self.moves[i];
+            old_tiles[i] = Tile::SPACE;
+            let (src, _dst_tf) = self.moves[i];
             main_fractal.set(src, old_tiles[i]);
             dsts.invalidate(src, &mut |i| dead.push(i));
         }
+
+        // execute all the moves, take out failed ones, retain working ones
+        let mut out = vec![];
+        for (mv @ (_src, (dst, tf)), tile) in self.moves.drain(..).zip(old_tiles) {
+            if tile == Tile::SPACE {
+                continue;
+            }
+            main_fractal.set(dst, tile + tf);
+            out.push(mv);
+        }
+        self.moves = out;
 
         impl<T> Tree<T> {
             fn set(&mut self, mut pos: TilePos, val: T) {

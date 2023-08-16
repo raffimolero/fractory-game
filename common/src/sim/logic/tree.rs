@@ -1,4 +1,4 @@
-mod collision;
+pub mod collision;
 
 use super::{path::TilePos, tile::Quad};
 use std::fmt::{Debug, Display};
