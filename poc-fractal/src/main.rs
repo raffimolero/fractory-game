@@ -326,7 +326,10 @@ impl TreeElement {
             font,
             ui_state: UiState::Edit,
 
-            frac_cam: FractalCam::default(),
+            frac_cam: FractalCam {
+                camera: Mat4::IDENTITY,
+                depth: 2_f32.powi(2),
+            },
 
             fractory: Fractory::new_xyyy(),
         }
@@ -380,11 +383,8 @@ impl TreeElement {
             ControlFlow::Continue(())
         };
 
-        // TODO: make shift+scroll change the "fractal expansion" threshold
-        // applies to all UI elements, makes it so that you can change how much
-        // you have to zoom for something to expand
+        // FUTURE: add a cursor follower that visually shows the expansion threshold by size
         // maybe solve this once you do bevy tbh
-        // add a cursor follower that visually shows this threshold by size
         // shift+scroll zooms the mouse cursor, scroll zooms the camera *and* the cursor
 
         // TODO: fragment coloring should first try to use the fragment sprite,
@@ -429,14 +429,15 @@ impl TreeElement {
                 ctx.apply(upscale(0.8), |_ctx| {
                     Self::draw_triangle(color);
                 });
+                draw_circle(0.0, -0.625, 0.125, border_color);
             } else {
                 Self::draw_triangle(color);
             }
-            ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
-                let text = format!("{pos:#?}");
-                text_tool(&text);
-                // text_tool(&id.to_string());
-            });
+            // ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
+            //     let text = format!("{pos:#?}");
+            //     text_tool(&text);
+            // });
+            text_tool(&id.to_string());
         });
         control_flow
     }

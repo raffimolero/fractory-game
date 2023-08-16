@@ -2,20 +2,19 @@ Fractory. A game you have never seen before...
 
 ...mostly because it hasn't been made yet.
 
-**Most activity is in `common/ and poc-fractal/` and a lot of pretty pictures are under `assets/concepts`**
+**Most activity is in `common/`` and `poc-fractal/` and a lot of pretty pictures are under `assets/concepts/`**
 The main branch is updated for major milestones, while the dev branch is updated constantly and is not guaranteed to compile.
 
 - Esc to quit
 - mouse over the fractal to explore the subdivisions
 - WASD/right mouse drag to move the camera around
 - Scroll to zoom, automatically expanding the fractal as you go (going too far crashes the program)
-- Shift+Scroll to change recursion depth without zooming
+- Shift+Scroll to change recursion depth without zooming (clamped between depth -3 and +6)
 - Ctrl+Scroll to zoom without changing recursion depth
-- Q/E to rotate the camera (do tell me if you would like to reverse this direction)
-- Space to zoom in
-- Shift+Space to zoom out
-- F to flip the camera horizontally
-- -/+ to increase/decrease the depth of fractal recursion, capped to [0, 6]
+- Q/E to rotate the camera around mouse (no setting to reverse or snap directions yet)
+- Space to zoom in on mouse
+- Shift+Space to zoom out on mouse
+- F to flip the camera horizontally around mouse
 - Tab to switch modes (Edit/Act/View)
   * `Edit` mode: Clicking a tile cycles it between 0, 1, 2. specifically, `tile.id = if tile.id < 2 { tile.id + 1 } else { 0 }`
   * `Act` mode: Activates a clicked tile, priming it for action in the next tick
@@ -40,12 +39,12 @@ The main branch is updated for major milestones, while the dev branch is updated
 ```
 
 TODO:
-- test the fractal triangle rendering in poc-fractal /
-- add interactivity, so you can.. /
-- ..test the algorithms for the fractal manipulation /
-- common::sim::logic::factory::Fractory /
-    * should contain all the activated tiles /
-    * should know how to simulate /
+- test the fractal triangle rendering in poc-fractal (done)
+- add interactivity, so you can.. (done)
+- ..test the algorithms for the fractal manipulation (done)
+- common::sim::logic::factory::Fractory (done)
+    * should contain all the activated tiles (done)
+    * should know how to simulate (done)
     * should be able to hook into a UI to send transition info (what animations should play per tile)
 - Fragment
 
