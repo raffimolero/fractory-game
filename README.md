@@ -2,7 +2,7 @@ Fractory. A game you have never seen before...
 
 ...mostly because it hasn't been made yet.
 
-**Most activity is in `common/`` and `poc-fractal/` and a lot of pretty pictures are under `assets/concepts/`**
+**Most activity is in `common/` and `poc-fractal/` and a lot of pretty pictures are under `assets/concepts/`**
 The main branch is updated for major milestones, while the dev branch is updated constantly and is not guaranteed to compile.
 
 Demo:
