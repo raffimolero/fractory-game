@@ -130,52 +130,50 @@ impl Fractory {
             },
             Tile::Z,
         );
+
+        out.fractal.set(
+            TilePos {
+                depth: 1,
+                pos: IVec2 { x: 0, y: 0 },
+                flop: true,
+            },
+            Tile::Z + Transform::KR,
+        );
         out.activate(TilePos {
             depth: 1,
             pos: IVec2 { x: 0, y: 0 },
-            flop: false,
+            flop: true,
         });
 
         out.fractal.set(
             TilePos {
-                depth: 2,
+                depth: 1,
                 pos: IVec2 { x: 0, y: 1 },
-                flop: true,
+                flop: false,
+            },
+            Tile::Z,
+        );
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 0, y: 3 },
+                flop: false,
             },
             Tile::X,
         );
 
         out.fractal.set(
             TilePos {
-                depth: 2,
+                depth: 1,
                 pos: IVec2 { x: 1, y: 1 },
-                flop: true,
-            },
-            Tile::Y,
-        );
-
-        out.fractal.set(
-            TilePos {
-                depth: 2,
-                pos: IVec2 { x: 1, y: 2 },
-                flop: true,
-            },
-            Tile::Y,
-        );
-
-        out.fractal.set(
-            TilePos {
-                depth: 2,
-                pos: IVec2 { x: 1, y: 2 },
                 flop: false,
             },
-            Tile::Y,
+            Tile::Z,
         );
-
         out.fractal.set(
             TilePos {
                 depth: 2,
-                pos: IVec2 { x: 0, y: 3 },
+                pos: IVec2 { x: 2, y: 3 },
                 flop: false,
             },
             Tile::X,
@@ -234,20 +232,22 @@ impl Fractory {
 
         let prev_activated = std::mem::take(activated);
         for (pos, Tile { id, orient }) in prev_activated {
+            let tile_tf = Transform::from(orient);
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };
             for TargetedAction { mut target, act } in behaviors.iter().copied() {
-                target += Transform::from(orient);
+                target += tile_tf;
                 let Some(target) = pos + target else {
                     continue;
                 };
                 match act {
-                    TileAction::Move(destination, transform) => {
+                    TileAction::Move(mut destination, transform) => {
+                        destination += tile_tf;
                         let Some(destination) = pos + destination else {
                             continue;
                         };
-                        actions.add(target, destination, transform);
+                        actions.add(target, destination, transform + -tile_tf);
                     }
                     TileAction::Store => Self::_store(fractal, inventory, target),
                     TileAction::Activate => Self::_activate(activated, fractal, target),
