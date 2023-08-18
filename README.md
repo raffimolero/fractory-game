@@ -20,13 +20,14 @@ https://github.com/raffimolero/fractory-game/assets/49224759/66e0ced8-5bea-44e6-
 - Shift+Space to zoom out on mouse
 - F to flip the camera horizontally around mouse
 - Tab to switch modes (Edit/Act/View)
-  * `Edit` mode: Clicking a tile cycles it between 0, 1, 2. specifically, `tile.id = if tile.id < 2 { tile.id + 1 } else { 0 }`
+  * `Edit` mode: Clicking a tile cycles it between 0, 1, 2, 3. specifically, `tile.id = if tile.id < 3 { tile.id + 1 } else { 0 }`
   * `Act` mode: Activates a clicked tile, priming it for action in the next tick
   * `View` mode: does nothing, just lets you explore the fractal in its solid arrangement.
 - Enter to simulate one tick of the simulation
   * Orange and Yellow tiles will do nothing at the moment
   * Green tiles will try to flip whatever tile is below them, but only when the tile below them is full:
 ```
+    *something like this.
        /\          /\
       /3 \        /3 \
      /____\  =>  /____\
