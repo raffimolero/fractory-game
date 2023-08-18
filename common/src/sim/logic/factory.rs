@@ -58,18 +58,20 @@ fn swap_01_with_10() -> Behavior {
 }
 
 fn flip_self_and_below_self() -> Behavior {
+    let this = TileOffset::ZERO;
+    let below = TileOffset {
+        depth: 0,
+        offset: IVec2::ZERO,
+        flop: true,
+    };
     vec![
         TargetedAction {
-            target: TileOffset::ZERO,
-            act: TileAction::Move(TileOffset::ZERO, Transform::FU),
+            target: this,
+            act: TileAction::Move(this, Transform::FU),
         },
         TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: IVec2::ZERO,
-                flop: true,
-            },
-            act: TileAction::Move(TileOffset::ZERO, Transform::FU),
+            target: below,
+            act: TileAction::Move(below, Transform::FU),
         },
     ]
 }
@@ -111,12 +113,75 @@ pub struct Fractory {
 impl Fractory {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        Self {
+        let mut out = Self {
             biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
             activated: HashMap::new(),
             inventory: BTreeMap::new(),
-        }
+        };
+
+        out.fractal.set(TilePos::UNIT, Tile::SPACE);
+
+        out.fractal.set(
+            TilePos {
+                depth: 1,
+                pos: IVec2 { x: 0, y: 0 },
+                flop: false,
+            },
+            Tile::Z,
+        );
+        out.activate(TilePos {
+            depth: 1,
+            pos: IVec2 { x: 0, y: 0 },
+            flop: false,
+        });
+
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 0, y: 1 },
+                flop: true,
+            },
+            Tile::X,
+        );
+
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 1, y: 1 },
+                flop: true,
+            },
+            Tile::Y,
+        );
+
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 1, y: 2 },
+                flop: true,
+            },
+            Tile::Y,
+        );
+
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 1, y: 2 },
+                flop: false,
+            },
+            Tile::Y,
+        );
+
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 0, y: 3 },
+                flop: false,
+            },
+            Tile::X,
+        );
+
+        out
     }
 
     pub fn toggle_activation(&mut self, pos: TilePos) {
