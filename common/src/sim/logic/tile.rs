@@ -20,13 +20,17 @@ impl Tile {
     };
 
     // TODO: FOR TESTING
-    pub const XYYY: Self = Self {
+    pub const X: Self = Self {
         id: 1,
         orient: Orient::Iso,
     };
-    pub const YXXX: Self = Self {
+    pub const Y: Self = Self {
         id: 2,
         orient: Orient::Iso,
+    };
+    pub const Z: Self = Self {
+        id: 3,
+        orient: Orient::RfU,
     };
 }
 
@@ -90,8 +94,9 @@ impl Quad<Tile> {
     pub const ONE: Self = Self([Tile::ONE; 4]);
 
     // TODO: FOR TESTING
-    pub const XYYY: Self = Self([Tile::XYYY, Tile::YXXX, Tile::YXXX, Tile::YXXX]);
-    pub const YXXX: Self = Self([Tile::YXXX, Tile::XYYY, Tile::XYYY, Tile::XYYY]);
+    pub const X: Self = Self([Tile::X, Tile::Y, Tile::Y, Tile::Y]);
+    pub const Y: Self = Self([Tile::Y, Tile::X, Tile::X, Tile::X]);
+    pub const Z: Self = Self([Tile::X, Tile::X, Tile::Y, Tile::Y]);
 }
 
 impl<T> Index<SubTile> for Quad<T> {

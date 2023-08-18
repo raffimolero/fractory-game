@@ -1,7 +1,5 @@
 // TODO: fractory game logic
 
-use std::collections::{hash_map::Entry, BTreeMap, HashMap};
-
 use super::{
     actions::{TargetedAction, TileAction},
     fractal::Fractal,
@@ -10,6 +8,9 @@ use super::{
     tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
+use std::collections::{hash_map::Entry, BTreeMap, HashMap};
+
+use glam::IVec2;
 
 /// A single biome, containing information about the fragments within it.
 pub struct Biome {
@@ -26,80 +27,69 @@ pub struct Biome {
     // missions: Vec<Mission>,
 }
 
+type Behavior = Vec<TargetedAction<TileOffset>>;
+
+fn swap_01_with_10() -> Behavior {
+    vec![
+        TargetedAction {
+            target: TileOffset {
+                depth: 0,
+                offset: IVec2 { x: 1, y: 0 },
+                flop: false,
+            },
+            act: TileAction::Store,
+        },
+        TargetedAction {
+            target: TileOffset {
+                depth: 0,
+                offset: IVec2 { x: 0, y: 1 },
+                flop: false,
+            },
+            act: TileAction::Move(
+                TileOffset {
+                    depth: 0,
+                    offset: IVec2 { x: 1, y: 0 },
+                    flop: false,
+                },
+                Transform::KU,
+            ),
+        },
+    ]
+}
+
+fn flip_self_and_below_self() -> Behavior {
+    let this = TileOffset::ZERO;
+    let below = TileOffset {
+        depth: 0,
+        offset: IVec2::ZERO,
+        flop: true,
+    };
+    vec![
+        TargetedAction {
+            target: this,
+            act: TileAction::Move(this, Transform::FU),
+        },
+        TargetedAction {
+            target: below,
+            act: TileAction::Move(below, Transform::FU),
+        },
+    ]
+}
+
 impl Biome {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         Self {
             names: vec!["Space".into(), "X".into(), "Y".into()],
             behaviors: vec![
-                // Space: nothing
+                // Space
                 vec![],
-                // X: store self
-                vec![
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 1, y: 0 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 0, y: 1 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 0, y: 1 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 1, y: 0 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                ],
-                // Y: move East to NE
-                vec![
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 1, y: 0 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 0, y: 1 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 0, y: 1 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 1, y: 0 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                ],
+                // X
+                vec![],
+                // Y
+                vec![],
+                // Z
+                flip_self_and_below_self(),
             ],
         }
     }
@@ -134,39 +124,60 @@ impl Fractory {
 
         out.fractal.set(
             TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 4, y: 5 },
+                depth: 1,
+                pos: IVec2 { x: 0, y: 0 },
                 flop: false,
             },
-            Tile::XYYY,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 3, y: 6 },
-                flop: false,
-            },
-            Tile::YXXX,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 4, y: 6 },
-                flop: false,
-            },
-            Tile::XYYY,
+            Tile::Z,
         );
 
+        out.fractal.set(
+            TilePos {
+                depth: 1,
+                pos: IVec2 { x: 0, y: 0 },
+                flop: true,
+            },
+            Tile::Z + Transform::KR,
+        );
         out.activate(TilePos {
-            depth: 3,
-            pos: glam::IVec2 { x: 4, y: 5 },
-            flop: false,
+            depth: 1,
+            pos: IVec2 { x: 0, y: 0 },
+            flop: true,
         });
-        out.activate(TilePos {
-            depth: 3,
-            pos: glam::IVec2 { x: 3, y: 6 },
-            flop: false,
-        });
+
+        out.fractal.set(
+            TilePos {
+                depth: 1,
+                pos: IVec2 { x: 0, y: 1 },
+                flop: false,
+            },
+            Tile::Z,
+        );
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 0, y: 3 },
+                flop: false,
+            },
+            Tile::X,
+        );
+
+        out.fractal.set(
+            TilePos {
+                depth: 1,
+                pos: IVec2 { x: 1, y: 1 },
+                flop: false,
+            },
+            Tile::Z,
+        );
+        out.fractal.set(
+            TilePos {
+                depth: 2,
+                pos: IVec2 { x: 2, y: 3 },
+                flop: false,
+            },
+            Tile::X,
+        );
 
         out
     }
@@ -221,20 +232,22 @@ impl Fractory {
 
         let prev_activated = std::mem::take(activated);
         for (pos, Tile { id, orient }) in prev_activated {
+            let tile_tf = Transform::from(orient);
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };
             for TargetedAction { mut target, act } in behaviors.iter().copied() {
-                target += Transform::from(orient);
+                target += tile_tf;
                 let Some(target) = pos + target else {
                     continue;
                 };
                 match act {
-                    TileAction::Move(destination, transform) => {
+                    TileAction::Move(mut destination, transform) => {
+                        destination += tile_tf;
                         let Some(destination) = pos + destination else {
                             continue;
                         };
-                        actions.add(target, destination, transform);
+                        actions.add(target, destination, transform + -tile_tf);
                     }
                     TileAction::Store => Self::_store(fractal, inventory, target),
                     TileAction::Activate => Self::_activate(activated, fractal, target),
