@@ -1,7 +1,5 @@
 // TODO: fractory game logic
 
-use std::collections::{hash_map::Entry, BTreeMap, HashMap};
-
 use super::{
     actions::{TargetedAction, TileAction},
     fractal::Fractal,
@@ -10,6 +8,9 @@ use super::{
     tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
+use std::collections::{hash_map::Entry, BTreeMap, HashMap};
+
+use glam::IVec2;
 
 /// A single biome, containing information about the fragments within it.
 pub struct Biome {
@@ -26,80 +27,67 @@ pub struct Biome {
     // missions: Vec<Mission>,
 }
 
+type Behavior = Vec<TargetedAction<TileOffset>>;
+
+fn swap_01_with_10() -> Behavior {
+    vec![
+        TargetedAction {
+            target: TileOffset {
+                depth: 0,
+                offset: IVec2 { x: 1, y: 0 },
+                flop: false,
+            },
+            act: TileAction::Store,
+        },
+        TargetedAction {
+            target: TileOffset {
+                depth: 0,
+                offset: IVec2 { x: 0, y: 1 },
+                flop: false,
+            },
+            act: TileAction::Move(
+                TileOffset {
+                    depth: 0,
+                    offset: IVec2 { x: 1, y: 0 },
+                    flop: false,
+                },
+                Transform::KU,
+            ),
+        },
+    ]
+}
+
+fn flip_self_and_below_self() -> Behavior {
+    vec![
+        TargetedAction {
+            target: TileOffset::ZERO,
+            act: TileAction::Move(TileOffset::ZERO, Transform::FU),
+        },
+        TargetedAction {
+            target: TileOffset {
+                depth: 0,
+                offset: IVec2::ZERO,
+                flop: true,
+            },
+            act: TileAction::Move(TileOffset::ZERO, Transform::FU),
+        },
+    ]
+}
+
 impl Biome {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         Self {
             names: vec!["Space".into(), "X".into(), "Y".into()],
             behaviors: vec![
-                // Space: nothing
+                // Space
                 vec![],
-                // X: store self
-                vec![
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 1, y: 0 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 0, y: 1 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 0, y: 1 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 1, y: 0 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                ],
-                // Y: move East to NE
-                vec![
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 1, y: 0 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 0, y: 1 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                    TargetedAction {
-                        target: TileOffset {
-                            depth: 0,
-                            offset: glam::IVec2 { x: 0, y: 1 },
-                            flop: false,
-                        },
-                        act: TileAction::Move(
-                            TileOffset {
-                                depth: 0,
-                                offset: glam::IVec2 { x: 1, y: 0 },
-                                flop: false,
-                            },
-                            Transform::KU,
-                        ),
-                    },
-                ],
+                // X
+                vec![],
+                // Y
+                vec![],
+                // Z
+                flip_self_and_below_self(),
             ],
         }
     }
@@ -123,52 +111,12 @@ pub struct Fractory {
 impl Fractory {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        let mut out = Self {
+        Self {
             biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
             activated: HashMap::new(),
             inventory: BTreeMap::new(),
-        };
-
-        out.fractal.set(TilePos::UNIT, Tile::SPACE);
-
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 4, y: 5 },
-                flop: false,
-            },
-            Tile::XYYY,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 3, y: 6 },
-                flop: false,
-            },
-            Tile::YXXX,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: glam::IVec2 { x: 4, y: 6 },
-                flop: false,
-            },
-            Tile::XYYY,
-        );
-
-        out.activate(TilePos {
-            depth: 3,
-            pos: glam::IVec2 { x: 4, y: 5 },
-            flop: false,
-        });
-        out.activate(TilePos {
-            depth: 3,
-            pos: glam::IVec2 { x: 3, y: 6 },
-            flop: false,
-        });
-
-        out
+        }
     }
 
     pub fn toggle_activation(&mut self, pos: TilePos) {

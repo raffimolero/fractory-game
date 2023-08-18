@@ -159,9 +159,14 @@ pub struct TileOffset {
 }
 
 impl TileOffset {
+    pub const ZERO: Self = Self {
+        depth: 0,
+        offset: IVec2 { x: 0, y: 0 },
+        flop: false,
+    };
+
     // Note: these transforms might benefit from an imat3 where the 3rd dimension is just a bool
     // i decided not to do that
-
     const FLIP_X: IMat2 = IMat2::new([-1, 0], [1, 1]);
     const ROT_CW: IMat2 = IMat2::new([0, 1], [-1, -1]);
     const ROT_CC: IMat2 = IMat2::new([-1, -1], [1, 0]);
