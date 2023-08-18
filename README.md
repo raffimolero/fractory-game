@@ -20,22 +20,20 @@ The main branch is updated for major milestones, while the dev branch is updated
   * `Act` mode: Activates a clicked tile, priming it for action in the next tick
   * `View` mode: does nothing, just lets you explore the fractal in its solid arrangement.
 - Enter to simulate one tick of the simulation
-  * Orange and Yellow tiles will try to swap between the tile on their right and the tile on their lower left:
+  * Orange and Yellow tiles will do nothing at the moment
+  * Green tiles will try to flip whatever tile is below them, but only when the tile below them is full:
 ```
-  *activating an orange or yellow T will try to swap a and b.
-       /\    /\
-      /T \  /a \
-     /____\/____\
-    /\
-   /b \
-  /____\
+       /\          /\
+      /3 \        /3 \
+     /____\  =>  /____\
+     \XXY /  =>  \ YXX/
+      \X /        \ X/
+       \/          \/
 
-*orientation matters. upside-down tiles will of course do an upside-down version of this.
+*orientation matters. upside-down tiles will of course do their thing from their perspective.
 *if a tile tries to move to 2 different positions, both moves are cancelled and nothing happens.
 *if 2 tiles try to move to the same position, both moves are cancelled and nothing happens.
 *if a tile tries to move into an occupied position, the move is cancelled and nothing happens.
-
-*currently, symmetry is being broken. tile orientations will be fixed later.
 ```
 
 TODO:

@@ -413,8 +413,9 @@ impl TreeElement {
                 PALETTE[id % PALETTE.len()]
             }
             Greyscale => {
-                const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
-                PALETTE[pos.depth() % PALETTE.len()]
+                // const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
+                // PALETTE[pos.depth() % PALETTE.len()]
+                DARKGRAY
             }
         };
 
