@@ -207,7 +207,7 @@ impl Fractory {
             Tile::X,
         );
         */
-
+        // /*
         out.fractal.set(
             TilePos {
                 depth: 3,
@@ -221,7 +221,7 @@ impl Fractory {
             pos: IVec2 { x: 3, y: 5 },
             flop: false,
         });
-
+        // */
         out
     }
 
@@ -271,10 +271,12 @@ impl Fractory {
         let prev_activated = std::mem::take(activated);
         for pos in prev_activated {
             let Tile { id, orient } = fractal.get(pos);
+
             let tile_tf = Transform::from(orient);
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };
+
             for TargetedAction { mut target, act } in behaviors.iter().copied() {
                 target += tile_tf;
                 let Some(target) = pos + target else {
@@ -286,7 +288,7 @@ impl Fractory {
                         let Some(destination) = pos + destination else {
                             continue;
                         };
-                        actions.add(target, destination, transform + -tile_tf);
+                        actions.add(target, destination, tile_tf * transform);
                     }
                     TileAction::Store => Self::_store(fractal, inventory, target),
                     TileAction::Activate => Self::_activate(activated, fractal, target),
@@ -294,6 +296,5 @@ impl Fractory {
             }
         }
         let actions = actions.apply(&mut self.fractal);
-        dbg!(actions);
     }
 }

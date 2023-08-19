@@ -1,5 +1,5 @@
 use super::tile::SubTile;
-use std::ops::{Add, AddAssign, Neg};
+use std::ops::{Add, AddAssign, Mul, Neg};
 
 #[test]
 fn test_reorient_table() {
@@ -321,6 +321,14 @@ impl Add for Transform {
         ];
 
         TABLE[self as usize * 6 + rhs as usize]
+    }
+}
+
+impl Mul for Transform {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        rhs + -self + rhs + self
     }
 }
 
