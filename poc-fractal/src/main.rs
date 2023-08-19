@@ -5,7 +5,7 @@
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
     factory::Fractory,
-    fractal::SlotInfo,
+    fractal::{SlotInfo, TileFill},
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
     tile::{SubTile, Tile},
@@ -356,7 +356,7 @@ impl TreeElement {
         &self,
         ctx: &mut Context,
         id: usize,
-        slot_info: SlotInfo,
+        tile_fill: TileFill,
         pos: TilePos,
         hovered: bool,
         text_tool: impl Fn(&str),
@@ -377,7 +377,7 @@ impl TreeElement {
             }
         }
 
-        let control_flow = if slot_info.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
+        let control_flow = if tile_fill.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
             ControlFlow::Break(())
         } else {
             ControlFlow::Continue(())
@@ -390,10 +390,10 @@ impl TreeElement {
         // TODO: fragment coloring should first try to use the fragment sprite,
         // otherwise use a hash color
         // these should be specified by the fractal itself
-        let color_mode = match slot_info {
-            SlotInfo::Empty => Greyscale,
-            SlotInfo::Partial => Depth,
-            SlotInfo::Full { .. } => {
+        let color_mode = match tile_fill {
+            TileFill::Empty => Greyscale,
+            TileFill::Partial => Depth,
+            TileFill::Full { .. } => {
                 if control_flow == ControlFlow::Break(()) {
                     Fragment
                 } else {
@@ -453,7 +453,11 @@ impl TreeElement {
     ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
-        let (quad, info) = self.fractory.fractal.library[tile.id];
+        let SlotInfo {
+            quad,
+            fill,
+            symmetries: _,
+        } = self.fractory.fractal.library[tile.id];
 
         let w = 1.0;
         let side = 2.0;
@@ -471,7 +475,7 @@ impl TreeElement {
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            match self.draw_leaf(ctx, tile.id, info, pos, hovered, text_tool) {
+            match self.draw_leaf(ctx, tile.id, fill, pos, hovered, text_tool) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
@@ -572,7 +576,7 @@ impl TreeElement {
         self.subtree_click_pos(pos, 0)
     }
 
-    fn input_toggle(&mut self, ctx: &mut Context) {
+    fn input_edit(&mut self, ctx: &mut Context) {
         if !is_mouse_button_released(MouseButton::Left) {
             return;
         }
@@ -581,12 +585,18 @@ impl TreeElement {
         };
 
         let mut tile = self.fractory.fractal.get(hit_pos);
-        tile.id = if tile.id < self.fractory.fractal.leaf_count - 1 {
+        let id = if tile.id < self.fractory.fractal.leaf_count - 1 {
             tile.id + 1
         } else {
             0
         };
-        self.fractory.fractal.set(hit_pos, tile);
+        self.fractory.fractal.set(
+            hit_pos,
+            Tile {
+                id,
+                orient: self.fractory.fractal.library[id].symmetries.into(),
+            },
+        );
     }
 
     fn input_act(&mut self, ctx: &mut Context) {
@@ -602,6 +612,10 @@ impl TreeElement {
 
     fn input(&mut self, ctx: &mut Context) {
         self.frac_cam = (FractalCam::input() * self.frac_cam).clamp_depth(-3, 6);
+
+        if is_key_pressed(KeyCode::Apostrophe) {
+            dbg!(&self.fractory.fractal.library);
+        }
 
         if is_key_pressed(KeyCode::Tab) {
             // println!("{:?}", self.fractal.root);
@@ -621,7 +635,7 @@ impl TreeElement {
 
         match self.ui_state {
             UiState::View => self.input_view(ctx),
-            UiState::Edit => self.input_toggle(ctx),
+            UiState::Edit => self.input_edit(ctx),
             UiState::Act => self.input_act(ctx),
         }
     }

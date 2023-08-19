@@ -2,26 +2,30 @@
 mod tests;
 
 use super::{
-    orientation::Transform,
+    orientation::{Symmetries, Transform},
     path::TilePos,
     tile::{Quad, SubTile, Tile},
 };
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SlotInfo {
+pub enum TileFill {
     Empty,
     Partial,
     Full { is_leaf: bool },
 }
 
-impl SlotInfo {
+impl TileFill {
     pub fn is_leaf(self) -> bool {
         matches!(self, Self::Empty | Self::Full { is_leaf: true })
     }
 
+    pub fn is_full(self) -> bool {
+        matches!(self, Self::Full { .. })
+    }
+
     fn infer(quad: Quad<Self>) -> Self {
-        use SlotInfo::*;
+        use TileFill::*;
         let mut info = None;
         for child in quad.0.into_iter() {
             match (info, child) {
@@ -43,6 +47,13 @@ impl SlotInfo {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SlotInfo {
+    pub quad: Quad<Tile>,
+    pub fill: TileFill,
+    pub symmetries: Symmetries,
+}
+
 // TODO: double check every pub
 // separate { recognizer, leaf_count } from Fractal into Biome
 // make Fractal just a normal quadtree with leaf and branch nodes
@@ -50,7 +61,7 @@ impl SlotInfo {
 
 /// a quadtree specialized to not have root nodes,
 /// instead relying on reference cycles to create a fractal
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Fractal {
     /// the root node of the fractal; the biggest piece
     pub root: Tile,
@@ -60,7 +71,7 @@ pub struct Fractal {
 
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
-    pub library: Vec<(Quad<Tile>, SlotInfo)>,
+    pub library: Vec<SlotInfo>,
 
     /// a mapping from quadtile to tile
     /// the opposite of library
@@ -68,61 +79,66 @@ pub struct Fractal {
 }
 
 impl Fractal {
-    /// creates a default fractal initialized to empty space
-    pub fn new() -> Self {
-        Self {
-            root: Tile::SPACE,
-            leaf_count: 1,
-            library: vec![(Quad::SPACE, SlotInfo::Empty)],
-            recognizer: HashMap::from([(Quad::SPACE, Tile::SPACE)]),
+    // TODO: make Fragment data structure, then implement this function
+    // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
+    //     todo!("get fragment data such as symmetries, composition, and behaviors")
+    // }
+
+    /// creates a default fractal initialized to empty space.
+    pub fn new_space() -> Self {
+        let mut out = Self::default();
+        out.register_leaf(Quad::SPACE).unwrap();
+        out.library[0].fill = TileFill::Empty;
+        out
+    }
+
+    /// creates a fractal with some leaf tiles.
+    /// fails if any of the quads aren't upright or aren't completely filled.
+    pub fn new(leaf_quads: &[Quad<Tile>]) -> Result<Self, ()> {
+        let mut out = Self::new_space();
+
+        for quad in leaf_quads.iter().copied() {
+            out.register_leaf(quad)?;
         }
+
+        out.validate()?;
+
+        Ok(out)
     }
 
     /// TODO: FOR TESTING PURPOSES
     pub fn new_binary() -> Self {
-        Self {
-            root: Tile::ONE,
-            leaf_count: 2,
-            library: vec![
-                (Quad::SPACE, SlotInfo::Empty),
-                (Quad::ONE, SlotInfo::Full { is_leaf: true }),
-            ],
-            recognizer: HashMap::from([(Quad::SPACE, Tile::SPACE), (Quad::ONE, Tile::ONE)]),
-        }
+        Self::new(&[Quad::ONE]).unwrap()
     }
 
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        let mut out = Self {
-            root: Tile::ONE,
-            leaf_count: 5,
-            library: vec![
-                (Quad::SPACE, SlotInfo::Empty),
-                (Quad::X, SlotInfo::Full { is_leaf: true }),
-                (Quad::Y, SlotInfo::Full { is_leaf: true }),
-                (Quad::Z, SlotInfo::Full { is_leaf: true }),
-                (Quad::W, SlotInfo::Full { is_leaf: true }),
-            ],
-            recognizer: HashMap::new(),
-        };
-
-        out.cache(Quad::SPACE, Tile::SPACE);
-        out.cache(Quad::X, Tile::X);
-        out.cache(Quad::Y, Tile::Y);
-        out.cache(Quad::Z, Tile::Z);
-        out.cache(Quad::W, Tile::W);
-
-        out
+        Self::new(&[Quad::X, Quad::Y, Quad::Z, Quad::W]).unwrap()
     }
 
-    pub fn get_info(&self, tile: Tile) -> SlotInfo {
-        self.library[tile.id].1
+    fn validate(&self) -> Result<(), ()> {
+        if self.library.get(0).ok_or(())?.fill != TileFill::Empty {
+            return Err(());
+        }
+        for info in &self.library[1..] {
+            let subtile_fills = info.quad.map(|child| self.library[child.id].fill);
+            let fill = TileFill::infer(subtile_fills);
+            if !fill.is_full() {
+                return Err(());
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_info(&self, tile_id: usize) -> SlotInfo {
+        self.library[tile_id]
     }
 
     pub fn get(&self, path: TilePos) -> Tile {
         let mut tile = self.root;
         for subtile in path {
-            let (mut quad, _info) = self.library[tile.id];
+            let mut quad = self.library[tile.id].quad;
             quad += Transform::from(tile.orient);
             tile = quad[subtile];
         }
@@ -135,7 +151,7 @@ impl Fractal {
         let expansions = path
             .into_iter()
             .map(|subtile| {
-                let (mut quad, _info) = self.library[cur_tile.id];
+                let mut quad = self.library[cur_tile.id].quad;
                 quad += Transform::from(cur_tile.orient);
                 cur_tile = quad[subtile];
                 (quad, subtile)
@@ -158,11 +174,6 @@ impl Fractal {
         cur_tile
     }
 
-    // TODO: make Fragment data structure, then implement this function
-    // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
-    //     todo!("get fragment data such as symmetries, composition, and behaviors")
-    // }
-
     /// finds (or registers) a quadtile, and returns the Tile { id, orientation }
     fn register(&mut self, quad: Quad<Tile>) -> Tile {
         self.recognizer
@@ -171,13 +182,38 @@ impl Fractal {
             .unwrap_or_else(|| self.register_new(quad))
     }
 
+    /// registers a new leaf quadtile into the library.
+    /// returns Err if the tile isn't upright.
+    fn register_leaf(&mut self, mut quad: Quad<Tile>) -> Result<(), ()> {
+        let orient = quad.reorient();
+        if !orient.is_upright() {
+            return Err(());
+        }
+        let id = self.library.len();
+
+        self.library.push(SlotInfo {
+            quad,
+            fill: TileFill::Full { is_leaf: true },
+            symmetries: orient.symmetries(),
+        });
+
+        self.cache(quad, Tile { id, orient });
+        self.leaf_count += 1;
+
+        Ok(())
+    }
+
     /// registers a new non-leaf quadtile into the library.
     fn register_new(&mut self, mut quad: Quad<Tile>) -> Tile {
         let orient = quad.reorient();
         let id = self.library.len();
 
-        let sub_info = Quad(quad.0.map(|child| self.library[child.id].1));
-        self.library.push((quad, SlotInfo::infer(sub_info)));
+        let sub_info = quad.map(|child| self.library[child.id].fill);
+        self.library.push(SlotInfo {
+            quad,
+            fill: TileFill::infer(sub_info),
+            symmetries: orient.symmetries(),
+        });
 
         self.cache(
             quad,

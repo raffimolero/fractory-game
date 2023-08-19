@@ -90,6 +90,11 @@ impl AddAssign<Transform> for SubTile {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Quad<T>(pub [T; 4]);
+impl<T> Quad<T> {
+    pub fn map<U, F: FnMut(T) -> U>(self, f: F) -> Quad<U> {
+        Quad(self.0.map(f))
+    }
+}
 
 impl Quad<Tile> {
     pub const SPACE: Self = Self([Tile::SPACE; 4]);

@@ -13,6 +13,7 @@ use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 use glam::IVec2;
 
 /// A single biome, containing information about the fragments within it.
+#[derive(Debug)]
 pub struct Biome {
     // Fragment data: struct of arrays
     names: Vec<String>,
@@ -122,6 +123,7 @@ impl Biome {
     }
 }
 
+#[derive(Debug)]
 pub struct Fractory {
     pub biome: Biome,
     pub fractal: Fractal,
@@ -149,79 +151,110 @@ impl Fractory {
 
         out.fractal.set(TilePos::UNIT, Tile::SPACE);
 
-        /*
-        out.fractal.set(
-            TilePos {
-                depth: 1,
-                pos: IVec2 { x: 0, y: 0 },
-                flop: false,
-            },
-            Tile::Z,
-        );
+        enum Config {
+            TestZ,
+            TestW,
+        }
+        let config = Config::TestW;
 
-        out.fractal.set(
-            TilePos {
-                depth: 1,
-                pos: IVec2 { x: 0, y: 0 },
-                flop: true,
-            },
-            Tile::Z + Transform::KR,
-        );
-        out.activate(TilePos {
-            depth: 1,
-            pos: IVec2 { x: 0, y: 0 },
-            flop: true,
-        });
+        match config {
+            Config::TestZ => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 1,
+                        pos: IVec2 { x: 0, y: 0 },
+                        flop: false,
+                    },
+                    Tile::Z,
+                );
 
-        out.fractal.set(
-            TilePos {
-                depth: 1,
-                pos: IVec2 { x: 0, y: 1 },
-                flop: false,
-            },
-            Tile::Z,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 2,
-                pos: IVec2 { x: 0, y: 3 },
-                flop: false,
-            },
-            Tile::X,
-        );
+                out.fractal.set(
+                    TilePos {
+                        depth: 1,
+                        pos: IVec2 { x: 0, y: 0 },
+                        flop: true,
+                    },
+                    Tile::Z + Transform::KR,
+                );
+                out.activate(TilePos {
+                    depth: 1,
+                    pos: IVec2 { x: 0, y: 0 },
+                    flop: true,
+                });
 
-        out.fractal.set(
-            TilePos {
-                depth: 1,
-                pos: IVec2 { x: 1, y: 1 },
-                flop: false,
-            },
-            Tile::Z,
-        );
-        out.fractal.set(
-            TilePos {
-                depth: 2,
-                pos: IVec2 { x: 2, y: 3 },
-                flop: false,
-            },
-            Tile::X,
-        );
-        */
-        // /*
-        out.fractal.set(
-            TilePos {
-                depth: 3,
-                pos: IVec2 { x: 3, y: 5 },
-                flop: false,
-            },
-            Tile::W,
-        );
-        out.activate(TilePos {
-            depth: 3,
-            pos: IVec2 { x: 3, y: 5 },
-            flop: false,
-        });
-        // */
+                out.fractal.set(
+                    TilePos {
+                        depth: 1,
+                        pos: IVec2 { x: 0, y: 1 },
+                        flop: false,
+                    },
+                    Tile::Z,
+                );
+                out.fractal.set(
+                    TilePos {
+                        depth: 2,
+                        pos: IVec2 { x: 0, y: 3 },
+                        flop: false,
+                    },
+                    Tile::X,
+                );
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 1,
+                        pos: IVec2 { x: 1, y: 1 },
+                        flop: false,
+                    },
+                    Tile::Z,
+                );
+                out.fractal.set(
+                    TilePos {
+                        depth: 2,
+                        pos: IVec2 { x: 2, y: 3 },
+                        flop: false,
+                    },
+                    Tile::X,
+                );
+            }
+            Config::TestW => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 3, y: 5 },
+                        flop: false,
+                    },
+                    Tile::W,
+                );
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 3, y: 5 },
+                        flop: false,
+                    },
+                    Tile::SPACE,
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 3, y: 5 },
+                    flop: false,
+                });
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 1, y: 2 },
+                        flop: false,
+                    },
+                    Tile::W,
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 1, y: 2 },
+                    flop: false,
+                });
+            }
+        }
+
         out
     }
 
@@ -295,6 +328,6 @@ impl Fractory {
                 }
             }
         }
-        let actions = actions.apply(&mut self.fractal);
+        let _actions = actions.apply(&mut self.fractal);
     }
 }

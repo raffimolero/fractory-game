@@ -4,9 +4,9 @@ mod tests;
 use std::collections::{BTreeSet, HashSet};
 
 use crate::sim::logic::{
-    fractal::{Fractal, SlotInfo},
+    fractal::Fractal,
     orientation::Transform,
-    path::{TileOffset, TilePos},
+    path::TilePos,
     tile::{Quad, Tile},
 };
 
@@ -40,7 +40,7 @@ impl RawMoveList {
         let mut set = HashSet::new();
         let mut i = 0;
         while let Some(item @ (src, _dst)) = self.moves.get(i).copied() {
-            if set.insert(item) && matches!(tree.get_info(tree.get(src)), SlotInfo::Full { .. }) {
+            if set.insert(item) && tree.get_info(tree.get(src).id).fill.is_full() {
                 i += 1;
             } else {
                 self.moves.swap_remove(i);

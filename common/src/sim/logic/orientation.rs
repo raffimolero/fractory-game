@@ -328,7 +328,7 @@ impl Mul for Transform {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        rhs + -self + rhs + self
+        -self + rhs + self
     }
 }
 
