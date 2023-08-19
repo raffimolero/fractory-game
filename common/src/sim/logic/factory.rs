@@ -8,7 +8,7 @@ use super::{
     tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
-use std::collections::{hash_map::Entry, BTreeMap, HashMap};
+use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 
 use glam::IVec2;
 
@@ -76,11 +76,36 @@ fn flip_self_and_below_self() -> Behavior {
     ]
 }
 
+fn hexagon() -> Behavior {
+    let this = TileOffset::ZERO;
+    let below = TileOffset {
+        depth: 0,
+        offset: IVec2::ZERO,
+        flop: true,
+    };
+    vec![
+        TargetedAction {
+            target: this,
+            act: TileAction::Move(below, Transform::KR),
+        },
+        TargetedAction {
+            target: below,
+            act: TileAction::Activate,
+        },
+    ]
+}
+
 impl Biome {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         Self {
-            names: vec!["Space".into(), "X".into(), "Y".into()],
+            names: vec![
+                "Space".into(),
+                "X".into(),
+                "Y".into(),
+                "Z".into(),
+                "W".into(),
+            ],
             behaviors: vec![
                 // Space
                 vec![],
@@ -90,6 +115,8 @@ impl Biome {
                 vec![],
                 // Z
                 flip_self_and_below_self(),
+                // W
+                hexagon(),
             ],
         }
     }
@@ -100,7 +127,7 @@ pub struct Fractory {
     pub fractal: Fractal,
 
     /// Which tiles are activated this tick.
-    pub activated: HashMap<TilePos, Tile>,
+    pub activated: HashSet<TilePos>,
 
     /// The player's inventory.
     /// Each index corresponds to how many of a tile the player has.
@@ -116,12 +143,13 @@ impl Fractory {
         let mut out = Self {
             biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
-            activated: HashMap::new(),
+            activated: HashSet::new(),
             inventory: BTreeMap::new(),
         };
 
         out.fractal.set(TilePos::UNIT, Tile::SPACE);
 
+        /*
         out.fractal.set(
             TilePos {
                 depth: 1,
@@ -178,23 +206,33 @@ impl Fractory {
             },
             Tile::X,
         );
+        */
+
+        out.fractal.set(
+            TilePos {
+                depth: 3,
+                pos: IVec2 { x: 3, y: 5 },
+                flop: false,
+            },
+            Tile::W,
+        );
+        out.activate(TilePos {
+            depth: 3,
+            pos: IVec2 { x: 3, y: 5 },
+            flop: false,
+        });
 
         out
     }
 
     pub fn toggle_activation(&mut self, pos: TilePos) {
-        match self.activated.entry(pos) {
-            Entry::Occupied(entry) => {
-                entry.remove_entry();
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(self.fractal.get(pos));
-            }
+        if !self.activated.insert(pos) {
+            self.activated.remove(&pos);
         }
     }
 
-    fn _activate(activated: &mut HashMap<TilePos, Tile>, fractal: &mut Fractal, pos: TilePos) {
-        activated.entry(pos).or_insert_with(|| fractal.get(pos));
+    fn _activate(activated: &mut HashSet<TilePos>, _fractal: &mut Fractal, pos: TilePos) {
+        activated.insert(pos);
     }
 
     pub fn activate(&mut self, pos: TilePos) {
@@ -231,7 +269,8 @@ impl Fractory {
         let mut actions = RawMoveList::default();
 
         let prev_activated = std::mem::take(activated);
-        for (pos, Tile { id, orient }) in prev_activated {
+        for pos in prev_activated {
+            let Tile { id, orient } = fractal.get(pos);
             let tile_tf = Transform::from(orient);
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;

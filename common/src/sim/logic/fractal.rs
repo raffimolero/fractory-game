@@ -95,12 +95,13 @@ impl Fractal {
     pub fn new_xyyy() -> Self {
         let mut out = Self {
             root: Tile::ONE,
-            leaf_count: 4,
+            leaf_count: 5,
             library: vec![
                 (Quad::SPACE, SlotInfo::Empty),
                 (Quad::X, SlotInfo::Full { is_leaf: true }),
                 (Quad::Y, SlotInfo::Full { is_leaf: true }),
                 (Quad::Z, SlotInfo::Full { is_leaf: true }),
+                (Quad::W, SlotInfo::Full { is_leaf: true }),
             ],
             recognizer: HashMap::new(),
         };
@@ -109,6 +110,7 @@ impl Fractal {
         out.cache(Quad::X, Tile::X);
         out.cache(Quad::Y, Tile::Y);
         out.cache(Quad::Z, Tile::Z);
+        out.cache(Quad::W, Tile::W);
 
         out
     }

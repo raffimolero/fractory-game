@@ -32,6 +32,10 @@ impl Tile {
         id: 3,
         orient: Orient::RfU,
     };
+    pub const W: Self = Self {
+        id: 4,
+        orient: Orient::AKU,
+    };
 }
 
 impl AddAssign<Transform> for Tile {
@@ -97,6 +101,7 @@ impl Quad<Tile> {
     pub const X: Self = Self([Tile::X, Tile::Y, Tile::Y, Tile::Y]);
     pub const Y: Self = Self([Tile::Y, Tile::X, Tile::X, Tile::X]);
     pub const Z: Self = Self([Tile::X, Tile::X, Tile::Y, Tile::Y]);
+    pub const W: Self = Self([Tile::Z, Tile::X, Tile::Y, Tile::X]);
 }
 
 impl<T> Index<SubTile> for Quad<T> {

@@ -421,7 +421,7 @@ impl TreeElement {
 
         ctx.apply(upscale(self.ui_state.scaling()), |ctx| {
             if hovered {
-                let border_color = if self.fractory.activated.contains_key(&pos) {
+                let border_color = if self.fractory.activated.contains(&pos) {
                     WHITE
                 } else {
                     GRAY

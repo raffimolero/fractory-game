@@ -246,21 +246,21 @@ impl Add<Transform> for Orient {
     fn add(self, rhs: Transform) -> Self::Output {
         use Orient::*;
 
-        #[rustfmt::skip]
         const TABLE: [Orient; 12 * 6] = [
-        //  KU   KR   KL   FU   FR   FL
-            Iso, Iso, Iso, Iso, Iso, Iso,
-            RtK, RtK, RtK, RtF, RtF, RtF,
-            RtF, RtF, RtF, RtK, RtK, RtK,
-            RfU, RfR, RfL, RfU, RfR, RfL,
-            RfR, RfL, RfU, RfL, RfU, RfR,
-            RfL, RfU, RfR, RfR, RfL, RfU,
-            AKU, AKR, AKL, AFU, AFR, AFL,
-            AKR, AKL, AKU, AFL, AFU, AFR,
-            AKL, AKU, AKR, AFR, AFL, AFU,
-            AFU, AFR, AFL, AKU, AKR, AKL,
-            AFR, AFL, AFU, AKL, AKU, AKR,
-            AFL, AFU, AFR, AKR, AKL, AKU,
+            /*
+            KU   KR   KL   FU   FR   FL   */
+            Iso, Iso, Iso, Iso, Iso, Iso, //
+            RtK, RtK, RtK, RtF, RtF, RtF, //
+            RtF, RtF, RtF, RtK, RtK, RtK, //
+            RfU, RfR, RfL, RfU, RfR, RfL, //
+            RfR, RfL, RfU, RfL, RfU, RfR, //
+            RfL, RfU, RfR, RfR, RfL, RfU, //
+            AKU, AKR, AKL, AFU, AFR, AFL, //
+            AKR, AKL, AKU, AFL, AFU, AFR, //
+            AKL, AKU, AKR, AFR, AFL, AFU, //
+            AFU, AFR, AFL, AKU, AKR, AKL, //
+            AFR, AFL, AFU, AKL, AKU, AKR, //
+            AFL, AFU, AFR, AKR, AKL, AKU, //
         ];
 
         TABLE[self as usize * 6 + rhs as usize]
@@ -311,15 +311,13 @@ impl Add for Transform {
     fn add(self, rhs: Self) -> Self::Output {
         use Transform::*;
 
-        #[rustfmt::skip]
         const TABLE: [Transform; 6 * 6] = [
-        //  KU  KR  KL  FU  FR  FL
-            KU, KR, KL, FU, FR, FL,
-            KR, KL, KU, FL, FU, FR,
-            KL, KU, KR, FR, FL, FU,
-            FU, FR, FL, KU, KR, KL,
-            FR, FL, FU, KL, KU, KR,
-            FL, FU, FR, KR, KL, KU,
+            KU, KR, KL, FU, FR, FL, //
+            KR, KL, KU, FL, FU, FR, //
+            KL, KU, KR, FR, FL, FU, //
+            FU, FR, FL, KU, KR, KL, //
+            FR, FL, FU, KL, KU, KR, //
+            FL, FU, FR, KR, KL, KU, //
         ];
 
         TABLE[self as usize * 6 + rhs as usize]
