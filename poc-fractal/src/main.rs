@@ -145,7 +145,7 @@ impl FractalCam {
 
     fn clamp_depth(self, largest: i32, smallest: i32) -> Self {
         let (scale, _, _) = self.camera.to_scale_rotation_translation();
-        let scale = scale.x; // scale.x == scale.y
+        let scale = scale.y; // scale.x.abs() == scale.y
 
         let min = scale * 2_f32.powi(largest);
         let max = scale * 2_f32.powi(smallest);
