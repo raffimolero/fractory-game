@@ -43,7 +43,7 @@ impl Default for FractalCam {
 
 impl FractalCam {
     /// returns a Mat4 corresponding to how much the map needs to be moved
-    fn input() -> Self {
+    fn input(ctx: &Context) -> Self {
         let [mut x, mut y, mut rot] = [0.0; 3];
         let mut flipped = false;
         let mut zoom = 1.0;
@@ -63,8 +63,7 @@ impl FractalCam {
             mouse = Vec2::ZERO;
         }
 
-        // macroquad calculates delta position wrong, because macroquad
-        let mouse_delta = -mouse_delta_position();
+        let mouse_delta = ctx.project(-mouse_delta_position());
 
         // scroll goes up, transforms zoom in
         let (_scroll_x, scroll_y) = mouse_wheel();
@@ -174,10 +173,8 @@ impl Mul for FractalCam {
 fn window_conf() -> Conf {
     Conf {
         window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate, F to flip.".to_owned(),
-        window_width: 512,
-        window_height: 512,
-        fullscreen: false,
-        window_resizable: true,
+        fullscreen: true,
+        window_resizable: false,
         ..Default::default()
     }
 }
@@ -230,7 +227,7 @@ mod ctx {
             (self.matrix, self.inv_matrix) = orig;
         }
 
-        fn project(&self, point: Vec2) -> Vec2 {
+        pub fn project(&self, point: Vec2) -> Vec2 {
             self.inv_matrix
                 .transform_point3(point.extend(0.0))
                 .truncate()
@@ -310,19 +307,54 @@ impl ViewState {
     }
 }
 
-struct FractoryElement {
+struct UiElement {
     font: Font,
+    fractory: FractoryElement,
+}
+
+impl UiElement {
+    fn new(font: Font) -> Self {
+        Self {
+            font,
+            fractory: FractoryElement::new(),
+        }
+    }
+
+    fn project_to_screen(ctx: &mut Context, f: impl FnOnce(&mut Context)) {
+        let width = screen_width();
+        let height = screen_height();
+        let base_size = width.min(height);
+        ctx.apply(
+            scale(base_size / width as f32, base_size / height as f32),
+            f,
+        )
+    }
+
+    fn draw(&mut self, ctx: &mut Context) {
+        let text_tool = new_text_tool(self.font, WHITE);
+        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, text_tool))
+    }
+
+    fn input(&mut self, ctx: &mut Context) {
+        Self::project_to_screen(ctx, |ctx| self.fractory.input(ctx))
+    }
+}
+
+struct FractoryElement {
     fractory: Fractory,
     fractal: FractalElement,
 }
 
 impl FractoryElement {
-    fn new(font: Font) -> Self {
+    fn new() -> Self {
         Self {
-            font,
             fractory: Fractory::new_xyyy(),
             fractal: FractalElement::new(),
         }
+    }
+
+    fn draw(&mut self, ctx: &mut Context, text_tool: impl Fn(&str)) {
+        self.fractal.draw(ctx, &mut self.fractory, text_tool);
     }
 
     fn input(&mut self, ctx: &mut Context) {
@@ -331,11 +363,6 @@ impl FractoryElement {
         }
 
         self.fractal.input(ctx, &mut self.fractory);
-    }
-
-    fn draw(&mut self, ctx: &mut Context) {
-        let text_tool = new_text_tool(self.font, WHITE);
-        self.fractal.draw(ctx, &mut self.fractory, text_tool);
     }
 }
 
@@ -534,8 +561,8 @@ impl FractalElement {
             );
         });
 
-        ctx.apply(shift(0.0, 0.8) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to cycle between view modes")
+        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
+            text_tool("press Tab to cycle between view modes\npress Esc to quit")
         });
 
         self.draw_inventory(ctx);
@@ -636,7 +663,7 @@ impl FractalElement {
     }
 
     fn input(&mut self, ctx: &mut Context, fractory: &mut Fractory) {
-        self.frac_cam = (FractalCam::input() * self.frac_cam).clamp_depth(-3, 6);
+        self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
             dbg!(&fractory.fractal.library);
@@ -699,7 +726,7 @@ async fn main() {
         .expect("rip varela round");
 
     let mut ctx = Context::default();
-    let mut ui_elem = FractoryElement::new(font);
+    let mut ui_elem = UiElement::new(font);
 
     // main loop
     loop {
