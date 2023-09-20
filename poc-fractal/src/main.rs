@@ -1,5 +1,7 @@
 #![allow(warnings)]
 
+const DRAW_BRANCHES: bool = false;
+
 // TODO: use Affine2 instead of Mat4
 
 use self::ctx::{Click, Context};
@@ -280,19 +282,17 @@ mod ctx {
 }
 
 #[derive(Debug)]
-enum UiState {
-    View,
-    Edit,
-    Act,
+enum ViewState {
+    Flat,
+    Shattered,
 }
 
-impl UiState {
+impl ViewState {
     fn cycle(&mut self) {
-        use UiState::*;
+        use ViewState::*;
         *self = match self {
-            View => Edit,
-            Edit => Act,
-            Act => View,
+            Flat => Shattered,
+            Shattered => Flat,
         };
     }
 
@@ -300,37 +300,51 @@ impl UiState {
     /// dictates how much margin there is between subtriangles,
     /// and dictates visibility of the parent triangle
     fn scaling(&self) -> f32 {
-        use UiState::*;
+        use ViewState::*;
         match self {
-            View => 1.0,
-            Edit => 0.8,
-            Act => 0.8,
+            Flat => 1.0,
+            Shattered => 0.8,
         }
     }
 }
 
-struct TreeElement {
-    // this should eventually be replaced by handles to real images
-    // which would all be contained in Fragment data
+struct UiElement {
     font: Font,
-    ui_state: UiState,
+    tree: TreeElement,
+}
 
+impl UiElement {
+    fn new(font: Font) -> Self {
+        Self {
+            font,
+            tree: TreeElement::new(),
+        }
+    }
+
+    fn input(&mut self, ctx: &mut Context) {
+        self.tree.input(ctx);
+    }
+
+    fn draw(&mut self, ctx: &mut Context) {
+        let text_tool = new_text_tool(self.font, WHITE);
+        self.tree.draw(ctx, text_tool);
+    }
+}
+
+struct TreeElement {
+    view_state: ViewState,
     frac_cam: FractalCam,
-
     fractory: Fractory,
 }
 
 impl TreeElement {
-    fn new(font: Font) -> Self {
+    fn new() -> Self {
         Self {
-            font,
-            ui_state: UiState::Edit,
-
+            view_state: ViewState::Shattered,
             frac_cam: FractalCam {
                 camera: Mat4::IDENTITY,
                 depth: 2_f32.powi(2),
             },
-
             fractory: Fractory::new_xyyy(),
         }
     }
@@ -380,7 +394,11 @@ impl TreeElement {
         let control_flow = if tile_fill.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
             ControlFlow::Break(())
         } else {
-            ControlFlow::Continue(())
+            if DRAW_BRANCHES {
+                ControlFlow::Continue(())
+            } else {
+                return ControlFlow::Continue(());
+            }
         };
 
         // FUTURE: add a cursor follower that visually shows the expansion threshold by size
@@ -419,7 +437,7 @@ impl TreeElement {
             }
         };
 
-        ctx.apply(upscale(self.ui_state.scaling()), |ctx| {
+        ctx.apply(upscale(self.view_state.scaling()), |ctx| {
             if hovered {
                 let border_color = if self.fractory.activated.contains(&pos) {
                     WHITE
@@ -494,8 +512,9 @@ impl TreeElement {
         });
     }
 
-    fn draw(&mut self, ctx: &mut Context) {
-        let text_tool = new_text_tool(self.font, WHITE);
+    fn draw_inventory(&mut self, ctx: &mut Context) {}
+
+    fn draw(&mut self, ctx: &mut Context, text_tool: impl Fn(&str)) {
         ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(
                 ctx,
@@ -506,14 +525,11 @@ impl TreeElement {
             );
         });
 
-        ctx.apply(shift(0.0, 0.65) * downscale(5.0), |_ctx| {
-            text_tool(&format!("Mode: {:?}", self.ui_state))
-        });
         ctx.apply(shift(0.0, 0.8) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to cycle between modes")
+            text_tool("press Tab to cycle between view modes")
         });
 
-        // TODO: draw inventory
+        self.draw_inventory(ctx);
     }
 
     fn input_view(&mut self, _ctx: &mut Context) {
@@ -626,17 +642,19 @@ impl TreeElement {
             //     println!();
             // }
             // println!();
-            self.ui_state.cycle();
+            self.view_state.cycle();
         }
 
         if is_key_pressed(KeyCode::Enter) {
             self.fractory.tick();
         }
 
-        match self.ui_state {
-            UiState::View => self.input_view(ctx),
-            UiState::Edit => self.input_edit(ctx),
-            UiState::Act => self.input_act(ctx),
+        let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
+        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+        match (ctrl, shift) {
+            (false, true) => self.input_edit(ctx),
+            (true, false) => self.input_act(ctx),
+            _ => {}
         }
     }
 }
@@ -684,7 +702,7 @@ async fn main() {
         .expect("rip varela round");
 
     let mut ctx = Context::default();
-    let mut tree_elem = TreeElement::new(font);
+    let mut ui_elem = UiElement::new(font);
 
     // main loop
     loop {
@@ -694,8 +712,8 @@ async fn main() {
         }
 
         ctx.update();
-        tree_elem.input(&mut ctx);
-        tree_elem.draw(&mut ctx);
+        ui_elem.input(&mut ctx);
+        ui_elem.draw(&mut ctx);
 
         // end frame
         next_frame().await
