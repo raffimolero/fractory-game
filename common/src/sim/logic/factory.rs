@@ -124,12 +124,50 @@ impl Biome {
 }
 
 #[derive(Debug)]
+pub struct ActiveTiles(HashSet<TilePos>);
+
+impl ActiveTiles {
+    fn new() -> Self {
+        Self(HashSet::new())
+    }
+
+    pub fn contains(&self, pos: TilePos) -> bool {
+        self.0.contains(&pos)
+    }
+
+    /// activates a position.
+    ///
+    /// returns true if the position used to be inactive.
+    pub fn activate(&mut self, pos: TilePos) -> bool {
+        self.0.insert(pos)
+    }
+
+    /// deactivates a position.
+    ///
+    /// returns true if the position used to be active.
+    pub fn deactivate(&mut self, pos: TilePos) -> bool {
+        self.0.remove(&pos)
+    }
+
+    /// toggles whether a position is active or inactive.
+    ///
+    /// returns true if the position is now active.
+    pub fn toggle(&mut self, pos: TilePos) -> bool {
+        let is_new = self.0.insert(pos);
+        if !is_new {
+            self.0.remove(&pos);
+        }
+        is_new
+    }
+}
+
+#[derive(Debug)]
 pub struct Fractory {
     pub biome: Biome,
     pub fractal: Fractal,
 
     /// Which tiles are activated this tick.
-    pub activated: HashSet<TilePos>,
+    pub activated: ActiveTiles,
 
     /// The player's inventory.
     /// Each index corresponds to how many of a tile the player has.
@@ -145,7 +183,7 @@ impl Fractory {
         let mut out = Self {
             biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
-            activated: HashSet::new(),
+            activated: ActiveTiles::new(),
             inventory: BTreeMap::new(),
         };
 
@@ -259,21 +297,13 @@ impl Fractory {
     }
 
     pub fn toggle_activation(&mut self, pos: TilePos) {
-        if !self.activated.insert(pos) {
-            self.activated.remove(&pos);
-        }
+        self.activated.toggle(pos);
     }
-
-    fn _activate(activated: &mut HashSet<TilePos>, _fractal: &mut Fractal, pos: TilePos) {
-        activated.insert(pos);
-    }
-
     pub fn activate(&mut self, pos: TilePos) {
-        Self::_activate(&mut self.activated, &mut self.fractal, pos)
+        self.activated.activate(pos);
     }
-
     pub fn deactivate(&mut self, pos: TilePos) {
-        self.activated.remove(&pos);
+        self.activated.deactivate(pos);
     }
 
     fn _store(fractal: &mut Fractal, inventory: &mut BTreeMap<usize, usize>, pos: TilePos) {
@@ -295,7 +325,7 @@ impl Fractory {
         let Self {
             biome,
             fractal,
-            activated,
+            activated: ActiveTiles(activated),
             inventory,
         } = self;
 
@@ -324,7 +354,7 @@ impl Fractory {
                         actions.add(target, destination, tile_tf * transform);
                     }
                     TileAction::Store => Self::_store(fractal, inventory, target),
-                    TileAction::Activate => Self::_activate(activated, fractal, target),
+                    TileAction::Activate => drop(self.activated.activate(target)),
                 }
             }
         }

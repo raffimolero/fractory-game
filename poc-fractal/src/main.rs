@@ -6,8 +6,8 @@ const DRAW_BRANCHES: bool = false;
 
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
-    factory::Fractory,
-    fractal::{SlotInfo, TileFill},
+    factory::{ActiveTiles, Fractory},
+    fractal::{Fractal, SlotInfo, TileFill},
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
     tile::{SubTile, Tile},
@@ -310,6 +310,7 @@ impl ViewState {
 
 struct UiElement {
     font: Font,
+    fractory: Fractory,
     tree: TreeElement,
 }
 
@@ -317,24 +318,28 @@ impl UiElement {
     fn new(font: Font) -> Self {
         Self {
             font,
+            fractory: Fractory::new_xyyy(),
             tree: TreeElement::new(),
         }
     }
 
     fn input(&mut self, ctx: &mut Context) {
-        self.tree.input(ctx);
+        if is_key_pressed(KeyCode::Enter) {
+            self.fractory.tick();
+        }
+
+        self.tree.input(ctx, &mut self.fractory);
     }
 
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
-        self.tree.draw(ctx, text_tool);
+        self.tree.draw(ctx, &mut self.fractory, text_tool);
     }
 }
 
 struct TreeElement {
     view_state: ViewState,
     frac_cam: FractalCam,
-    fractory: Fractory,
 }
 
 impl TreeElement {
@@ -345,7 +350,6 @@ impl TreeElement {
                 camera: Mat4::IDENTITY,
                 depth: 2_f32.powi(2),
             },
-            fractory: Fractory::new_xyyy(),
         }
     }
 
@@ -369,6 +373,7 @@ impl TreeElement {
     fn draw_leaf(
         &self,
         ctx: &mut Context,
+        fractory: &mut Fractory,
         id: usize,
         tile_fill: TileFill,
         pos: TilePos,
@@ -439,7 +444,7 @@ impl TreeElement {
 
         ctx.apply(upscale(self.view_state.scaling()), |ctx| {
             if hovered {
-                let border_color = if self.fractory.activated.contains(&pos) {
+                let border_color = if fractory.activated.contains(pos) {
                     WHITE
                 } else {
                     GRAY
@@ -464,6 +469,7 @@ impl TreeElement {
     fn draw_subtree(
         &self,
         ctx: &mut Context,
+        fractory: &mut Fractory,
         cur_orient: Transform,
         tile: Tile,
         pos: TilePos,
@@ -475,7 +481,7 @@ impl TreeElement {
             quad,
             fill,
             symmetries: _,
-        } = self.fractory.fractal.library[tile.id];
+        } = fractory.fractal.library[tile.id];
 
         let w = 1.0;
         let side = 2.0;
@@ -493,7 +499,7 @@ impl TreeElement {
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            match self.draw_leaf(ctx, tile.id, fill, pos, hovered, text_tool) {
+            match self.draw_leaf(ctx, fractory, tile.id, fill, pos, hovered, text_tool) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
@@ -506,7 +512,7 @@ impl TreeElement {
                 let mut pos = pos;
                 pos.push_back(subtile);
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, orient, child, pos, text_tool);
+                    self.draw_subtree(ctx, fractory, orient, child, pos, text_tool);
                 });
             }
         });
@@ -514,12 +520,13 @@ impl TreeElement {
 
     fn draw_inventory(&mut self, ctx: &mut Context) {}
 
-    fn draw(&mut self, ctx: &mut Context, text_tool: impl Fn(&str)) {
+    fn draw(&mut self, ctx: &mut Context, fractory: &mut Fractory, text_tool: impl Fn(&str)) {
         ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(
                 ctx,
+                fractory,
                 Transform::KU,
-                self.fractory.fractal.root,
+                fractory.fractal.root,
                 TilePos::UNIT,
                 &text_tool,
             );
@@ -592,7 +599,7 @@ impl TreeElement {
         self.subtree_click_pos(pos, 0)
     }
 
-    fn input_edit(&mut self, ctx: &mut Context) {
+    fn input_edit(&mut self, ctx: &mut Context, fractal: &mut Fractal) {
         if !is_mouse_button_released(MouseButton::Left) {
             return;
         }
@@ -600,22 +607,22 @@ impl TreeElement {
             return;
         };
 
-        let mut tile = self.fractory.fractal.get(hit_pos);
-        let id = if tile.id < self.fractory.fractal.leaf_count - 1 {
+        let mut tile = fractal.get(hit_pos);
+        let id = if tile.id < fractal.leaf_count - 1 {
             tile.id + 1
         } else {
             0
         };
-        self.fractory.fractal.set(
+        fractal.set(
             hit_pos,
             Tile {
                 id,
-                orient: self.fractory.fractal.library[id].symmetries.into(),
+                orient: fractal.library[id].symmetries.into(),
             },
         );
     }
 
-    fn input_act(&mut self, ctx: &mut Context) {
+    fn input_act(&mut self, ctx: &mut Context, activated: &mut ActiveTiles) {
         if !is_mouse_button_released(MouseButton::Left) {
             return;
         }
@@ -623,37 +630,25 @@ impl TreeElement {
             return;
         };
 
-        self.fractory.toggle_activation(hit_pos);
+        activated.toggle(hit_pos);
     }
 
-    fn input(&mut self, ctx: &mut Context) {
+    fn input(&mut self, ctx: &mut Context, fractory: &mut Fractory) {
         self.frac_cam = (FractalCam::input() * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
-            dbg!(&self.fractory.fractal.library);
+            dbg!(&fractory.fractal.library);
         }
 
         if is_key_pressed(KeyCode::Tab) {
-            // println!("{:?}", self.fractal.root);
-            // for (quad, info) in self.fractal.library.iter() {
-            //     for tile in quad.0 {
-            //         print!("{} ", tile.id);
-            //     }
-            //     println!();
-            // }
-            // println!();
             self.view_state.cycle();
-        }
-
-        if is_key_pressed(KeyCode::Enter) {
-            self.fractory.tick();
         }
 
         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
         let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
         match (ctrl, shift) {
-            (false, true) => self.input_edit(ctx),
-            (true, false) => self.input_act(ctx),
+            (false, true) => self.input_edit(ctx, &mut fractory.fractal),
+            (true, false) => self.input_act(ctx, &mut fractory.activated),
             _ => {}
         }
     }
