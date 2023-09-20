@@ -73,11 +73,12 @@ impl FractalCam {
 
             // zoom
             let scroll_sens = 1.0 / 120.0;
+            let zoom_scaling = (2_f32).powf(scroll_y * scroll_sens);
             if !is_key_down(LeftControl) {
-                depth *= (2_f32).powf(scroll_y * scroll_sens);
+                depth *= zoom_scaling;
             }
             if !is_key_down(LeftShift) {
-                zoom *= (2_f32).powf(scroll_y * scroll_sens);
+                zoom *= zoom_scaling;
             }
 
             // drag controls
@@ -93,12 +94,13 @@ impl FractalCam {
 
             // zoom
             let zoom_sens = 4.0;
+            let zoom_sign = if is_key_down(LeftShift) { -1.0 } else { 1.0 };
             if is_key_down(Space) {
-                if is_key_down(LeftShift) {
-                    zoom *= (2_f32).powf(delta * zoom_sens);
-                } else {
-                    zoom /= (2_f32).powf(delta * zoom_sens);
+                let mut zoom_scaling = (2_f32).powf(delta * zoom_sens * zoom_sign);
+                if !is_key_down(LeftControl) {
+                    depth *= zoom_scaling;
                 }
+                zoom *= zoom_scaling;
             }
 
             let speed = 4.0;
