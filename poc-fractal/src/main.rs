@@ -308,18 +308,18 @@ impl ViewState {
     }
 }
 
-struct UiElement {
+struct FractoryElement {
     font: Font,
     fractory: Fractory,
-    tree: TreeElement,
+    fractal: FractalElement,
 }
 
-impl UiElement {
+impl FractoryElement {
     fn new(font: Font) -> Self {
         Self {
             font,
             fractory: Fractory::new_xyyy(),
-            tree: TreeElement::new(),
+            fractal: FractalElement::new(),
         }
     }
 
@@ -328,21 +328,21 @@ impl UiElement {
             self.fractory.tick();
         }
 
-        self.tree.input(ctx, &mut self.fractory);
+        self.fractal.input(ctx, &mut self.fractory);
     }
 
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
-        self.tree.draw(ctx, &mut self.fractory, text_tool);
+        self.fractal.draw(ctx, &mut self.fractory, text_tool);
     }
 }
 
-struct TreeElement {
+struct FractalElement {
     view_state: ViewState,
     frac_cam: FractalCam,
 }
 
-impl TreeElement {
+impl FractalElement {
     fn new() -> Self {
         Self {
             view_state: ViewState::Shattered,
@@ -697,7 +697,7 @@ async fn main() {
         .expect("rip varela round");
 
     let mut ctx = Context::default();
-    let mut ui_elem = UiElement::new(font);
+    let mut ui_elem = FractoryElement::new(font);
 
     // main loop
     loop {
