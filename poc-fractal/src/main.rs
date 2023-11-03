@@ -81,7 +81,7 @@ impl FractalCam {
             }
 
             // drag controls
-            if is_mouse_button_down(MouseButton::Right) {
+            if is_mouse_button_down(MouseButton::Left) {
                 x += mouse_delta.x;
                 y += mouse_delta.y;
             }
