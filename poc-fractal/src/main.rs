@@ -87,10 +87,9 @@ impl FractalCam {
             // zoom
             let scroll_sens = 1.0 / 120.0;
             let zoom_scaling = (2_f32).powf(scroll_y * scroll_sens);
-            if !is_key_down(LeftControl) {
+            if is_key_down(LeftControl) {
                 depth *= zoom_scaling;
-            }
-            if !is_key_down(LeftShift) {
+            } else {
                 zoom *= zoom_scaling;
             }
 
@@ -241,7 +240,7 @@ impl ViewState {
         use ViewState::*;
         match self {
             Flat => 1.0,
-            Shattered => 0.8,
+            Shattered => 1.0 - 2_f32.powi(-6),
         }
     }
 }
@@ -297,7 +296,7 @@ impl FractoryElement {
         self.fractal.draw(ctx, res, &mut self.fractory, text_tool);
 
         ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to cycle between view modes\npress Esc to quit")
+            text_tool("press Tab to toggle shattered view\npress Esc to quit")
         });
     }
 
