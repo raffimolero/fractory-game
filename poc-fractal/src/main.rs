@@ -305,7 +305,8 @@ impl FractoryElement {
                 -> Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth\n\
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
-                Ctrl+Shift+LMB/RMB: Cycle tile",
+                Ctrl+Shift+LMB/RMB: Cycle tile\n\
+                *Some edits may change other tiles' rotations. This is normal.",
             )
         });
     }
@@ -494,7 +495,7 @@ impl FractalElement {
         ]
         .map(|t| downscale(2.0) * t);
 
-        let tile_matrix = orient_to_mat4(tile.orient);
+        let tile_matrix = transform_to_mat4(tile.orient.into());
 
         ctx.apply(tile_matrix, |ctx| {
             match self.draw_leaf(ctx, fractory, names, tile.id, fill, pos, hovered, text_tool) {
@@ -707,8 +708,7 @@ fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
     (top..bot).contains(&y)
 }
 
-fn orient_to_mat4(orient: Orient) -> Mat4 {
-    let transform = Transform::from(orient);
+fn transform_to_mat4(transform: Transform) -> Mat4 {
     let mut matrix = Mat4::IDENTITY;
     if transform.reflected() {
         matrix = flip_x() * matrix;

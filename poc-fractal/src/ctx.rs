@@ -12,12 +12,20 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn apply(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self)) {
+    pub fn apply<T>(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self) -> T) -> T {
         let orig = (self.matrix, self.inv_matrix);
         self.matrix = self.matrix * matrix;
         self.inv_matrix = self.matrix.inverse();
-        ergoquad_2d::prelude::apply(matrix, || f(self));
+        // HACK: inlined ergoquad apply
+        let out = {
+            let gl = unsafe { get_internal_gl().quad_gl };
+            gl.push_model_matrix(matrix);
+            let out = (|| f(self))();
+            gl.pop_model_matrix();
+            out
+        };
         (self.matrix, self.inv_matrix) = orig;
+        out
     }
 
     pub fn draw_canvas(&mut self, matrix: Mat4, paint: impl FnOnce(&mut Self)) {
