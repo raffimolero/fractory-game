@@ -1,5 +1,7 @@
 #![allow(warnings)]
 
+mod ctx;
+
 const DRAW_BRANCHES: bool = false;
 
 // TODO: use Affine2 instead of Mat4
@@ -179,6 +181,7 @@ fn window_conf() -> Conf {
     }
 }
 
+// TODO: -> impl Fn(Size, std::fmt::Alignment, &str) {}
 fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
     move |text| {
         let params = TextParams {
@@ -201,82 +204,6 @@ fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
         }
         h += max_h;
         draw_multiline_text(text, (0.0 - w) / 2.0, (0.5 + h) / 2.0, SPACING, params)
-    }
-}
-
-mod ctx {
-    use std::time::Instant;
-
-    use super::*;
-
-    #[derive(Default)]
-    pub struct Context {
-        mouse: Option<Vec2>,
-        last_lmb: Option<(Vec2, Instant)>,
-        last_rmb: Option<(Vec2, Instant)>,
-        matrix: Mat4,
-        inv_matrix: Mat4,
-    }
-
-    impl Context {
-        pub fn apply(&mut self, matrix: Mat4, f: impl FnOnce(&mut Self)) {
-            let orig = (self.matrix, self.inv_matrix);
-            self.matrix = self.matrix * matrix;
-            self.inv_matrix = self.matrix.inverse();
-            ergoquad_2d::prelude::apply(matrix, || f(self));
-            (self.matrix, self.inv_matrix) = orig;
-        }
-
-        pub fn project(&self, point: Vec2) -> Vec2 {
-            self.inv_matrix
-                .transform_point3(point.extend(0.0))
-                .truncate()
-        }
-
-        pub fn mouse_pos(&self) -> Option<Vec2> {
-            self.mouse.map(|pos| self.project(pos))
-        }
-
-        pub fn lmb_pos(&self) -> Option<(Vec2, Instant)> {
-            self.last_lmb.map(|(pos, time)| (self.project(pos), time))
-        }
-
-        pub fn rmb_pos(&self) -> Option<(Vec2, Instant)> {
-            self.last_rmb.map(|(pos, time)| (self.project(pos), time))
-        }
-
-        pub fn update(&mut self) {
-            self.mouse.replace(mouse_position_local());
-            let now = Instant::now();
-            if is_mouse_button_pressed(MouseButton::Left) {
-                self.last_lmb = self.mouse.map(|pos| (pos, now));
-            }
-            if is_mouse_button_pressed(MouseButton::Right) {
-                self.last_rmb = self.mouse.map(|pos| (pos, now));
-            }
-        }
-    }
-    pub struct Click {
-        pub pos: Vec2,
-        pub held: bool,
-    }
-    impl Context {
-        pub fn get_click(&self) -> Option<Click> {
-            const SCREEN_WIDTH: f32 = 2.0;
-            const LEASH_RANGE: f32 = SCREEN_WIDTH / 4.0;
-            const HOLD_DURATION: Duration = Duration::from_secs(1);
-
-            let (down, lmb_time) = self.lmb_pos()?;
-            let up = self.mouse_pos()?;
-
-            let leash_sq = LEASH_RANGE * LEASH_RANGE;
-            let in_range = (down - up).length_squared() < leash_sq;
-
-            let hold_time = Instant::now() - lmb_time;
-            let held = hold_time >= HOLD_DURATION;
-
-            in_range.then(|| Click { pos: down, held })
-        }
     }
 }
 
@@ -332,7 +259,7 @@ impl UiElement {
 
     fn draw(&mut self, ctx: &mut Context) {
         let text_tool = new_text_tool(self.font, WHITE);
-        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, text_tool))
+        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, &text_tool))
     }
 
     fn input(&mut self, ctx: &mut Context) {
@@ -353,8 +280,21 @@ impl FractoryElement {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, text_tool: impl Fn(&str)) {
+    fn draw(&mut self, ctx: &mut Context, text_tool: &impl Fn(&str)) {
+        self.draw_inventory(ctx, text_tool);
         self.fractal.draw(ctx, &mut self.fractory, text_tool);
+
+        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
+            text_tool("press Tab to cycle between view modes\npress Esc to quit")
+        });
+    }
+
+    fn draw_inventory(&mut self, ctx: &mut Context, text_tool: &impl Fn(&str)) {
+        let wrap = (self.fractory.inventory.len() as f32).sqrt() as usize;
+        for (idx, (tile_id, count)) in self.fractory.inventory.iter().enumerate() {
+            let x = idx % wrap;
+            let y = idx / wrap;
+        }
     }
 
     fn input(&mut self, ctx: &mut Context) {
@@ -547,9 +487,7 @@ impl FractalElement {
         });
     }
 
-    fn draw_inventory(&mut self, ctx: &mut Context) {}
-
-    fn draw(&mut self, ctx: &mut Context, fractory: &mut Fractory, text_tool: impl Fn(&str)) {
+    fn draw(&mut self, ctx: &mut Context, fractory: &mut Fractory, text_tool: &impl Fn(&str)) {
         ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(
                 ctx,
@@ -560,12 +498,6 @@ impl FractalElement {
                 &text_tool,
             );
         });
-
-        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to cycle between view modes\npress Esc to quit")
-        });
-
-        self.draw_inventory(ctx);
     }
 
     fn input_view(&mut self, _ctx: &mut Context) {
