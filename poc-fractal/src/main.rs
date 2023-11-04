@@ -297,8 +297,12 @@ impl FractoryElement {
 
         ctx.apply(shift(0.0, 0.7) * downscale(10.0), |_ctx| {
             text_tool(
-                "press Tab to toggle shattered view\n\
-                press Esc to quit\n\
+                "Esc: quit\n\
+                Tab: toggle shattered view\n\
+                Enter: tick\n\
+                Camera:\n\
+                    WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
+                    Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Cycle tile",
             )
@@ -541,7 +545,10 @@ impl FractalElement {
         });
         ctx.apply(shift(0.0, -0.7) * downscale(5.0), |_ctx| {
             let FractalCam { camera, depth } = self.frac_cam;
-            text_tool(&format!("Depth: {depth} (2^{})", depth.log2()));
+            text_tool(&format!(
+                "Recursion Depth: {depth:.2} (2^{:.2})",
+                depth.log2()
+            ));
         });
     }
 
