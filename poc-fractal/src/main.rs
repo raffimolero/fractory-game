@@ -295,7 +295,7 @@ impl FractoryElement {
         self.draw_inventory(ctx, text_tool);
         self.fractal.draw(ctx, res, &mut self.fractory, text_tool);
 
-        ctx.apply(shift(0.0, 0.7) * downscale(10.0), |_ctx| {
+        ctx.apply(shift(0.0, 0.6) * downscale(10.0), |_ctx| {
             text_tool(
                 "Esc: quit\n\
                 Tab: toggle shattered view\n\
@@ -304,7 +304,8 @@ impl FractoryElement {
                 -> WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
                 -> Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth\n\
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
-                Ctrl+LMB: Activate tile | Ctrl+RMB: Cycle tile",
+                Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
+                Ctrl+Shift+LMB/RMB: Cycle tile",
             )
         });
     }
@@ -552,10 +553,6 @@ impl FractalElement {
         });
     }
 
-    fn input_view(&mut self, _ctx: &mut Context) {
-        // nothing
-    }
-
     fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
         if depth > self.max_depth() {
             return None;
@@ -611,19 +608,25 @@ impl FractalElement {
     }
 
     fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
-        let mut tile = fractal.get(hit_pos);
-        let id = if tile.id < fractal.leaf_count - 1 {
-            tile.id + 1
+        let increment = if is_mouse_button_released(MouseButton::Left) {
+            1
+        } else if is_mouse_button_released(MouseButton::Right) {
+            fractal.leaf_count - 1
         } else {
-            0
+            debug_assert!(false, "unreachable");
+            return;
         };
-        fractal.set(
-            hit_pos,
-            Tile {
-                id,
-                orient: fractal.library[id].symmetries.into(),
-            },
-        );
+
+        let mut tile = fractal.get(hit_pos);
+        tile.id += increment;
+        tile.id %= fractal.leaf_count;
+        tile.orient = fractal.library[tile.id].symmetries.into();
+        fractal.set(hit_pos, tile);
+    }
+
+    fn input_flip(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
+        let tile = fractal.get(hit_pos);
+        fractal.set(hit_pos, tile + Transform::FU);
     }
 
     fn input_act(&mut self, hit_pos: TilePos, activated: &mut ActiveTiles) {
@@ -636,6 +639,7 @@ impl FractalElement {
         } else if is_mouse_button_released(MouseButton::Right) {
             Transform::KR
         } else {
+            debug_assert!(false, "unreachable");
             return;
         };
 
@@ -674,11 +678,12 @@ impl FractalElement {
             };
 
             match (ctrl, shift) {
+                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal),
                 (true, false) => {
                     if is_mouse_button_released(MouseButton::Left) {
-                        self.input_act(hit_pos, &mut fractory.activated)
+                        self.input_act(hit_pos, &mut fractory.activated);
                     } else if is_mouse_button_released(MouseButton::Right) {
-                        self.input_edit(hit_pos, &mut fractory.fractal)
+                        self.input_flip(hit_pos, &mut fractory.fractal);
                     }
                 }
                 (false, true) => self.input_rot(hit_pos, &mut fractory.fractal),

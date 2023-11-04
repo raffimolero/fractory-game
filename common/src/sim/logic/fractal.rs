@@ -215,6 +215,8 @@ impl Fractal {
             symmetries: orient.symmetries(),
         });
 
+        debug_assert_ne!(TileFill::infer(sub_info), TileFill::Empty);
+
         self.cache(
             quad,
             Tile {
