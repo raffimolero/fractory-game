@@ -500,7 +500,7 @@ impl FractalElement {
                 let pos = match pos {
                     Ok(mut pos) => {
                         pos.push_back(subtile);
-                        (pos.depth <= 10).then_some(pos).ok_or(pos.depth as usize)
+                        (pos.depth <= 30).then_some(pos).ok_or(pos.depth as usize)
                     }
                     Err(d) => Err(d + 1),
                 };
