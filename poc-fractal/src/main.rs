@@ -324,7 +324,7 @@ impl FractalElement {
             view_state: ViewState::Shattered,
             frac_cam: FractalCam {
                 camera: downscale(1.5),
-                depth: 2_f32.powi(4),
+                depth: 2_f32.powi(3),
             },
         }
     }
@@ -425,17 +425,16 @@ impl FractalElement {
         };
 
         ctx.apply(upscale(self.view_state.scaling()), |ctx| {
-            if hovered {
-                let border_color = if pos.is_ok_and(|p| fractory.activated.contains(p)) {
-                    WHITE
-                } else {
-                    GRAY
-                };
+            let is_active = pos.is_ok_and(|p| fractory.activated.contains(p));
+            if hovered || is_active {
+                let border_color = if is_active { WHITE } else { GRAY };
                 Self::draw_triangle(border_color);
                 ctx.apply(upscale(0.8), |_ctx| {
                     Self::draw_triangle(color);
                 });
-                draw_circle(0.0, -0.625, 0.125, border_color);
+                if hovered {
+                    draw_poly(0.0, -0.625, 3, 0.125, TAU / 4.0, border_color);
+                }
             } else {
                 Self::draw_triangle(color);
             }
