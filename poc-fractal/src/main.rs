@@ -295,8 +295,13 @@ impl FractoryElement {
         self.draw_inventory(ctx, text_tool);
         self.fractal.draw(ctx, res, &mut self.fractory, text_tool);
 
-        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to toggle shattered view\npress Esc to quit")
+        ctx.apply(shift(0.0, 0.7) * downscale(10.0), |_ctx| {
+            text_tool(
+                "press Tab to toggle shattered view\n\
+                press Esc to quit\n\
+                Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
+                Ctrl+LMB: Activate tile | Ctrl+RMB: Cycle tile",
+            )
         });
     }
 
