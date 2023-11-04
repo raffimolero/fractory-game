@@ -95,7 +95,7 @@ impl FractalCam {
             }
 
             // drag controls
-            if is_mouse_button_down(MouseButton::Left) {
+            if is_mouse_button_down(MouseButton::Left) | is_mouse_button_down(MouseButton::Right) {
                 x += mouse_delta.x;
                 y += mouse_delta.y;
             }
@@ -271,7 +271,7 @@ impl UiElement {
 
     fn draw(&mut self, ctx: &mut Context, res: &mut Resources) {
         let text_tool = new_text_tool(self.font, WHITE);
-        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, &text_tool))
+        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, res, &text_tool))
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
@@ -292,9 +292,9 @@ impl FractoryElement {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, text_tool: &impl Fn(&str)) {
+    fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: &impl Fn(&str)) {
         self.draw_inventory(ctx, text_tool);
-        self.fractal.draw(ctx, &mut self.fractory, text_tool);
+        self.fractal.draw(ctx, res, &mut self.fractory, text_tool);
 
         ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
             text_tool("press Tab to cycle between view modes\npress Esc to quit")
@@ -351,6 +351,7 @@ impl FractalElement {
         &self,
         ctx: &mut Context,
         fractory: &mut Fractory,
+        names: &[String],
         id: usize,
         tile_fill: TileFill,
         pos: Result<TilePos, usize>,
@@ -443,7 +444,13 @@ impl FractalElement {
             //     let text = format!("{pos:#?}");
             //     text_tool(&text);
             // });
-            text_tool(&id.to_string());
+            let name = match names.get(id) {
+                Some(name) => name.to_owned(),
+                None => id.to_string(),
+            };
+            ctx.apply(upscale(0.5 / name.len() as f32 + 0.5), |_ctx| {
+                text_tool(&name)
+            });
         });
         control_flow
     }
@@ -452,6 +459,7 @@ impl FractalElement {
         &self,
         ctx: &mut Context,
         fractory: &mut Fractory,
+        names: &[String],
         cur_orient: Transform,
         tile: Tile,
         pos: Result<TilePos, usize>,
@@ -481,7 +489,7 @@ impl FractalElement {
         let tile_matrix = orient_to_mat4(tile.orient);
 
         ctx.apply(tile_matrix, |ctx| {
-            match self.draw_leaf(ctx, fractory, tile.id, fill, pos, hovered, text_tool) {
+            match self.draw_leaf(ctx, fractory, names, tile.id, fill, pos, hovered, text_tool) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
@@ -499,17 +507,29 @@ impl FractalElement {
                     Err(d) => Err(d + 1),
                 };
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, fractory, orient, child, pos, text_tool);
+                    self.draw_subtree(ctx, fractory, names, orient, child, pos, text_tool);
                 });
             }
         });
     }
 
-    fn draw(&mut self, ctx: &mut Context, fractory: &mut Fractory, text_tool: &impl Fn(&str)) {
+    fn draw(
+        &mut self,
+        ctx: &mut Context,
+        res: &mut Resources,
+        fractory: &mut Fractory,
+        text_tool: &impl Fn(&str),
+    ) {
+        let Ok(biome) = res.biomes.get_or_load(fractory.biome.clone()) else {
+            text_tool("Could not load biome.");
+            return;
+        };
+
         ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(
                 ctx,
                 fractory,
+                &biome.names,
                 Transform::KU,
                 fractory.fractal.root,
                 Ok(TilePos::UNIT),

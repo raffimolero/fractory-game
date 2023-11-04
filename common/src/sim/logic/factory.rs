@@ -60,7 +60,7 @@ impl BiomeId {
 #[derive(Debug)]
 pub struct Biome {
     // Fragment data: struct of arrays
-    names: Vec<String>,
+    pub names: Vec<String>,
     behaviors: Vec<Behavior>,
     // sprites: Vec<Sprite>,
 
@@ -77,7 +77,7 @@ impl Biome {
     pub fn new_xyyy() -> Self {
         Self {
             names: vec![
-                "Space".into(),
+                "".into(),
                 "X".into(),
                 "Y".into(),
                 "Z".into(),
