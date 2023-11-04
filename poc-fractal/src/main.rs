@@ -209,6 +209,8 @@ mod ctx {
 
     use super::*;
 
+    // TODO: make a global context where resources can be loaded in
+    // like saves and biomes
     #[derive(Default)]
     pub struct Context {
         mouse: Option<Vec2>,

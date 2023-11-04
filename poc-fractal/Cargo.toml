@@ -9,3 +9,4 @@ edition = "2021"
 ergoquad-2d = "0.1.0"
 rand = "0.8.5"
 fractory-common = { package = "common", path = "../common" }
+serde = { version = "1.0.190", features = ["derive"] }

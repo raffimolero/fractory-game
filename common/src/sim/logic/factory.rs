@@ -8,7 +8,10 @@ use super::{
     tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
-use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
+    io,
+};
 
 use glam::IVec2;
 
@@ -203,7 +206,6 @@ impl ActiveTiles {
 
 #[derive(Debug)]
 pub struct Fractory {
-    pub biome: Biome,
     pub fractal: Fractal,
 
     /// Which tiles are activated this tick.
@@ -218,10 +220,13 @@ pub struct Fractory {
 }
 
 impl Fractory {
+    pub fn load(f: &str) -> io::Result<Self> {
+        todo!()
+    }
+
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         let mut out = Self {
-            biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
             activated: ActiveTiles::new(),
             inventory: BTreeMap::new(),
@@ -382,13 +387,12 @@ impl Fractory {
     }
 
     /// Simulates 1 tick of the Fractory.
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, biome: &Biome) {
         // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
         // to be under common/src/sim/logic/actions.rs
         // and finish RawMoveList::apply();
 
         let Self {
-            biome,
             fractal,
             activated: ActiveTiles(activated),
             inventory,
