@@ -17,7 +17,7 @@ use fractory_common::sim::logic::{
 use std::{
     f32::consts::TAU,
     ops::{ControlFlow, Mul},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 // use ::rand::prelude::*; // NOTE: ergoquad::prelude::rand exists, and is from macroquad
@@ -83,7 +83,7 @@ impl FractalCam {
             }
 
             // drag controls
-            if is_mouse_button_down(MouseButton::Right) {
+            if is_mouse_button_down(MouseButton::Left) {
                 x += mouse_delta.x;
                 y += mouse_delta.y;
             }
@@ -345,7 +345,7 @@ impl FractalElement {
         fractory: &mut Fractory,
         id: usize,
         tile_fill: TileFill,
-        pos: TilePos,
+        pos: Result<TilePos, usize>,
         hovered: bool,
         text_tool: impl Fn(&str),
     ) -> ControlFlow<()> {
@@ -365,7 +365,12 @@ impl FractalElement {
             }
         }
 
-        let control_flow = if tile_fill.is_leaf() && !hovered || pos.depth() >= self.max_depth() {
+        let control_flow = if tile_fill.is_leaf() && !hovered
+            || match pos {
+                Ok(p) => p.depth(),
+                Err(d) => d,
+            } >= self.max_depth()
+        {
             ControlFlow::Break(())
         } else {
             if DRAW_BRANCHES {
@@ -397,7 +402,7 @@ impl FractalElement {
         let color = match color_mode {
             Depth => {
                 const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
-                average(BLACK, PALETTE[pos.depth() % PALETTE.len()])
+                average(BLACK, PALETTE[pos.map_or(0, |p| p.depth() % PALETTE.len())])
             }
             Fragment => {
                 // TODO: have a tile palette based on fragments
@@ -413,7 +418,7 @@ impl FractalElement {
 
         ctx.apply(upscale(self.view_state.scaling()), |ctx| {
             if hovered {
-                let border_color = if fractory.activated.contains(pos) {
+                let border_color = if pos.is_ok_and(|p| fractory.activated.contains(p)) {
                     WHITE
                 } else {
                     GRAY
@@ -441,7 +446,7 @@ impl FractalElement {
         fractory: &mut Fractory,
         cur_orient: Transform,
         tile: Tile,
-        pos: TilePos,
+        pos: Result<TilePos, usize>,
         text_tool: &impl Fn(&str),
     ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
@@ -478,8 +483,13 @@ impl FractalElement {
                 let orient = cur_orient + Transform::from(tile.orient);
                 subtile += orient;
 
-                let mut pos = pos;
-                pos.push_back(subtile);
+                let pos = match pos {
+                    Ok(mut pos) => {
+                        pos.push_back(subtile);
+                        (pos.depth <= 10).then_some(pos).ok_or(pos.depth as usize)
+                    }
+                    Err(d) => Err(d + 1),
+                };
                 ctx.apply(transform, |ctx| {
                     self.draw_subtree(ctx, fractory, orient, child, pos, text_tool);
                 });
@@ -494,10 +504,19 @@ impl FractalElement {
                 fractory,
                 Transform::KU,
                 fractory.fractal.root,
-                TilePos::UNIT,
+                Ok(TilePos::UNIT),
                 &text_tool,
             );
         });
+        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
+            text_tool("press Tab to cycle between view modes\npress Esc to quit")
+        });
+        ctx.apply(shift(0.0, -0.7) * downscale(5.0), |_ctx| {
+            let FractalCam { camera, depth } = self.frac_cam;
+            text_tool(&format!("Depth: {depth} (2^{})", depth.log2()));
+        });
+
+        self.draw_inventory(ctx);
     }
 
     fn input_view(&mut self, _ctx: &mut Context) {

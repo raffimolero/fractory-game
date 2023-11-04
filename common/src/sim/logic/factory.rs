@@ -8,16 +8,21 @@ use super::{
     tile::{SubTile, Tile},
     tree::collision::RawMoveList,
 };
-use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
+    io,
+};
 
 use glam::IVec2;
+
+type Behavior = Vec<TargetedAction<TileOffset>>;
 
 /// A single biome, containing information about the fragments within it.
 #[derive(Debug)]
 pub struct Biome {
     // Fragment data: struct of arrays
     names: Vec<String>,
-    behaviors: Vec<Vec<TargetedAction<TileOffset>>>,
+    behaviors: Vec<Behavior>,
     // sprites: Vec<Sprite>,
 
     // /// this will store both leaf and full non-leaf nodes
@@ -27,8 +32,6 @@ pub struct Biome {
 
     // missions: Vec<Mission>,
 }
-
-type Behavior = Vec<TargetedAction<TileOffset>>;
 
 fn swap_01_with_10() -> Behavior {
     vec![
@@ -96,6 +99,43 @@ fn hexagon() -> Behavior {
     ]
 }
 
+fn rotate() -> Behavior {
+    let this = TileOffset::ZERO;
+    let u = TileOffset {
+        depth: 0,
+        offset: IVec2::ZERO,
+        flop: true,
+    };
+    let l = TileOffset {
+        depth: 0,
+        offset: IVec2::new(0, -1),
+        flop: true,
+    };
+    let r = TileOffset {
+        depth: 0,
+        offset: IVec2::new(-1, -1),
+        flop: true,
+    };
+    vec![
+        TargetedAction {
+            target: u,
+            act: TileAction::Move(r, Transform::KR),
+        },
+        TargetedAction {
+            target: r,
+            act: TileAction::Move(l, Transform::KR),
+        },
+        TargetedAction {
+            target: l,
+            act: TileAction::Move(u, Transform::KR),
+        },
+        TargetedAction {
+            target: this,
+            act: TileAction::Activate,
+        },
+    ]
+}
+
 impl Biome {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
@@ -106,6 +146,7 @@ impl Biome {
                 "Y".into(),
                 "Z".into(),
                 "W".into(),
+                "Rotator".into(),
             ],
             behaviors: vec![
                 // Space
@@ -118,6 +159,8 @@ impl Biome {
                 flip_self_and_below_self(),
                 // W
                 hexagon(),
+                // Rotator
+                rotate(),
             ],
         }
     }
@@ -163,7 +206,6 @@ impl ActiveTiles {
 
 #[derive(Debug)]
 pub struct Fractory {
-    pub biome: Biome,
     pub fractal: Fractal,
 
     /// Which tiles are activated this tick.
@@ -178,10 +220,13 @@ pub struct Fractory {
 }
 
 impl Fractory {
+    pub fn load(f: &str) -> io::Result<Self> {
+        todo!()
+    }
+
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         let mut out = Self {
-            biome: Biome::new_xyyy(),
             fractal: Fractal::new_xyyy(),
             activated: ActiveTiles::new(),
             inventory: BTreeMap::new(),
@@ -192,8 +237,9 @@ impl Fractory {
         enum Config {
             TestZ,
             TestW,
+            TestRotator,
         }
-        let config = Config::TestW;
+        let config = Config::TestRotator;
 
         match config {
             Config::TestZ => {
@@ -291,6 +337,30 @@ impl Fractory {
                     flop: false,
                 });
             }
+            Config::TestRotator => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 1, y: 2 },
+                        flop: false,
+                    },
+                    Tile::ROTATOR,
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 1, y: 2 },
+                    flop: false,
+                });
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 1, y: 2 },
+                        flop: true,
+                    },
+                    Tile::X,
+                );
+            }
         }
 
         out
@@ -317,13 +387,12 @@ impl Fractory {
     }
 
     /// Simulates 1 tick of the Fractory.
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, biome: &Biome) {
         // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
         // to be under common/src/sim/logic/actions.rs
         // and finish RawMoveList::apply();
 
         let Self {
-            biome,
             fractal,
             activated: ActiveTiles(activated),
             inventory,
@@ -359,5 +428,6 @@ impl Fractory {
             }
         }
         let _actions = actions.apply(&mut self.fractal);
+        dbg!(_actions);
     }
 }
