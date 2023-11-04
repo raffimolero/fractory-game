@@ -8,7 +8,7 @@ const DRAW_BRANCHES: bool = false;
 
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
-    factory::{ActiveTiles, Fractory},
+    factory::{ActiveTiles, Biome, BiomeCache, BiomeId, Fractory},
     fractal::{Fractal, SlotInfo, TileFill},
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
@@ -27,6 +27,18 @@ use ergoquad_2d::prelude::*;
 /// used to catch accidental uses
 #[allow(dead_code)]
 fn apply(_youre_using_the_wrong_function: ()) {}
+
+struct Resources {
+    biomes: BiomeCache,
+}
+
+impl Resources {
+    fn new() -> Self {
+        Self {
+            biomes: BiomeCache::default(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 struct FractalCam {
@@ -240,10 +252,10 @@ struct UiElement {
 }
 
 impl UiElement {
-    fn new(font: Font) -> Self {
+    fn new(res: &mut Resources, font: Font) -> Self {
         Self {
             font,
-            fractory: FractoryElement::new(),
+            fractory: FractoryElement::new(&mut res.biomes),
         }
     }
 
@@ -257,13 +269,13 @@ impl UiElement {
         )
     }
 
-    fn draw(&mut self, ctx: &mut Context) {
+    fn draw(&mut self, ctx: &mut Context, res: &mut Resources) {
         let text_tool = new_text_tool(self.font, WHITE);
         Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, &text_tool))
     }
 
-    fn input(&mut self, ctx: &mut Context) {
-        Self::project_to_screen(ctx, |ctx| self.fractory.input(ctx))
+    fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
+        Self::project_to_screen(ctx, |ctx| self.fractory.input(ctx, res))
     }
 }
 
@@ -273,9 +285,9 @@ struct FractoryElement {
 }
 
 impl FractoryElement {
-    fn new() -> Self {
+    fn new(biomes: &mut BiomeCache) -> Self {
         Self {
-            fractory: Fractory::new_xyyy(),
+            fractory: Fractory::new_xyyy(biomes),
             fractal: FractalElement::new(),
         }
     }
@@ -297,12 +309,8 @@ impl FractoryElement {
         }
     }
 
-    fn input(&mut self, ctx: &mut Context) {
-        if is_key_pressed(KeyCode::Enter) {
-            self.fractory.tick();
-        }
-
-        self.fractal.input(ctx, &mut self.fractory);
+    fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
+        self.fractal.input(ctx, res, &mut self.fractory);
     }
 }
 
@@ -508,15 +516,10 @@ impl FractalElement {
                 &text_tool,
             );
         });
-        ctx.apply(shift(0.0, 0.7) * downscale(5.0), |_ctx| {
-            text_tool("press Tab to cycle between view modes\npress Esc to quit")
-        });
         ctx.apply(shift(0.0, -0.7) * downscale(5.0), |_ctx| {
             let FractalCam { camera, depth } = self.frac_cam;
             text_tool(&format!("Depth: {depth} (2^{})", depth.log2()));
         });
-
-        self.draw_inventory(ctx);
     }
 
     fn input_view(&mut self, _ctx: &mut Context) {
@@ -613,11 +616,15 @@ impl FractalElement {
         activated.toggle(hit_pos);
     }
 
-    fn input(&mut self, ctx: &mut Context, fractory: &mut Fractory) {
+    fn input(&mut self, ctx: &mut Context, res: &mut Resources, fractory: &mut Fractory) {
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
             dbg!(&fractory.fractal.library);
+        }
+
+        if is_key_pressed(KeyCode::Enter) {
+            fractory.tick(&res.biomes)
         }
 
         if is_key_pressed(KeyCode::Tab) {
@@ -677,7 +684,8 @@ async fn main() {
         .expect("rip varela round");
 
     let mut ctx = Context::default();
-    let mut ui_elem = UiElement::new(font);
+    let mut res = Resources::new();
+    let mut ui_elem = UiElement::new(&mut res, font);
 
     // main loop
     loop {
@@ -687,8 +695,8 @@ async fn main() {
         }
 
         ctx.update();
-        ui_elem.input(&mut ctx);
-        ui_elem.draw(&mut ctx);
+        ui_elem.input(&mut ctx, &mut res);
+        ui_elem.draw(&mut ctx, &mut res);
 
         // end frame
         next_frame().await

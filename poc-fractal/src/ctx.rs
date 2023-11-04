@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use super::*;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Context {
     mouse: Option<Vec2>,
     last_lmb: Option<(Vec2, Instant)>,

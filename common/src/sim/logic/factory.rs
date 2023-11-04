@@ -5,17 +5,56 @@ use super::{
     fractal::Fractal,
     orientation::Transform,
     path::{TileOffset, TilePos},
-    tile::{SubTile, Tile},
+    tile::Tile,
     tree::collision::RawMoveList,
 };
 use std::{
-    collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     io,
+    rc::Rc,
 };
 
 use glam::IVec2;
 
 type Behavior = Vec<TargetedAction<TileOffset>>;
+
+#[derive(Debug, Default)]
+pub struct BiomeCache {
+    biomes: HashMap<BiomeId, Biome>,
+}
+
+impl BiomeCache {
+    /// inserts a new biomeid-biome pair into the cache.
+    pub fn register(&mut self, id: BiomeId, biome: Biome) {
+        self.biomes.insert(id, biome);
+    }
+
+    pub fn load(&mut self, biome: BiomeId) -> std::io::Result<&Biome> {
+        todo!("load a new biome");
+    }
+
+    pub fn get_or_load(&mut self, id: BiomeId) -> std::io::Result<&Biome> {
+        if self.biomes.contains_key(&id) {
+            Ok(&self.biomes[&id])
+        } else {
+            self.load(id)
+        }
+    }
+
+    pub fn get(&self, id: &BiomeId) -> Option<&Biome> {
+        self.biomes.get(id)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BiomeId(Rc<str>);
+
+impl BiomeId {
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy() -> Self {
+        Self(Rc::from("xyyy"))
+    }
+}
 
 /// A single biome, containing information about the fragments within it.
 #[derive(Debug)]
@@ -31,6 +70,36 @@ pub struct Biome {
     // base_library: Vec<(QuadTile, SlotInfo)>,
 
     // missions: Vec<Mission>,
+}
+
+impl Biome {
+    /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy() -> Self {
+        Self {
+            names: vec![
+                "Space".into(),
+                "X".into(),
+                "Y".into(),
+                "Z".into(),
+                "W".into(),
+                "Rotator".into(),
+            ],
+            behaviors: vec![
+                // Space
+                vec![],
+                // X
+                vec![],
+                // Y
+                vec![],
+                // Z
+                flip_self_and_below_self(),
+                // W
+                hexagon(),
+                // Rotator
+                rotate(),
+            ],
+        }
+    }
 }
 
 fn swap_01_with_10() -> Behavior {
@@ -136,36 +205,6 @@ fn rotate() -> Behavior {
     ]
 }
 
-impl Biome {
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy() -> Self {
-        Self {
-            names: vec![
-                "Space".into(),
-                "X".into(),
-                "Y".into(),
-                "Z".into(),
-                "W".into(),
-                "Rotator".into(),
-            ],
-            behaviors: vec![
-                // Space
-                vec![],
-                // X
-                vec![],
-                // Y
-                vec![],
-                // Z
-                flip_self_and_below_self(),
-                // W
-                hexagon(),
-                // Rotator
-                rotate(),
-            ],
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct ActiveTiles(HashSet<TilePos>);
 
@@ -206,6 +245,7 @@ impl ActiveTiles {
 
 #[derive(Debug)]
 pub struct Fractory {
+    pub biome: BiomeId,
     pub fractal: Fractal,
 
     /// Which tiles are activated this tick.
@@ -225,8 +265,12 @@ impl Fractory {
     }
 
     /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy() -> Self {
+    pub fn new_xyyy(biomes: &mut BiomeCache) -> Self {
+        let biome = Biome::new_xyyy();
+        let id = BiomeId::new_xyyy();
+        biomes.register(id.clone(), biome);
         let mut out = Self {
+            biome: id,
             fractal: Fractal::new_xyyy(),
             activated: ActiveTiles::new(),
             inventory: BTreeMap::new(),
@@ -387,16 +431,23 @@ impl Fractory {
     }
 
     /// Simulates 1 tick of the Fractory.
-    pub fn tick(&mut self, biome: &Biome) {
+    pub fn tick(&mut self, biomes: &BiomeCache) {
         // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
         // to be under common/src/sim/logic/actions.rs
         // and finish RawMoveList::apply();
 
         let Self {
+            biome,
             fractal,
             activated: ActiveTiles(activated),
             inventory,
         } = self;
+
+        let Some(biome) = biomes.get(&biome) else {
+            // panic in debug mode
+            debug_assert!(false, "biome {biome:?} was not loaded before tick.");
+            return;
+        };
 
         let mut actions = RawMoveList::default();
 
@@ -428,6 +479,5 @@ impl Fractory {
             }
         }
         let _actions = actions.apply(&mut self.fractal);
-        dbg!(_actions);
     }
 }
