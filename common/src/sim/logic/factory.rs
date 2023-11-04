@@ -80,9 +80,9 @@ impl Biome {
                 "".into(),
                 "X".into(),
                 "Y".into(),
-                "Z".into(),
-                "W".into(),
-                "Rotator".into(),
+                "Flip-Flop".into(),
+                "Spinner".into(),
+                "Rotor".into(),
             ],
             behaviors: vec![
                 // Space
@@ -95,7 +95,7 @@ impl Biome {
                 flip_self_and_below_self(),
                 // W
                 hexagon(),
-                // Rotator
+                // Rotor
                 rotate(),
             ],
         }
@@ -281,9 +281,9 @@ impl Fractory {
         enum Config {
             TestZ,
             TestW,
-            TestRotator,
+            TestRotor,
         }
-        let config = Config::TestRotator;
+        let config = Config::TestRotor;
 
         match config {
             Config::TestZ => {
@@ -381,20 +381,15 @@ impl Fractory {
                     flop: false,
                 });
             }
-            Config::TestRotator => {
+            Config::TestRotor => {
                 out.fractal.set(
                     TilePos {
                         depth: 3,
                         pos: IVec2 { x: 1, y: 2 },
                         flop: false,
                     },
-                    Tile::ROTATOR,
+                    Tile::ROTOR,
                 );
-                out.activate(TilePos {
-                    depth: 3,
-                    pos: IVec2 { x: 1, y: 2 },
-                    flop: false,
-                });
 
                 out.fractal.set(
                     TilePos {
@@ -402,8 +397,16 @@ impl Fractory {
                         pos: IVec2 { x: 1, y: 2 },
                         flop: true,
                     },
-                    Tile::X,
+                    Tile {
+                        id: Tile::W.id,
+                        orient: Tile::W.orient.rot_cw(),
+                    },
                 );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 1, y: 2 },
+                    flop: true,
+                });
             }
         }
 

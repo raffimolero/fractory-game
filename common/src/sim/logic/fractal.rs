@@ -113,7 +113,7 @@ impl Fractal {
 
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        Self::new(&[Quad::X, Quad::Y, Quad::Z, Quad::W, Quad::ROTATOR]).unwrap()
+        Self::new(&[Quad::X, Quad::Y, Quad::Z, Quad::W, Quad::ROTOR]).unwrap()
     }
 
     fn validate(&self) -> Result<(), ()> {

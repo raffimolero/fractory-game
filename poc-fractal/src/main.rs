@@ -323,8 +323,8 @@ impl FractalElement {
         Self {
             view_state: ViewState::Shattered,
             frac_cam: FractalCam {
-                camera: Mat4::IDENTITY,
-                depth: 2_f32.powi(2),
+                camera: downscale(1.5),
+                depth: 2_f32.powi(4),
             },
         }
     }
