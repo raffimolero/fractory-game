@@ -579,10 +579,8 @@ impl FractalElement {
         Some(TilePos::UNIT)
     }
 
-    fn tree_click_pos(&mut self, ctx: &mut Context) -> Option<TilePos> {
-        let Click { pos, held } = ctx.get_click()?;
-
-        if held {
+    fn tree_click_pos(&mut self, ctx: &mut Context, click: Click) -> Option<TilePos> {
+        if click.held {
             return None;
         }
 
@@ -590,7 +588,7 @@ impl FractalElement {
             .frac_cam
             .camera
             .inverse()
-            .transform_point3(pos.extend(0.0))
+            .transform_point3(click.pos.extend(0.0))
             .truncate();
 
         if !in_triangle(pos) {
@@ -600,14 +598,7 @@ impl FractalElement {
         self.subtree_click_pos(pos, 0)
     }
 
-    fn input_edit(&mut self, ctx: &mut Context, fractal: &mut Fractal) {
-        if !is_mouse_button_released(MouseButton::Left) {
-            return;
-        }
-        let Some(hit_pos) = self.tree_click_pos(ctx) else {
-            return;
-        };
-
+    fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
         let mut tile = fractal.get(hit_pos);
         let id = if tile.id < fractal.leaf_count - 1 {
             tile.id + 1
@@ -623,15 +614,22 @@ impl FractalElement {
         );
     }
 
-    fn input_act(&mut self, ctx: &mut Context, activated: &mut ActiveTiles) {
-        if !is_mouse_button_released(MouseButton::Left) {
-            return;
-        }
-        let Some(hit_pos) = self.tree_click_pos(ctx) else {
+    fn input_act(&mut self, hit_pos: TilePos, activated: &mut ActiveTiles) {
+        activated.toggle(hit_pos);
+    }
+
+    fn input_rot(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
+        let tf = if is_mouse_button_released(MouseButton::Left) {
+            Transform::KL
+        } else if is_mouse_button_released(MouseButton::Right) {
+            Transform::KR
+        } else {
             return;
         };
 
-        activated.toggle(hit_pos);
+        let mut tile = fractal.get(hit_pos);
+        tile += tf;
+        fractal.set(hit_pos, tile);
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources, fractory: &mut Fractory) {
@@ -651,10 +649,29 @@ impl FractalElement {
 
         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
         let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
-        match (ctrl, shift) {
-            (false, true) => self.input_edit(ctx, &mut fractory.fractal),
-            (true, false) => self.input_act(ctx, &mut fractory.activated),
-            _ => {}
+        'click: {
+            let click = if is_mouse_button_released(MouseButton::Left) {
+                ctx.get_lmb()
+            } else if is_mouse_button_released(MouseButton::Right) {
+                ctx.get_rmb()
+            } else {
+                None
+            };
+            let Some(hit_pos) = click.and_then(|click| self.tree_click_pos(ctx, click)) else {
+                break 'click;
+            };
+
+            match (ctrl, shift) {
+                (true, false) => {
+                    if is_mouse_button_released(MouseButton::Left) {
+                        self.input_act(hit_pos, &mut fractory.activated)
+                    } else if is_mouse_button_released(MouseButton::Right) {
+                        self.input_edit(hit_pos, &mut fractory.fractal)
+                    }
+                }
+                (false, true) => self.input_rot(hit_pos, &mut fractory.fractal),
+                _ => {}
+            }
         }
     }
 }

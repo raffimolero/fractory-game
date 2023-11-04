@@ -58,12 +58,16 @@ pub struct Click {
     pub held: bool,
 }
 impl Context {
-    pub fn get_click(&self) -> Option<Click> {
+    fn get_click(&self, button: MouseButton) -> Option<Click> {
         const SCREEN_WIDTH: f32 = 2.0;
         const LEASH_RANGE: f32 = SCREEN_WIDTH / 4.0;
         const HOLD_DURATION: Duration = Duration::from_secs(1);
 
-        let (down, lmb_time) = self.lmb_pos()?;
+        let (down, lmb_time) = match button {
+            MouseButton::Right => self.rmb_pos(),
+            MouseButton::Left => self.lmb_pos(),
+            _ => return None,
+        }?;
         let up = self.mouse_pos()?;
 
         let leash_sq = LEASH_RANGE * LEASH_RANGE;
@@ -73,5 +77,13 @@ impl Context {
         let held = hold_time >= HOLD_DURATION;
 
         in_range.then(|| Click { pos: down, held })
+    }
+
+    pub fn get_lmb(&self) -> Option<Click> {
+        self.get_click(MouseButton::Left)
+    }
+
+    pub fn get_rmb(&self) -> Option<Click> {
+        self.get_click(MouseButton::Right)
     }
 }
