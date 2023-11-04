@@ -301,8 +301,8 @@ impl FractoryElement {
                 Tab: toggle shattered view\n\
                 Enter: tick\n\
                 Camera:\n\
-                    WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
-                    Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth\n\
+                -> WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
+                -> Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth\n\
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Cycle tile",
             )
