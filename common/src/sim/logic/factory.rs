@@ -18,17 +18,6 @@ use glam::IVec2;
 
 type Behavior = Vec<TargetedAction<TileOffset>>;
 
-// TODO: move to api.rs
-// which one, you ask? don't know either
-pub trait BiomeLoader {
-    type Id;
-    type Error;
-
-    fn get(&self, id: &Self::Id) -> Option<&Biome>;
-
-    fn load(&mut self, biome: Self::Id) -> Result<&Biome, Self::Error>;
-}
-
 #[derive(Debug, Default)]
 pub struct BiomeCache {
     biomes: HashMap<BiomeId, Biome>,
@@ -64,19 +53,6 @@ impl BiomeId {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
         Self(Rc::from("xyyy"))
-    }
-}
-
-impl BiomeLoader for BiomeCache {
-    type Id = BiomeId;
-    type Error = std::io::Error;
-
-    fn get(&self, id: &Self::Id) -> Option<&Biome> {
-        self.biomes.get(id)
-    }
-
-    fn load(&mut self, biome: Self::Id) -> Result<&Biome, Self::Error> {
-        self.get_or_load(biome)
     }
 }
 
@@ -289,7 +265,7 @@ impl Fractory {
     }
 
     /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy(biomes: &mut impl BiomeLoader) -> Self {
+    pub fn new_xyyy(biomes: &mut BiomeCache) -> Self {
         let biome = Biome::new_xyyy();
         let id = BiomeId::new_xyyy();
         biomes.register(id.clone(), biome);
@@ -458,7 +434,7 @@ impl Fractory {
     }
 
     /// Simulates 1 tick of the Fractory.
-    pub fn tick(&mut self, biomes: &impl BiomeLoader) {
+    pub fn tick(&mut self, biomes: &BiomeCache) {
         // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
         // to be under common/src/sim/logic/actions.rs
         // and finish RawMoveList::apply();
@@ -507,5 +483,4 @@ impl Fractory {
         }
         let _actions = actions.apply(&mut self.fractal);
     }
-}
 }

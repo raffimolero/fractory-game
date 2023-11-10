@@ -4,9 +4,8 @@ members = [
   # "terminal",
   # "desktop",
   # "web",
-  # "poc-linear",
-  # "poc-fractal",
-  "poc-bevy",
+  "poc-linear",
+  "poc-fractal",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
