@@ -30,12 +30,17 @@ fn apply(_youre_using_the_wrong_function: ()) {}
 
 struct Resources {
     biomes: BiomeCache,
+    // HACK: timer
+    last_tick: Instant,
+    ticks_per_sec: f32,
 }
 
 impl Resources {
     fn new() -> Self {
         Self {
             biomes: BiomeCache::default(),
+            last_tick: Instant::now(),
+            ticks_per_sec: 0.0,
         }
     }
 }
@@ -316,6 +321,7 @@ impl FractoryElement {
         for (idx, (tile_id, count)) in self.fractory.inventory.iter().enumerate() {
             let x = idx % wrap;
             let y = idx / wrap;
+            // todo!()
         }
     }
 
@@ -650,13 +656,24 @@ impl FractalElement {
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources, fractory: &mut Fractory) {
+        let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
+        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
             dbg!(&fractory.fractal.library);
         }
 
-        if is_key_pressed(KeyCode::Enter) {
+        if shift && is_key_pressed(KeyCode::Enter) {
+            res.ticks_per_sec = 5.0 - res.ticks_per_sec;
+        }
+
+        if res.ticks_per_sec > 0.0
+            && Instant::now() > res.last_tick + Duration::from_secs_f32(1.0 / res.ticks_per_sec)
+            || !shift && is_key_pressed(KeyCode::Enter)
+        {
+            res.last_tick = Instant::now();
             fractory.tick(&res.biomes)
         }
 
@@ -664,8 +681,6 @@ impl FractalElement {
             self.view_state.cycle();
         }
 
-        let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
-        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
         'click: {
             let click = if is_mouse_button_released(MouseButton::Left) {
                 ctx.get_lmb()
