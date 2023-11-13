@@ -21,12 +21,10 @@ type Behavior = Vec<TargetedAction<TileOffset>>;
 // TODO: move to api.rs
 // which one, you ask? don't know either
 pub trait BiomeLoader {
-    type Id;
     type Error;
-
-    fn get(&self, id: &Self::Id) -> Option<&Biome>;
-
-    fn load(&mut self, biome: Self::Id) -> Result<&Biome, Self::Error>;
+    fn register(&mut self, id: BiomeId, biome: Biome);
+    fn get(&self, id: &BiomeId) -> Option<&Biome>;
+    fn load(&mut self, biome: BiomeId) -> Result<&Biome, Self::Error>;
 }
 
 #[derive(Debug, Default)]
@@ -36,9 +34,6 @@ pub struct BiomeCache {
 
 impl BiomeCache {
     /// inserts a new biomeid-biome pair into the cache.
-    pub fn register(&mut self, id: BiomeId, biome: Biome) {
-        self.biomes.insert(id, biome);
-    }
 
     pub fn load(&mut self, biome: BiomeId) -> std::io::Result<&Biome> {
         todo!("load a new biome");
@@ -58,24 +53,27 @@ impl BiomeCache {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BiomeId(Rc<str>);
+pub struct BiomeId(String);
 
 impl BiomeId {
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        Self(Rc::from("xyyy"))
+        Self("xyyy".into())
     }
 }
 
 impl BiomeLoader for BiomeCache {
-    type Id = BiomeId;
     type Error = std::io::Error;
 
-    fn get(&self, id: &Self::Id) -> Option<&Biome> {
+    fn register(&mut self, id: BiomeId, biome: Biome) {
+        self.biomes.insert(id, biome);
+    }
+
+    fn get(&self, id: &BiomeId) -> Option<&Biome> {
         self.biomes.get(id)
     }
 
-    fn load(&mut self, biome: Self::Id) -> Result<&Biome, Self::Error> {
+    fn load(&mut self, biome: BiomeId) -> Result<&Biome, Self::Error> {
         self.get_or_load(biome)
     }
 }
@@ -470,7 +468,7 @@ impl Fractory {
             inventory,
         } = self;
 
-        let Some(biome) = biomes.get(&biome) else {
+        let Some(biome) = biomes.get(biome) else {
             // panic in debug mode
             debug_assert!(false, "biome {biome:?} was not loaded before tick.");
             return;
@@ -507,5 +505,4 @@ impl Fractory {
         }
         let _actions = actions.apply(&mut self.fractal);
     }
-}
 }
