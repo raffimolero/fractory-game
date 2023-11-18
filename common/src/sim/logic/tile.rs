@@ -40,6 +40,18 @@ impl Tile {
         id: 5,
         orient: Orient::RtK,
     };
+    pub const GROWER: Self = Self {
+        id: 6,
+        orient: Orient::RfU,
+    };
+    pub const SUCKER: Self = Self {
+        id: 7,
+        orient: Orient::RfU,
+    };
+    pub const WIRE: Self = Self {
+        id: 8,
+        orient: Orient::RfU,
+    };
 }
 
 impl AddAssign<Transform> for Tile {
@@ -123,6 +135,9 @@ impl Quad<Tile> {
         },
         Tile::Z,
     ]);
+    pub const GROWER: Self = Self([Tile::Z, Tile::X, Tile::Y, Tile::Y]);
+    pub const SUCKER: Self = Self([Tile::Z, Tile::Y, Tile::X, Tile::X]);
+    pub const WIRE: Self = Self([Tile::Y, Tile::Y, Tile::X, Tile::X]);
 }
 
 impl<T> Index<SubTile> for Quad<T> {

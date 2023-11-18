@@ -334,8 +334,8 @@ impl FractalElement {
         Self {
             view_state: ViewState::Shattered,
             frac_cam: FractalCam {
-                camera: downscale(1.5),
-                depth: 2_f32.powi(3),
+                camera: shift(0.0, 0.75) * upscale(2.0),
+                depth: 2_f32.powi(4),
             },
         }
     }
@@ -608,11 +608,11 @@ impl FractalElement {
         self.subtree_click_pos(pos, 0)
     }
 
-    fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
-        let increment = if is_mouse_button_released(MouseButton::Left) {
+    fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal, biome: &Biome) {
+        let increment = if is_mouse_button_released(MouseButton::Right) {
             1
-        } else if is_mouse_button_released(MouseButton::Right) {
-            fractal.leaf_count - 1
+        } else if is_mouse_button_released(MouseButton::Left) {
+            biome.leaf_count - 1
         } else {
             debug_assert!(false, "unreachable");
             return;
@@ -620,7 +620,7 @@ impl FractalElement {
 
         let mut tile = fractal.get(hit_pos);
         tile.id += increment;
-        tile.id %= fractal.leaf_count;
+        tile.id %= biome.leaf_count;
         tile.orient = fractal.library[tile.id].symmetries.into();
         fractal.set(hit_pos, tile);
     }
@@ -678,8 +678,18 @@ impl FractalElement {
                 break 'click;
             };
 
+            let Some(biome) = res.biomes.get(&fractory.biome) else {
+                // panic in debug mode
+                debug_assert!(
+                    false,
+                    "biome {:?} was not loaded before input.",
+                    fractory.biome
+                );
+                return;
+            };
+
             match (ctrl, shift) {
-                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal),
+                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal, biome),
                 (true, false) => {
                     if is_mouse_button_released(MouseButton::Left) {
                         self.input_act(hit_pos, &mut fractory.activated);
