@@ -334,9 +334,9 @@ impl Fractory {
             TestZ,
             TestW,
             TestRotor,
-            TestGrowSuck,
+            TestGrowFarm,
         }
-        let config = Config::TestGrowSuck;
+        let config = Config::TestGrowFarm;
 
         match config {
             Config::TestZ => {
@@ -461,7 +461,31 @@ impl Fractory {
                     flop: true,
                 });
             }
-            Config::TestGrowSuck => {
+            Config::TestGrowFarm => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 0, y: 1 },
+                        flop: false,
+                    },
+                    Tile::W,
+                );
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 0, y: 1 },
+                        flop: true,
+                    },
+                    Tile {
+                        id: Tile::WIRE.id,
+                        orient: Tile::WIRE.orient.rot_cw().rot_cw(),
+                    },
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 0, y: 1 },
+                    flop: true,
+                });
                 out.fractal.set(
                     TilePos {
                         depth: 3,
@@ -470,11 +494,6 @@ impl Fractory {
                     },
                     Tile::GROWER,
                 );
-                out.activate(TilePos {
-                    depth: 3,
-                    pos: IVec2 { x: 1, y: 2 },
-                    flop: false,
-                });
                 out.fractal.set(
                     TilePos {
                         depth: 3,
