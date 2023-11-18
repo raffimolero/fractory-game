@@ -152,6 +152,7 @@ impl RawMoveList {
         for (i, (src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
             let old_tile = main_fractal.set(src, Tile::SPACE);
             assert_ne!(old_tile, Tile::SPACE);
+            assert!(main_fractal.get_info(old_tile.id).fill.is_full());
             old_tiles.push(old_tile);
             dsts.set(dst, i);
         }
@@ -168,6 +169,9 @@ impl RawMoveList {
         // preserve ordering
         while let Some(i) = dead.pop() {
             let (src, _dst_tf) = self.moves[i];
+            if old_tiles[i] == Tile::SPACE {
+                continue;
+            }
             main_fractal.set(src, old_tiles[i]);
             old_tiles[i] = Tile::SPACE;
             dsts.invalidate(src, &mut |i| dead.push(i));

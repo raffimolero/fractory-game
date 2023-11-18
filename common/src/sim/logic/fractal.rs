@@ -66,9 +66,6 @@ pub struct Fractal {
     /// the root node of the fractal; the biggest piece
     pub root: Tile,
 
-    /// How many predefined leaf nodes exist in this biome
-    pub leaf_count: usize,
-
     /// a mapping from tile id to quadtile
     /// the opposite of recognizer
     pub library: Vec<SlotInfo>,
@@ -113,7 +110,17 @@ impl Fractal {
 
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
-        Self::new(&[Quad::X, Quad::Y, Quad::Z, Quad::W, Quad::ROTOR]).unwrap()
+        Self::new(&[
+            Quad::X,
+            Quad::Y,
+            Quad::Z,
+            Quad::W,
+            Quad::ROTOR,
+            Quad::GROWER,
+            Quad::SUCKER,
+            Quad::WIRE,
+        ])
+        .unwrap()
     }
 
     fn validate(&self) -> Result<(), ()> {
@@ -198,8 +205,6 @@ impl Fractal {
         });
 
         self.cache(quad, Tile { id, orient });
-        self.leaf_count += 1;
-
         Ok(())
     }
 
