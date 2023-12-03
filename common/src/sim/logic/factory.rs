@@ -359,8 +359,9 @@ impl Fractory {
             TestRotor,
             TestGrowFarm,
             TestGrowBug,
+            TestActiveBug,
         }
-        let config = Config::TestGrowBug;
+        let config = Config::TestActiveBug;
 
         match config {
             Config::TestZ => {
@@ -671,6 +672,38 @@ impl Fractory {
                     },
                     Tile::X,
                 );
+            }
+            Config::TestActiveBug => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 2, y: 5 },
+                        flop: true,
+                    },
+                    Tile::W,
+                );
+                out.activate(TilePos {
+                    depth: 4,
+                    pos: IVec2 { x: 2, y: 5 },
+                    flop: true,
+                });
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 3, y: 5 },
+                        flop: true,
+                    },
+                    Tile {
+                        id: Tile::W.id,
+                        orient: Tile::W.orient.flip(),
+                    },
+                );
+                out.activate(TilePos {
+                    depth: 4,
+                    pos: IVec2 { x: 3, y: 5 },
+                    flop: true,
+                });
             }
         }
 
