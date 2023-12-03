@@ -53,7 +53,7 @@ impl BiomeCache {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BiomeId(String);
+pub struct BiomeId(pub String);
 
 impl BiomeId {
     /// TODO: FOR TESTING PURPOSES
@@ -87,8 +87,6 @@ pub struct Biome {
     // Fragment data: struct of arrays
     pub names: Vec<String>,
     behaviors: Vec<Behavior>,
-    // sprites: Vec<Sprite>,
-
     // /// this will store both leaf and full non-leaf nodes
     // ///
     // /// currently, leaf tiles must be made of 4 full leaf nodes
