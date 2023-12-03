@@ -328,7 +328,6 @@ impl Fractory {
             },
         );
 
-        dbg!(&self.activated.0);
         let mut new_set = HashSet::new();
         for pos in &self.activated.0 {
             let mut new_pos = TilePos::UNIT;
@@ -338,7 +337,6 @@ impl Fractory {
             new_set.insert(new_pos);
         }
         self.activated.0 = new_set;
-        dbg!(&self.activated.0);
     }
 
     /// TODO: FOR TESTING PURPOSES
@@ -360,8 +358,9 @@ impl Fractory {
             TestW,
             TestRotor,
             TestGrowFarm,
+            TestGrowBug,
         }
-        let config = Config::TestGrowFarm;
+        let config = Config::TestGrowBug;
 
         match config {
             Config::TestZ => {
@@ -623,6 +622,54 @@ impl Fractory {
                         id: Tile::WIRE.id,
                         orient: Tile::WIRE.orient.rot_cw(),
                     },
+                );
+            }
+            Config::TestGrowBug => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 1, y: 2 },
+                        flop: false,
+                    },
+                    Tile {
+                        id: Tile::GROWER.id,
+                        orient: Tile::GROWER.orient.rot_cw(),
+                    },
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 1, y: 2 },
+                    flop: false,
+                });
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 1, y: 4 },
+                        flop: false,
+                    },
+                    Tile::X,
+                );
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 2, y: 2 },
+                        flop: false,
+                    },
+                    Tile::GROWER,
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 2, y: 2 },
+                    flop: false,
+                });
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 5, y: 6 },
+                        flop: false,
+                    },
+                    Tile::X,
                 );
             }
         }

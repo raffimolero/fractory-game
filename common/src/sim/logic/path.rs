@@ -176,6 +176,8 @@ impl TileOffset {
     }
 
     pub fn rotate_cw(&mut self) {
+        self.offset.x += (1 << self.depth) - 1;
+        self.offset.y += (1 << self.depth) - 1;
         self.offset = Self::ROT_CW * self.offset;
         if self.flop {
             self.offset.x -= 1;
@@ -184,6 +186,7 @@ impl TileOffset {
     }
 
     pub fn rotate_cc(&mut self) {
+        self.offset.y += (1 << self.depth) - 1;
         self.offset = Self::ROT_CC * self.offset;
         if self.flop {
             self.offset.y -= 1;
