@@ -104,6 +104,15 @@ impl AddAssign<Transform> for SubTile {
     }
 }
 
+impl Add<Transform> for SubTile {
+    type Output = Self;
+
+    fn add(mut self, rhs: Transform) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Quad<T>(pub [T; 4]);
 impl<T> Quad<T> {

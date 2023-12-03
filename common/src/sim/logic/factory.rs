@@ -316,6 +316,31 @@ impl Fractory {
         todo!()
     }
 
+    /// TODO: test
+    pub fn rot_cw(&mut self) {
+        let main = self.fractal.get(TilePos::UNIT);
+
+        self.fractal.set(
+            TilePos::UNIT,
+            Tile {
+                id: main.id,
+                orient: main.orient.rot_cw(),
+            },
+        );
+
+        dbg!(&self.activated.0);
+        let mut new_set = HashSet::new();
+        for pos in &self.activated.0 {
+            let mut new_pos = TilePos::UNIT;
+            for subtile in *pos {
+                new_pos.push_back(subtile + Transform::KR);
+            }
+            new_set.insert(new_pos);
+        }
+        self.activated.0 = new_set;
+        dbg!(&self.activated.0);
+    }
+
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy(biomes: &mut BiomeCache) -> Self {
         let biome = Biome::new_xyyy();

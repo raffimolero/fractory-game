@@ -653,7 +653,8 @@ impl FractalElement {
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
-            dbg!(&fractory.fractal.library);
+            // dbg!(&fractory.fractal.library);
+            fractory.rot_cw();
         }
 
         if is_key_pressed(KeyCode::Enter) {
