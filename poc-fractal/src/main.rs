@@ -7,6 +7,7 @@ const DRAW_BRANCHES: bool = false;
 // TODO: use Affine2 instead of Mat4
 
 use self::ctx::{Click, Context};
+use ctx::TextToolId;
 use fractory_common::sim::logic::{
     factory::{ActiveTiles, Fractory, FractoryMeta},
     fractal::{Fractal, SlotInfo, TileFill},
@@ -28,6 +29,20 @@ use ergoquad_2d::prelude::*;
 /// used to catch accidental uses
 #[allow(dead_code)]
 fn apply(_youre_using_the_wrong_function: ()) {}
+
+const TRIANGLE: [Vec2; 3] = {
+    let side = 2.0;
+    /// std::f32::consts::SQRT_3 is unstable so here it is
+    const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
+    let out_r = SQRT_3 / 3.0 * side;
+    let in_r = out_r / 2.0;
+
+    [
+        Vec2 { x: -1.0, y: in_r },
+        Vec2 { x: 1.0, y: in_r },
+        Vec2 { x: 0.0, y: -out_r },
+    ]
+};
 
 struct Resources {
     planets: PlanetCache,
@@ -272,8 +287,9 @@ impl UiElement {
     }
 
     fn draw(&mut self, ctx: &mut Context, res: &mut Resources) {
-        let text_tool = new_text_tool(self.font, WHITE);
-        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, res, &text_tool))
+        let text_tool = Box::new(new_text_tool(self.font, WHITE));
+        let text_tool = ctx.register_text_tool(text_tool);
+        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, res, text_tool))
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
@@ -310,13 +326,14 @@ impl FractoryElement {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: &impl Fn(&str)) {
+    fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: TextToolId) {
         self.draw_inventory(ctx, text_tool);
         self.fractal_view
             .draw(ctx, res, &self.fractory_meta, &self.cache, text_tool);
 
-        ctx.apply(shift(0.0, 0.6) * downscale(10.0), |_ctx| {
-            text_tool(
+        ctx.apply(shift(0.0, 0.6) * downscale(10.0), |ctx| {
+            ctx.queue_text(
+                text_tool,
                 "Esc: quit\n\
                 Tab: toggle shattered view\n\
                 Enter: tick\n\
@@ -326,12 +343,13 @@ impl FractoryElement {
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
                 Ctrl+Shift+LMB/RMB: Cycle tile\n\
-                *Some edits may change other tiles' rotations. This is normal.",
-            )
+                *Some edits may change other tiles' rotations. This is normal."
+                    .into(),
+            );
         });
     }
 
-    fn draw_inventory(&mut self, ctx: &mut Context, text_tool: &impl Fn(&str)) {
+    fn draw_inventory(&mut self, ctx: &mut Context, text_tool: TextToolId) {
         let wrap = (self.fractory_meta.fractory.inventory.len() as f32).sqrt() as usize;
         for (idx, (tile_id, count)) in self.fractory_meta.fractory.inventory.iter().enumerate() {
             let x = idx % wrap;
@@ -361,21 +379,12 @@ impl FractalViewElement {
         }
     }
 
-    fn max_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize
+    fn min_depth(&self) -> usize {
+        self.frac_cam.depth.log2() as usize - 1
     }
 
-    fn draw_triangle(color: Color) {
-        let side = 2.0;
-        let out_r = 3_f32.sqrt() / 3.0 * side;
-        let in_r = out_r / 2.0;
-
-        draw_triangle(
-            Vec2 { x: -1.0, y: in_r },
-            Vec2 { x: 1.0, y: in_r },
-            Vec2 { x: 0.0, y: -out_r },
-            color,
-        );
+    fn max_depth(&self) -> usize {
+        self.frac_cam.depth.log2() as usize
     }
 
     fn draw_leaf(
@@ -388,7 +397,7 @@ impl FractalViewElement {
         tile_fill: TileFill,
         pos: Result<TilePos, usize>,
         hovered: bool,
-        text_tool: impl Fn(&str),
+        text_tool: TextToolId,
     ) -> ControlFlow<()> {
         enum ColorMode {
             Fragment,
@@ -406,11 +415,12 @@ impl FractalViewElement {
             }
         }
 
-        let control_flow = if tile_fill.is_leaf() && !hovered
-            || match pos {
-                Ok(p) => p.depth(),
-                Err(d) => d,
-            } >= self.max_depth()
+        let depth = match pos {
+            Ok(p) => p.depth(),
+            Err(d) => d,
+        };
+        let control_flow = if tile_fill.is_leaf() && !hovered && depth >= self.min_depth()
+            || depth >= self.max_depth()
         {
             ControlFlow::Break(())
         } else {
@@ -474,15 +484,20 @@ impl FractalViewElement {
                 } else {
                     GRAY
                 };
-                Self::draw_triangle(border_color);
-                ctx.apply(upscale(0.8), |_ctx| {
-                    Self::draw_triangle(color);
+                ctx.queue_polygon(&TRIANGLE, border_color);
+                ctx.apply(upscale(0.8), |ctx| {
+                    ctx.queue_polygon(&TRIANGLE, color);
                 });
                 if hovered {
-                    draw_poly(0.0, -0.625, 3, 0.125, TAU / 4.0, border_color);
+                    ctx.apply(
+                        shift(0.0, -0.625) * downscale(8.0) * rotate_cw(TAU / 4.0),
+                        |ctx| {
+                            ctx.queue_polygon(&TRIANGLE, border_color);
+                        },
+                    )
                 }
             } else {
-                Self::draw_triangle(color);
+                ctx.queue_polygon(&TRIANGLE, color);
             }
             // ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
             //     let text = format!("{pos:#?}");
@@ -493,7 +508,7 @@ impl FractalViewElement {
                 None => id.to_string(),
             };
             let scale = 0.5 / name.len() as f32 + 0.5;
-            ctx.apply(upscale(scale), |_ctx| text_tool(&name));
+            ctx.apply(upscale(scale), |ctx| ctx.queue_text(text_tool, name));
         });
         control_flow
     }
@@ -507,7 +522,7 @@ impl FractalViewElement {
         cur_orient: Transform,
         tile: Tile,
         pos: Result<TilePos, usize>,
-        text_tool: &impl Fn(&str),
+        text_tool: TextToolId,
     ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
@@ -533,6 +548,9 @@ impl FractalViewElement {
         let tile_matrix = transform_to_mat4(tile.orient.into());
 
         ctx.apply(tile_matrix, |ctx| {
+            if !ctx.is_onscreen(&TRIANGLE) {
+                return;
+            }
             match self.draw_leaf(
                 ctx, fractory, cache, names, tile.id, fill, pos, hovered, text_tool,
             ) {
@@ -564,9 +582,16 @@ impl FractalViewElement {
         res: &mut Resources,
         fractory_meta: &FractoryMeta,
         cache: &FractoryCache,
-        text_tool: &impl Fn(&str),
+        text_tool: TextToolId,
     ) {
         ctx.apply(self.frac_cam.camera, |ctx| {
+            // ctx.apply(shift(1.0, 0.0), |ctx| {
+            //     ctx.queue_polygon(&TRIANGLE, DARKGRAY)
+            // });
+            // ctx.apply(shift(-1.0, 0.0), |ctx| ctx.queue_polygon(&TRIANGLE, GRAY));
+
+            // ctx.flush();
+            // return;
             self.draw_subtree(
                 ctx,
                 &fractory_meta.fractory,
@@ -575,16 +600,17 @@ impl FractalViewElement {
                 Transform::KU,
                 fractory_meta.fractory.fractal.root,
                 Ok(TilePos::UNIT),
-                &text_tool,
+                text_tool,
             );
         });
-        ctx.apply(shift(0.0, -0.7) * downscale(5.0), |_ctx| {
+        ctx.apply(shift(0.0, -0.7) * downscale(5.0), |ctx| {
             let FractalCam { camera, depth } = self.frac_cam;
-            text_tool(&format!(
-                "Recursion Depth: {depth:.2} (2^{:.2})",
-                depth.log2()
-            ));
+            ctx.queue_text(
+                text_tool,
+                format!("Recursion Depth: {depth:.2} (2^{:.2})", depth.log2()),
+            );
         });
+        ctx.flush();
     }
 
     fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
@@ -779,6 +805,8 @@ async fn main() {
     let mut res = Resources::new();
     let mut ui_elem = UiElement::new(&mut res, font);
 
+    let mut iters = 0;
+    let mut time_check = Instant::now();
     // main loop
     loop {
         // Quit on Esc
@@ -789,6 +817,13 @@ async fn main() {
         ctx.update();
         ui_elem.input(&mut ctx, &mut res);
         ui_elem.draw(&mut ctx, &mut res);
+
+        iters += 1;
+        if iters >= 50 {
+            println!("{iters} iters took {:?}", time_check.elapsed());
+            iters = 0;
+            time_check = Instant::now();
+        }
 
         // end frame
         next_frame().await
