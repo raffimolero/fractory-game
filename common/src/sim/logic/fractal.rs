@@ -146,7 +146,7 @@ impl Fractal {
         let mut tile = self.root;
         for subtile in path {
             let mut quad = self.library[tile.id].quad;
-            quad += Transform::from(tile.orient);
+            quad += tile.orient.transform();
             tile = quad[subtile];
         }
         tile
@@ -159,7 +159,7 @@ impl Fractal {
             .into_iter()
             .map(|subtile| {
                 let mut quad = self.library[cur_tile.id].quad;
-                quad += Transform::from(cur_tile.orient);
+                quad += cur_tile.orient.transform();
                 cur_tile = quad[subtile];
                 (quad, subtile)
             })

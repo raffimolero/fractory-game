@@ -502,15 +502,14 @@ impl FractalElement {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
-            for ((transform, child), mut subtile) in
+            for ((transform, child), subtile) in
                 transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
-                let orient = cur_orient + Transform::from(tile.orient);
-                subtile += orient;
+                let orient = cur_orient - Transform::from(tile.orient);
 
                 let pos = match pos {
                     Ok(mut pos) => {
-                        pos.push_back(subtile);
+                        pos.push_back(subtile - orient);
                         (pos.depth <= 30).then_some(pos).ok_or(pos.depth as usize)
                     }
                     Err(d) => Err(d + 1),

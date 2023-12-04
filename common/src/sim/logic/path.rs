@@ -315,7 +315,7 @@ impl TilePos {
         out
     }
 
-    pub fn from_outward_path_iter(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
+    pub fn from_outward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
         let mut out = Self::UNIT;
         for subtile in path_iter {
             out.push_front(subtile);

@@ -1,5 +1,5 @@
 use super::orientation::{Orient, Transform};
-use std::ops::{Add, AddAssign, Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Tile {
@@ -109,6 +109,15 @@ impl Add<Transform> for SubTile {
 
     fn add(mut self, rhs: Transform) -> Self::Output {
         self += rhs;
+        self
+    }
+}
+
+impl Sub<Transform> for SubTile {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Transform) -> Self::Output {
+        self += -rhs;
         self
     }
 }

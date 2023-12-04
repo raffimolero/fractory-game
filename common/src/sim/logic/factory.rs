@@ -759,7 +759,7 @@ impl Fractory {
         for pos in prev_activated {
             let Tile { id, orient } = fractal.get(pos);
 
-            let tile_tf = Transform::from(orient);
+            let tile_tf = orient.transform();
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };
