@@ -191,7 +191,7 @@ impl Fractory {
             TestGrowBug,
             TestActiveBug,
         }
-        let config = Config::Empty;
+        let config = Config::TestGrowFarm;
 
         match config {
             Config::Empty => {}

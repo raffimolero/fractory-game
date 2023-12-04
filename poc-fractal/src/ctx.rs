@@ -152,21 +152,13 @@ impl Context {
     }
 
     pub fn is_onscreen(&self, points: &[Vec2]) -> bool {
-        let project = |p: &Vec2| self.matrix.transform_point3(p.extend(0.0)).truncate();
-        let points = points.iter().map(project);
-        let mut bb = Rect::new(0.0, 0.0, 0.0, 0.0);
-        for p in points {
-            bb = bb.combine_with(Rect::new(p.x, p.y, 0.0, 0.0));
-        }
-        // let viewport = Rect::new(-1.0, -1.0, 1.0, 1.0);
-        let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
-        let n = since_the_epoch.as_millis() % 10_000 * 1;
-        let n = n as f32;
-        let viewport = Rect::new(-1.0, -1.0 + n / 5_000.0, 1.0, 0.1);
-        bb.overlaps(&viewport)
+        points
+            .iter()
+            .map(|p| self.unproject(*p))
+            .map(|p| Rect::new(p.x, p.y, 0.0, 0.0))
+            .reduce(|a, b| a.combine_with(b))
+            .unwrap()
+            .overlaps(&Rect::new(-1.0, -1.0, 2.0, 2.0))
     }
 
     pub fn draw_canvas(&mut self, matrix: Mat4, paint: impl FnOnce(&mut Self)) {
