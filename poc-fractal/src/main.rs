@@ -380,6 +380,7 @@ impl FractalViewElement {
         &self,
         ctx: &mut Context,
         fractory: &Fractory,
+        cache: &FractoryCache,
         names: &[String],
         id: usize,
         tile_fill: TileFill,
@@ -458,7 +459,19 @@ impl FractalViewElement {
             let is_active = pos.is_ok_and(|p| fractory.activated.contains(p));
             // FIXME: 2 of the same tile transformed differently will draw borders wrong.
             if hovered || is_active {
-                let border_color = if is_active { WHITE } else { GRAY };
+                let border_color = if is_active {
+                    if !cache
+                        .biome
+                        .behavior(cache.fragments.behaviors(), id)
+                        .is_empty()
+                    {
+                        WHITE
+                    } else {
+                        RED
+                    }
+                } else {
+                    GRAY
+                };
                 Self::draw_triangle(border_color);
                 ctx.apply(upscale(0.8), |_ctx| {
                     Self::draw_triangle(color);
@@ -487,6 +500,7 @@ impl FractalViewElement {
         &self,
         ctx: &mut Context,
         fractory: &Fractory,
+        cache: &FractoryCache,
         names: &[String],
         cur_orient: Transform,
         tile: Tile,
@@ -517,7 +531,9 @@ impl FractalViewElement {
         let tile_matrix = transform_to_mat4(tile.orient.into());
 
         ctx.apply(tile_matrix, |ctx| {
-            match self.draw_leaf(ctx, fractory, names, tile.id, fill, pos, hovered, text_tool) {
+            match self.draw_leaf(
+                ctx, fractory, cache, names, tile.id, fill, pos, hovered, text_tool,
+            ) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
@@ -534,7 +550,7 @@ impl FractalViewElement {
                     Err(d) => Err(d + 1),
                 };
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, fractory, names, orient, child, pos, text_tool);
+                    self.draw_subtree(ctx, fractory, cache, names, orient, child, pos, text_tool);
                 });
             }
         });
@@ -552,6 +568,7 @@ impl FractalViewElement {
             self.draw_subtree(
                 ctx,
                 &fractory_meta.fractory,
+                cache,
                 cache.fragments.names(),
                 Transform::KU,
                 fractory_meta.fractory.fractal.root,

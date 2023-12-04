@@ -8,6 +8,8 @@ use crate::sim::logic::{
     path::TileOffset,
 };
 
+use super::tile::Tile;
+
 pub type Behavior = Vec<TargetedAction<TileOffset>>;
 
 // TODO: bitvec
@@ -21,6 +23,11 @@ impl Filter {
 
     pub fn allows(&self, idx: usize) -> bool {
         self.0.get(idx).copied().unwrap_or(false)
+    }
+
+    fn without(mut self, idx: usize) -> Self {
+        self.0[idx] = false;
+        self
     }
 }
 
@@ -106,6 +113,17 @@ pub struct Biome {
 
 impl Biome {
     /// TODO: FOR TESTING PURPOSES
+    pub fn new_xyyy_spinless(frag_count: usize) -> Self {
+        Self {
+            name: "Spinless".into(),
+            desc: "Disables rotors and spinners.".into(),
+            fragment_filter: Filter::all(frag_count)
+                .without(Tile::ROTOR.id)
+                .without(Tile::W.id),
+        }
+    }
+
+    /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy_landing_zone(frag_count: usize) -> Self {
         Self {
             name: "Landing Zone".into(),
@@ -124,6 +142,15 @@ impl Biome {
 
     pub fn fragment_filter(&self) -> &Filter {
         &self.fragment_filter
+    }
+
+    pub fn behavior<'a>(&self, behaviors: &'a [Behavior], id: usize) -> &'a Behavior {
+        const EMPTY: &Behavior = &vec![];
+        self.fragment_filter
+            .allows(id)
+            .then_some(())
+            .and_then(|()| behaviors.get(id))
+            .unwrap_or(EMPTY)
     }
 }
 
@@ -300,7 +327,11 @@ impl BiomeCache {
     fn new_xyyy(frag_count: usize) -> Self {
         Self {
             biomes: HashMap::from(
-                [Biome::new_xyyy_landing_zone(frag_count)].map(|b| (b.default_id(), b)),
+                [
+                    Biome::new_xyyy_spinless(frag_count),
+                    Biome::new_xyyy_landing_zone(frag_count),
+                ]
+                .map(|b| (b.default_id(), b)),
             ),
         }
     }
@@ -333,6 +364,12 @@ impl BiomeCache {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BiomeId(Rc<str>);
+
+impl<T: Into<Rc<str>>> From<T> for BiomeId {
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct PlanetCache {

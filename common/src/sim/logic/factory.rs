@@ -125,7 +125,7 @@ impl FractoryMeta {
     pub fn new_xyyy(planets: &mut PlanetCache) -> Self {
         let xyyy = Planet::new_xyyy();
         let planet_id = xyyy.default_id();
-        let biome_id = xyyy.biomes().iter().next().unwrap().clone();
+        let biome_id = BiomeId::from("Spinless");
         planets.register(planet_id.clone(), xyyy);
         Self {
             fractory: Fractory::new_xyyy(),
