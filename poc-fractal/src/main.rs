@@ -380,7 +380,7 @@ impl FractalViewElement {
     }
 
     fn min_depth(&self) -> usize {
-        (self.frac_cam.depth.log2() - 1.0) as usize
+        self.frac_cam.depth.log2() as usize - 2
     }
 
     fn max_depth(&self) -> usize {
@@ -419,7 +419,9 @@ impl FractalViewElement {
             Ok(p) => p.depth(),
             Err(d) => d,
         };
-        let control_flow = if tile_fill.is_leaf() && !hovered || depth >= self.max_depth() {
+        let control_flow = if tile_fill.is_leaf() && !hovered && depth >= self.min_depth()
+            || depth >= self.max_depth()
+        {
             ControlFlow::Break(())
         } else {
             if DRAW_BRANCHES {
@@ -508,11 +510,7 @@ impl FractalViewElement {
             let scale = 0.5 / name.len() as f32 + 0.5;
             ctx.apply(upscale(scale), |ctx| ctx.queue_text(text_tool, name));
         });
-        // control_flow
-        match control_flow {
-            ControlFlow::Break(()) if depth < self.min_depth() => ControlFlow::Continue(()),
-            _ => control_flow,
-        }
+        control_flow
     }
 
     fn draw_subtree(
