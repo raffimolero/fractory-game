@@ -78,6 +78,8 @@ impl FractalCam {
             mouse = Vec2::ZERO;
         }
 
+        mouse = ctx.project(mouse);
+
         let mouse_delta = ctx.project(-mouse_delta_position());
 
         // scroll goes up, transforms zoom in
