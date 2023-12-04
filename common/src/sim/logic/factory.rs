@@ -316,6 +316,29 @@ impl Fractory {
         todo!()
     }
 
+    /// TODO: test
+    pub fn rot_cw(&mut self) {
+        let main = self.fractal.get(TilePos::UNIT);
+
+        self.fractal.set(
+            TilePos::UNIT,
+            Tile {
+                id: main.id,
+                orient: main.orient.rot_cw(),
+            },
+        );
+
+        let mut new_set = HashSet::new();
+        for pos in &self.activated.0 {
+            let mut new_pos = TilePos::UNIT;
+            for subtile in *pos {
+                new_pos.push_back(subtile + Transform::KR);
+            }
+            new_set.insert(new_pos);
+        }
+        self.activated.0 = new_set;
+    }
+
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy(biomes: &mut BiomeCache) -> Self {
         let biome = Biome::new_xyyy();
@@ -335,8 +358,10 @@ impl Fractory {
             TestW,
             TestRotor,
             TestGrowFarm,
+            TestGrowBug,
+            TestActiveBug,
         }
-        let config = Config::TestGrowFarm;
+        let config = Config::TestActiveBug;
 
         match config {
             Config::TestZ => {
@@ -600,6 +625,86 @@ impl Fractory {
                     },
                 );
             }
+            Config::TestGrowBug => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 1, y: 2 },
+                        flop: false,
+                    },
+                    Tile {
+                        id: Tile::GROWER.id,
+                        orient: Tile::GROWER.orient.rot_cw(),
+                    },
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 1, y: 2 },
+                    flop: false,
+                });
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 1, y: 4 },
+                        flop: false,
+                    },
+                    Tile::X,
+                );
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 3,
+                        pos: IVec2 { x: 2, y: 2 },
+                        flop: false,
+                    },
+                    Tile::GROWER,
+                );
+                out.activate(TilePos {
+                    depth: 3,
+                    pos: IVec2 { x: 2, y: 2 },
+                    flop: false,
+                });
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 5, y: 6 },
+                        flop: false,
+                    },
+                    Tile::X,
+                );
+            }
+            Config::TestActiveBug => {
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 2, y: 5 },
+                        flop: true,
+                    },
+                    Tile::W,
+                );
+                out.activate(TilePos {
+                    depth: 4,
+                    pos: IVec2 { x: 2, y: 5 },
+                    flop: true,
+                });
+
+                out.fractal.set(
+                    TilePos {
+                        depth: 4,
+                        pos: IVec2 { x: 3, y: 5 },
+                        flop: true,
+                    },
+                    Tile {
+                        id: Tile::W.id,
+                        orient: Tile::W.orient.flip(),
+                    },
+                );
+                out.activate(TilePos {
+                    depth: 4,
+                    pos: IVec2 { x: 3, y: 5 },
+                    flop: true,
+                });
+            }
         }
 
         out
@@ -654,7 +759,7 @@ impl Fractory {
         for pos in prev_activated {
             let Tile { id, orient } = fractal.get(pos);
 
-            let tile_tf = Transform::from(orient);
+            let tile_tf = orient.transform();
             let Some(behaviors) = biome.behaviors.get(id) else {
                 continue;
             };

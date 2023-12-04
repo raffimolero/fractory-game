@@ -437,6 +437,7 @@ impl FractalElement {
 
         ctx.apply(upscale(self.view_state.scaling()), |ctx| {
             let is_active = pos.is_ok_and(|p| fractory.activated.contains(p));
+            // FIXME: 2 of the same tile transformed differently will draw borders wrong.
             if hovered || is_active {
                 let border_color = if is_active { WHITE } else { GRAY };
                 Self::draw_triangle(border_color);
@@ -457,9 +458,8 @@ impl FractalElement {
                 Some(name) => name.to_owned(),
                 None => id.to_string(),
             };
-            ctx.apply(upscale(0.5 / name.len() as f32 + 0.5), |_ctx| {
-                text_tool(&name)
-            });
+            let scale = 0.5 / name.len() as f32 + 0.5;
+            ctx.apply(upscale(scale), |_ctx| text_tool(&name));
         });
         control_flow
     }
@@ -502,15 +502,14 @@ impl FractalElement {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
-            for ((transform, child), mut subtile) in
+            for ((transform, child), subtile) in
                 transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
-                let orient = cur_orient + Transform::from(tile.orient);
-                subtile += orient;
+                let orient = cur_orient - Transform::from(tile.orient);
 
                 let pos = match pos {
                     Ok(mut pos) => {
-                        pos.push_back(subtile);
+                        pos.push_back(subtile - orient);
                         (pos.depth <= 30).then_some(pos).ok_or(pos.depth as usize)
                     }
                     Err(d) => Err(d + 1),
@@ -653,7 +652,8 @@ impl FractalElement {
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
-            dbg!(&fractory.fractal.library);
+            // dbg!(&fractory.fractal.library);
+            fractory.rot_cw();
         }
 
         if is_key_pressed(KeyCode::Enter) {

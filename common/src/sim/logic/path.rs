@@ -175,19 +175,21 @@ impl TileOffset {
         self.offset = Self::FLIP_X * self.offset;
     }
 
+    fn c_off(self) -> i32 {
+        (1 << self.depth) - 1 - (self.flop as i32)
+    }
+
     pub fn rotate_cw(&mut self) {
         self.offset = Self::ROT_CW * self.offset;
-        if self.flop {
-            self.offset.x -= 1;
-            self.offset.y -= 1;
-        }
+        let c_off = self.c_off();
+        self.offset.x += c_off;
+        self.offset.y += c_off;
     }
 
     pub fn rotate_cc(&mut self) {
         self.offset = Self::ROT_CC * self.offset;
-        if self.flop {
-            self.offset.y -= 1;
-        }
+        let c_off = self.c_off();
+        self.offset.y += c_off;
     }
 }
 
@@ -313,7 +315,7 @@ impl TilePos {
         out
     }
 
-    pub fn from_outward_path_iter(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
+    pub fn from_outward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
         let mut out = Self::UNIT;
         for subtile in path_iter {
             out.push_front(subtile);
