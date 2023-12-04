@@ -110,6 +110,7 @@ impl Fractal {
 
     /// TODO: FOR TESTING PURPOSES
     pub fn new_xyyy() -> Self {
+        // TODO: take fragments as argument
         Self::new(&[
             Quad::X,
             Quad::Y,
