@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use super::*;
 use ergoquad_2d::macroquad::models::Vertex;
@@ -95,7 +95,7 @@ impl Batcher {
                 mesh.vertices.clear();
                 mesh.indices.clear();
             }
-            self.filled_meshes = 0;
+            self.filled_meshes = usize::MAX;
             for (tool, text, matrix) in self.text.drain(..) {
                 apply(matrix, || {
                     self.text_tools[tool](&text);
@@ -115,7 +115,7 @@ impl std::fmt::Debug for Batcher {
 impl Default for Batcher {
     fn default() -> Self {
         Self {
-            filled_meshes: -1_isize as usize,
+            filled_meshes: usize::MAX,
             meshes: vec![],
             text_tools: vec![],
             text: vec![],
@@ -152,12 +152,20 @@ impl Context {
     }
 
     pub fn is_onscreen(&self, points: &[Vec2]) -> bool {
-        let mut bb = Rect::default();
+        let project = |p: &Vec2| self.matrix.transform_point3(p.extend(0.0)).truncate();
+        let points = points.iter().map(project);
+        let mut bb = Rect::new(0.0, 0.0, 0.0, 0.0);
         for p in points {
-            let Vec2 { x, y } = self.project(*p);
-            bb = bb.combine_with(Rect::new(x, y, 0.0, 0.0));
+            bb = bb.combine_with(Rect::new(p.x, p.y, 0.0, 0.0));
         }
-        let viewport = Rect::new(-1.0, -1.0, 1.0, 1.0);
+        // let viewport = Rect::new(-1.0, -1.0, 1.0, 1.0);
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        let n = since_the_epoch.as_millis() % 10_000 * 1;
+        let n = n as f32;
+        let viewport = Rect::new(-1.0, -1.0 + n / 5_000.0, 1.0, 0.1);
         bb.overlaps(&viewport)
     }
 
@@ -188,6 +196,10 @@ impl Context {
         self.inv_matrix
             .transform_point3(point.extend(0.0))
             .truncate()
+    }
+
+    fn unproject(&self, point: Vec2) -> Vec2 {
+        self.matrix.transform_point3(point.extend(0.0)).truncate()
     }
 
     pub fn mouse_pos(&self) -> Option<Vec2> {

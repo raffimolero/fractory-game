@@ -183,6 +183,7 @@ impl Fractory {
         out.fractal.set(TilePos::UNIT, Tile::SPACE);
 
         enum Config {
+            Empty,
             TestZ,
             TestW,
             TestRotor,
@@ -190,9 +191,10 @@ impl Fractory {
             TestGrowBug,
             TestActiveBug,
         }
-        let config = Config::TestGrowFarm;
+        let config = Config::Empty;
 
         match config {
+            Config::Empty => {}
             Config::TestZ => {
                 out.fractal.set(
                     TilePos {

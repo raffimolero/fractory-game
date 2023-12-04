@@ -380,7 +380,7 @@ impl FractalViewElement {
     }
 
     fn min_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize - 2
+        self.frac_cam.depth.log2() as usize - 1
     }
 
     fn max_depth(&self) -> usize {
@@ -524,6 +524,9 @@ impl FractalViewElement {
         pos: Result<TilePos, usize>,
         text_tool: TextToolId,
     ) {
+        if !ctx.is_onscreen(&TRIANGLE) {
+            return;
+        }
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
         let SlotInfo {
@@ -548,9 +551,6 @@ impl FractalViewElement {
         let tile_matrix = transform_to_mat4(tile.orient.into());
 
         ctx.apply(tile_matrix, |ctx| {
-            if !ctx.is_onscreen(&TRIANGLE) {
-                return;
-            }
             match self.draw_leaf(
                 ctx, fractory, cache, names, tile.id, fill, pos, hovered, text_tool,
             ) {
