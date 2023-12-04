@@ -8,10 +8,11 @@ const DRAW_BRANCHES: bool = false;
 
 use self::ctx::{Click, Context};
 use fractory_common::sim::logic::{
-    factory::{ActiveTiles, Biome, BiomeCache, BiomeId, Fractory},
+    factory::{ActiveTiles, Fractory, FractoryMeta},
     fractal::{Fractal, SlotInfo, TileFill},
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
+    planet::{Behavior, Biome, Filter, FragmentData, Planet, PlanetCache},
     tile::{SubTile, Tile},
 };
 use std::{
@@ -29,13 +30,13 @@ use ergoquad_2d::prelude::*;
 fn apply(_youre_using_the_wrong_function: ()) {}
 
 struct Resources {
-    biomes: BiomeCache,
+    planets: PlanetCache,
 }
 
 impl Resources {
     fn new() -> Self {
         Self {
-            biomes: BiomeCache::default(),
+            planets: PlanetCache::default(),
         }
     }
 }
@@ -254,7 +255,7 @@ impl UiElement {
     fn new(res: &mut Resources, font: Font) -> Self {
         Self {
             font,
-            fractory: FractoryElement::new(&mut res.biomes),
+            fractory: FractoryElement::new(res),
         }
     }
 
@@ -278,22 +279,39 @@ impl UiElement {
     }
 }
 
+struct FractoryCache {
+    fragments: FragmentData,
+    biome: Biome,
+}
+
 struct FractoryElement {
-    fractory: Fractory,
-    fractal: FractalElement,
+    fractory_meta: FractoryMeta,
+    fractal_view: FractalViewElement,
+    // inventory_view: InventoryViewElement,
+    cache: FractoryCache,
 }
 
 impl FractoryElement {
-    fn new(biomes: &mut BiomeCache) -> Self {
+    fn new(res: &mut Resources) -> Self {
+        let fractory_meta = FractoryMeta::new_xyyy(&mut res.planets);
+        let planet = res.planets.get(&fractory_meta.planet).unwrap();
+        let fragments = planet.fragments();
+        let biome = planet.biomes().get(&fractory_meta.biome).unwrap();
+        let cache = FractoryCache {
+            fragments: fragments.to_owned(),
+            biome: biome.to_owned(),
+        };
         Self {
-            fractory: Fractory::new_xyyy(biomes),
-            fractal: FractalElement::new(),
+            fractory_meta,
+            fractal_view: FractalViewElement::new(),
+            cache,
         }
     }
 
     fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: &impl Fn(&str)) {
         self.draw_inventory(ctx, text_tool);
-        self.fractal.draw(ctx, res, &mut self.fractory, text_tool);
+        self.fractal_view
+            .draw(ctx, res, &self.fractory_meta, &self.cache, text_tool);
 
         ctx.apply(shift(0.0, 0.6) * downscale(10.0), |_ctx| {
             text_tool(
@@ -312,24 +330,25 @@ impl FractoryElement {
     }
 
     fn draw_inventory(&mut self, ctx: &mut Context, text_tool: &impl Fn(&str)) {
-        let wrap = (self.fractory.inventory.len() as f32).sqrt() as usize;
-        for (idx, (tile_id, count)) in self.fractory.inventory.iter().enumerate() {
+        let wrap = (self.fractory_meta.fractory.inventory.len() as f32).sqrt() as usize;
+        for (idx, (tile_id, count)) in self.fractory_meta.fractory.inventory.iter().enumerate() {
             let x = idx % wrap;
             let y = idx / wrap;
         }
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
-        self.fractal.input(ctx, res, &mut self.fractory);
+        self.fractal_view
+            .input(ctx, res, &mut self.fractory_meta.fractory, &self.cache);
     }
 }
 
-struct FractalElement {
+struct FractalViewElement {
     view_state: ViewState,
     frac_cam: FractalCam,
 }
 
-impl FractalElement {
+impl FractalViewElement {
     fn new() -> Self {
         Self {
             view_state: ViewState::Shattered,
@@ -360,7 +379,7 @@ impl FractalElement {
     fn draw_leaf(
         &self,
         ctx: &mut Context,
-        fractory: &mut Fractory,
+        fractory: &Fractory,
         names: &[String],
         id: usize,
         tile_fill: TileFill,
@@ -467,7 +486,7 @@ impl FractalElement {
     fn draw_subtree(
         &self,
         ctx: &mut Context,
-        fractory: &mut Fractory,
+        fractory: &Fractory,
         names: &[String],
         cur_orient: Transform,
         tile: Tile,
@@ -505,7 +524,7 @@ impl FractalElement {
             for ((transform, child), subtile) in
                 transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
-                let orient = cur_orient - Transform::from(tile.orient);
+                let orient = cur_orient - tile.orient.transform();
 
                 let pos = match pos {
                     Ok(mut pos) => {
@@ -525,21 +544,17 @@ impl FractalElement {
         &mut self,
         ctx: &mut Context,
         res: &mut Resources,
-        fractory: &mut Fractory,
+        fractory_meta: &FractoryMeta,
+        cache: &FractoryCache,
         text_tool: &impl Fn(&str),
     ) {
-        let Ok(biome) = res.biomes.get_or_load(fractory.biome.clone()) else {
-            text_tool("Could not load biome.");
-            return;
-        };
-
         ctx.apply(self.frac_cam.camera, |ctx| {
             self.draw_subtree(
                 ctx,
-                fractory,
-                &biome.names,
+                &fractory_meta.fractory,
+                cache.fragments.names(),
                 Transform::KU,
-                fractory.fractal.root,
+                fractory_meta.fractory.fractal.root,
                 Ok(TilePos::UNIT),
                 &text_tool,
             );
@@ -611,7 +626,7 @@ impl FractalElement {
         let increment = if is_mouse_button_released(MouseButton::Right) {
             1
         } else if is_mouse_button_released(MouseButton::Left) {
-            biome.leaf_count - 1
+            biome.leaf_count() - 1
         } else {
             debug_assert!(false, "unreachable");
             return;
@@ -619,7 +634,7 @@ impl FractalElement {
 
         let mut tile = fractal.get(hit_pos);
         tile.id += increment;
-        tile.id %= biome.leaf_count;
+        tile.id %= biome.leaf_count();
         tile.orient = fractal.library[tile.id].symmetries.into();
         fractal.set(hit_pos, tile);
     }
@@ -648,7 +663,13 @@ impl FractalElement {
         fractal.set(hit_pos, tile);
     }
 
-    fn input(&mut self, ctx: &mut Context, res: &mut Resources, fractory: &mut Fractory) {
+    fn input(
+        &mut self,
+        ctx: &mut Context,
+        res: &mut Resources,
+        fractory: &mut Fractory,
+        cache: &FractoryCache,
+    ) {
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
@@ -657,7 +678,7 @@ impl FractalElement {
         }
 
         if is_key_pressed(KeyCode::Enter) {
-            fractory.tick(&res.biomes)
+            fractory.tick(&cache.fragments.behaviors(), cache.biome.fragment_filter())
         }
 
         if is_key_pressed(KeyCode::Tab) {
@@ -678,18 +699,8 @@ impl FractalElement {
                 break 'click;
             };
 
-            let Some(biome) = res.biomes.get(&fractory.biome) else {
-                // panic in debug mode
-                debug_assert!(
-                    false,
-                    "biome {:?} was not loaded before input.",
-                    fractory.biome
-                );
-                return;
-            };
-
             match (ctrl, shift) {
-                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal, biome),
+                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal, &cache.biome),
                 (true, false) => {
                     if is_mouse_button_released(MouseButton::Left) {
                         self.input_act(hit_pos, &mut fractory.activated);
