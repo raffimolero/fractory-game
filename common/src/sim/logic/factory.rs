@@ -125,7 +125,8 @@ impl FractoryMeta {
     pub fn new_xyyy(planets: &mut PlanetCache) -> Self {
         let xyyy = Planet::new_xyyy();
         let planet_id = xyyy.default_id();
-        let biome_id = BiomeId::from("Spinless");
+        // let biome_id = BiomeId::from("Spinless");
+        let biome_id = BiomeId::from("Landing Zone");
         planets.register(planet_id.clone(), xyyy);
         Self {
             fractory: Fractory::new_xyyy(),
@@ -189,7 +190,7 @@ impl Fractory {
             TestGrowBug,
             TestActiveBug,
         }
-        let config = Config::TestActiveBug;
+        let config = Config::TestGrowFarm;
 
         match config {
             Config::TestZ => {
