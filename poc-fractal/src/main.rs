@@ -59,14 +59,22 @@ impl Resources {
 #[derive(Debug, Clone, Copy)]
 struct FractalCam {
     camera: Mat4,
-    depth: f32,
+    min_depth: f32,
+    min_bg_depth: f32,
+    mouse_depth: f32,
+    max_bg_depth: f32,
+    max_mouse_depth: f32,
 }
 
 impl Default for FractalCam {
     fn default() -> Self {
         Self {
             camera: Mat4::IDENTITY,
-            depth: 1.0,
+            min_depth: -1.0,
+            min_bg_depth: 1.0,
+            mouse_depth: 4.0,
+            max_bg_depth: 4.0,
+            max_mouse_depth: 6.0,
         }
     }
 }
@@ -74,10 +82,13 @@ impl Default for FractalCam {
 impl FractalCam {
     /// returns a Mat4 corresponding to how much the map needs to be moved
     fn input(ctx: &Context) -> Self {
+        use KeyCode::*;
+
         let [mut x, mut y, mut rot] = [0.0; 3];
         let mut flipped = false;
         let mut zoom = 1.0;
-        let mut depth = 1.0;
+        let mut min_bg_depth = 0.0;
+        let mut mouse_depth = 0.0;
 
         // // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
         // let time = get_time() as f32;
@@ -93,46 +104,26 @@ impl FractalCam {
             mouse = Vec2::ZERO;
         }
 
-        mouse = ctx.project(mouse);
-
-        let mouse_delta = ctx.project(-mouse_delta_position());
-
-        // scroll goes up, transforms zoom in
-        let (_scroll_x, scroll_y) = mouse_wheel();
-        {
-            use KeyCode::*;
-
-            // zoom
-            let scroll_sens = 1.0 / 120.0;
-            let zoom_scaling = (2_f32).powf(scroll_y * scroll_sens);
-            if is_key_down(LeftControl) {
-                depth *= zoom_scaling;
-            } else {
-                zoom *= zoom_scaling;
-            }
+        let mouse_zoom = {
+            mouse = ctx.project(mouse);
+            let mouse_delta = ctx.project(-mouse_delta_position());
+            // scroll goes up, transforms zoom in
+            let (_scroll_x, scroll_y) = mouse_wheel();
 
             // drag controls
             if is_mouse_button_down(MouseButton::Left) | is_mouse_button_down(MouseButton::Right) {
                 x += mouse_delta.x;
                 y += mouse_delta.y;
             }
-        }
-
-        // check keypresses
-        {
-            use KeyCode::*;
 
             // zoom
-            let zoom_sens = 4.0;
-            let zoom_sign = if is_key_down(LeftShift) { -1.0 } else { 1.0 };
-            if is_key_down(Space) {
-                let mut zoom_scaling = (2_f32).powf(delta * zoom_sens * zoom_sign);
-                if !is_key_down(LeftControl) {
-                    depth *= zoom_scaling;
-                }
-                zoom *= zoom_scaling;
-            }
+            let scroll_sens = 1.0 / 120.0;
+            let zoom_amount = scroll_y * scroll_sens;
+            zoom_amount
+        };
 
+        // check keypresses
+        let keyboard_zoom = {
             let speed = 4.0;
             // WASD movement, y goes down
             if is_key_down(W) {
@@ -160,6 +151,26 @@ impl FractalCam {
             if is_key_pressed(F) {
                 flipped ^= true;
             }
+            // zoom
+            if is_key_down(Space) {
+                let zoom_sens = 4.0;
+                let zoom_sign = if is_key_down(LeftShift) { -1.0 } else { 1.0 };
+                let zoom_amount = delta * zoom_sens * zoom_sign;
+                zoom_amount
+            } else {
+                0.0
+            }
+        };
+
+        let zoom_amount = mouse_zoom + keyboard_zoom;
+        let mut zoom_scaling = (2_f32).powf(zoom_amount);
+        if is_key_down(LeftControl) {
+            mouse_depth += zoom_amount;
+        } else if is_key_down(LeftAlt) {
+            min_bg_depth += zoom_amount;
+        } else {
+            mouse_depth -= zoom_amount;
+            zoom *= zoom_scaling;
         }
 
         let main_transform = Mat4::from_scale_rotation_translation(
@@ -174,18 +185,46 @@ impl FractalCam {
 
         // center the transform at the mouse
         let camera = shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y);
-        FractalCam { camera, depth }
+        FractalCam {
+            camera,
+            min_depth: 0.0,
+            min_bg_depth,
+            mouse_depth,
+            max_bg_depth: 0.0,
+            max_mouse_depth: 0.0,
+        }
     }
 
-    fn clamp_depth(self, largest: i32, smallest: i32) -> Self {
+    fn scale(&self) -> f32 {
         let (scale, _, _) = self.camera.to_scale_rotation_translation();
-        let scale = scale.y; // scale.x.abs() == scale.y
+        scale.y // scale.x.abs() == scale.y
+    }
 
-        let min = scale * 2_f32.powi(largest);
-        let max = scale * 2_f32.powi(smallest);
+    fn min_depth(&self) -> usize {
+        (self.scale().log2() + self.min_bg_depth) as usize
+    }
+
+    fn hover_depth(&self) -> usize {
+        (self.scale().log2() + self.mouse_depth) as usize
+    }
+
+    fn max_depth(&self) -> usize {
+        (self.scale().log2() + self.max_bg_depth) as usize
+    }
+
+    fn clamp_depth(self) -> Self {
+        let scale = self.scale();
+        let min = self.min_depth;
+        let max = self.max_mouse_depth;
+        let mouse_depth = self.mouse_depth.clamp(min, max);
+
+        let min = self.min_depth;
+        let max = self.max_bg_depth;
+        let min_bg_depth = self.min_bg_depth.clamp(min, max);
 
         Self {
-            depth: self.depth.clamp(min, max),
+            min_bg_depth,
+            mouse_depth,
             ..self
         }
     }
@@ -195,9 +234,14 @@ impl Mul for FractalCam {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let camera = self.camera * rhs.camera;
-        let depth = self.depth * rhs.depth;
-        Self { camera, depth }
+        Self {
+            camera: self.camera * rhs.camera,
+            min_depth: self.min_depth + rhs.min_depth,
+            min_bg_depth: self.min_bg_depth + rhs.min_bg_depth,
+            mouse_depth: self.mouse_depth + rhs.mouse_depth,
+            max_bg_depth: self.max_bg_depth + rhs.max_bg_depth,
+            max_mouse_depth: self.max_mouse_depth + rhs.max_mouse_depth,
+        }
     }
 }
 
@@ -339,7 +383,7 @@ impl FractoryElement {
                 Enter: tick\n\
                 Camera:\n\
                 -> WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
-                -> Click+Drag: move | Scroll: zoom | Ctrl+Scroll: change recursion depth\n\
+                -> Click+Drag: move | Scroll: zoom | (Ctrl/Alt)+Scroll: change cursor/background depth\n\
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
                 Ctrl+Shift+LMB/RMB: Cycle tile\n\
@@ -374,17 +418,9 @@ impl FractalViewElement {
             view_state: ViewState::Shattered,
             frac_cam: FractalCam {
                 camera: upscale(2.0) * shift(0.0, 0.625),
-                depth: 2_f32.powi(4),
+                ..Default::default()
             },
         }
-    }
-
-    fn min_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize - 1
-    }
-
-    fn max_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize
     }
 
     fn draw_leaf(
@@ -419,17 +455,23 @@ impl FractalViewElement {
             Ok(p) => p.depth(),
             Err(d) => d,
         };
-        let control_flow = if tile_fill.is_leaf() && !hovered && depth >= self.min_depth()
-            || depth >= self.max_depth()
-        {
+
+        let should_break = if hovered {
+            depth == self.frac_cam.hover_depth()
+        } else {
+            depth >= self.frac_cam.max_depth()
+                || tile_fill.is_leaf() && depth >= self.frac_cam.min_depth()
+        };
+
+        let control_flow = if should_break {
             ControlFlow::Break(())
         } else {
-            if DRAW_BRANCHES {
-                ControlFlow::Continue(())
-            } else {
-                return ControlFlow::Continue(());
-            }
+            ControlFlow::Continue(())
         };
+
+        if !DRAW_BRANCHES && control_flow == ControlFlow::Continue(()) {
+            return control_flow;
+        }
 
         // FUTURE: add a cursor follower that visually shows the expansion threshold by size
         // maybe solve this once you do bevy tbh
@@ -604,17 +646,29 @@ impl FractalViewElement {
             );
         });
         ctx.apply(shift(0.0, -0.7) * downscale(5.0), |ctx| {
-            let FractalCam { camera, depth } = self.frac_cam;
+            let FractalCam {
+                camera,
+                mouse_depth,
+                min_bg_depth,
+                ..
+            } = self.frac_cam;
             ctx.queue_text(
                 text_tool,
-                format!("Recursion Depth: {depth:.2} (2^{:.2})", depth.log2()),
+                format!(
+                    "Selection Depth: 2^{:.2}\n\
+                    Background Depth: 2^{:.2}\n\
+                    Zoom: 2^{:.2}",
+                    mouse_depth,
+                    min_bg_depth,
+                    self.frac_cam.scale(),
+                ),
             );
         });
         ctx.flush();
     }
 
     fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
-        if depth > self.max_depth() {
+        if depth > self.frac_cam.hover_depth() {
             return None;
         }
         if !in_triangle(click) {
@@ -668,9 +722,9 @@ impl FractalViewElement {
     }
 
     fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal, biome: &Biome) {
-        let increment = if is_mouse_button_released(MouseButton::Right) {
+        let increment = if is_mouse_button_released(MouseButton::Left) {
             1
-        } else if is_mouse_button_released(MouseButton::Left) {
+        } else if is_mouse_button_released(MouseButton::Right) {
             biome.leaf_count() - 1
         } else {
             debug_assert!(false, "unreachable");
@@ -715,7 +769,7 @@ impl FractalViewElement {
         fractory: &mut Fractory,
         cache: &FractoryCache,
     ) {
-        self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
+        self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth();
 
         if is_key_pressed(KeyCode::Apostrophe) {
             // dbg!(&fractory.fractal.library);
@@ -819,7 +873,7 @@ async fn main() {
         ui_elem.draw(&mut ctx, &mut res);
 
         iters += 1;
-        if iters >= 50 {
+        if iters >= 60 {
             println!("{iters} iters took {:?}", time_check.elapsed());
             iters = 0;
             time_check = Instant::now();
