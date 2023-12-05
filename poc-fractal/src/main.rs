@@ -108,6 +108,7 @@ impl FractalCam {
             if is_key_down(LeftControl) {
                 depth *= zoom_scaling;
             } else {
+                depth *= zoom_scaling;
                 zoom *= zoom_scaling;
             }
 
@@ -380,11 +381,17 @@ impl FractalViewElement {
     }
 
     fn min_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize - 1
+        let (scale, rot, trans) = self.frac_cam.camera.to_scale_rotation_translation();
+        (scale.x.log2() as usize) + 1
+    }
+
+    fn hover_depth(&self) -> usize {
+        self.frac_cam.depth.log2() as usize
     }
 
     fn max_depth(&self) -> usize {
-        self.frac_cam.depth.log2() as usize
+        let (scale, rot, trans) = self.frac_cam.camera.to_scale_rotation_translation();
+        scale.x.log2() as usize + 4
     }
 
     fn draw_leaf(
@@ -421,6 +428,7 @@ impl FractalViewElement {
         };
         let control_flow = if tile_fill.is_leaf() && !hovered && depth >= self.min_depth()
             || depth >= self.max_depth()
+            || hovered && depth == self.hover_depth()
         {
             ControlFlow::Break(())
         } else {
@@ -614,7 +622,7 @@ impl FractalViewElement {
     }
 
     fn subtree_click_pos(&mut self, click: Vec2, depth: usize) -> Option<TilePos> {
-        if depth > self.max_depth() {
+        if depth > self.hover_depth() {
             return None;
         }
         if !in_triangle(click) {
@@ -715,7 +723,7 @@ impl FractalViewElement {
         fractory: &mut Fractory,
         cache: &FractoryCache,
     ) {
-        self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-3, 6);
+        self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth(-1, 6);
 
         if is_key_pressed(KeyCode::Apostrophe) {
             // dbg!(&fractory.fractal.library);
