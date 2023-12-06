@@ -184,6 +184,14 @@ impl Context {
         self.batcher.flush(self.inv_matrix)
     }
 
+    pub fn matrix(&self) -> Mat4 {
+        self.matrix
+    }
+
+    pub fn inv_matrix(&self) -> Mat4 {
+        self.inv_matrix
+    }
+
     pub fn project(&self, point: Vec2) -> Vec2 {
         self.inv_matrix
             .transform_point3(point.extend(0.0))

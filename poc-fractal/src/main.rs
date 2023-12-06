@@ -458,8 +458,12 @@ fn draw_tile(
 struct SmoothOrient(f32);
 
 impl SmoothOrient {
-    fn orient_to_rad(orient: Orient, flop: bool, camera: Mat4) -> Self {
-        let mut rot = camera.to_scale_rotation_translation().1.z;
+    fn from_orient(orient: Orient, flop: bool, camera: Mat4) -> Self {
+        let mut rot = camera
+            .to_scale_rotation_translation()
+            .1
+            .to_euler(EulerRot::ZYX)
+            .0;
 
         let transform = orient.transform();
         rot += transform.rotation() as u8 as f32 * TAU / 3.0;
@@ -475,14 +479,18 @@ impl SmoothOrient {
         Self(rot)
     }
 
-    fn rad_to_orient(self, flop: bool, camera: Mat4) -> Orient {
-        // TODO
+    fn to_orient(self, flop: bool, camera: Mat4) -> Orient {
+        // TODO: calculate size and orientation of target tile (hit_pos needed)
+        // and find the closest orientation (rotation+reflection)
         Orient::Iso
     }
 
-    fn to_transform(self) -> Mat4 {
+    fn to_transform(self, ctx: &Context, camera: Mat4) -> Mat4 {
+        // TODO: calculate size and orientation of target tile (hit_pos needed)
+        // and resize held tile to match
+        let scale = 1.0; // todo
         Mat4::from_scale_rotation_translation(
-            Vec3::new(self.0.signum(), 1.0, 1.0),
+            (Vec2::new(self.0.signum(), 1.0) * scale).extend(1.0),
             Quat::from_rotation_z(self.0),
             Vec3::ZERO,
         )
@@ -545,7 +553,9 @@ impl FractoryElement {
             CursorState::Holding { tile_id, orient } => {
                 let color = tile_color(&self.fractory_meta.fractory, tile_id);
                 let name = tile_name(self.cache.fragments.names(), tile_id);
-                ctx.apply(orient.to_transform(), |ctx| {
+                // TODO: get hit position to draw
+                let matrix = orient.to_transform(ctx, self.fractal_view.frac_cam.camera);
+                ctx.apply(matrix, |ctx| {
                     draw_tile(
                         ctx,
                         text_tool,
@@ -883,7 +893,7 @@ impl FractalViewElement {
         }
         *cursor = CursorState::Holding {
             tile_id: tile.id,
-            orient: SmoothOrient::orient_to_rad(tile.orient, hit_pos.flop, self.frac_cam.camera),
+            orient: SmoothOrient::from_orient(tile.orient, hit_pos.flop, self.frac_cam.camera),
         }
     }
 
@@ -902,7 +912,7 @@ impl FractalViewElement {
             hit_pos,
             Tile {
                 id: *tile_id,
-                orient: rotation.rad_to_orient(hit_pos.flop, self.frac_cam.camera),
+                orient: rotation.to_orient(hit_pos.flop, self.frac_cam.camera),
             },
         );
         *cursor = CursorState::Free;
