@@ -111,7 +111,7 @@ impl FractalCam {
             let (_scroll_x, scroll_y) = mouse_wheel();
 
             // drag controls
-            if is_mouse_button_down(MouseButton::Left) | is_mouse_button_down(MouseButton::Right) {
+            if is_mouse_button_down(MouseButton::Right) {
                 x += mouse_delta.x;
                 y += mouse_delta.y;
             }
@@ -335,7 +335,7 @@ impl UiElement {
     fn draw(&mut self, ctx: &mut Context, res: &mut Resources) {
         let text_tool = Box::new(new_text_tool(self.font, WHITE));
         let text_tool = ctx.register_text_tool(text_tool);
-        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, res, text_tool))
+        Self::project_to_screen(ctx, |ctx| self.fractory.draw(ctx, res, text_tool));
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
@@ -350,7 +350,10 @@ struct FractoryCache {
 
 enum CursorState {
     Free,
-    Holding { tile_id: usize, rotation: f32 },
+    Holding {
+        tile_id: usize,
+        orient: SmoothOrient,
+    },
 }
 
 fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
@@ -450,15 +453,40 @@ fn draw_tile(
     ctx.apply(upscale(scale), |ctx| ctx.queue_text(text_tool, name));
 }
 
-fn orient_to_rad(orient: Orient, flop: bool, camera: Mat4) -> f32 {
-    let rot = camera.to_scale_rotation_translation().1.z;
-    // TODO
-    0.0
-}
+/// rotation of a tile. flop if negative.
+#[derive(Debug, Clone, Copy)]
+struct SmoothOrient(f32);
 
-fn rad_to_orient(rotation: f32, flop: bool, camera: Mat4) -> Orient {
-    // TODO
-    Orient::Iso
+impl SmoothOrient {
+    fn orient_to_rad(orient: Orient, flop: bool, camera: Mat4) -> Self {
+        let mut rot = camera.to_scale_rotation_translation().1.z;
+
+        let transform = orient.transform();
+        rot += transform.rotation() as u8 as f32 * TAU / 3.0;
+        if flop {
+            rot += TAU / 2.0; // no i will not use pi
+        }
+
+        rot = rot.rem_euclid(TAU);
+        if transform.reflected() {
+            rot -= TAU;
+        }
+
+        Self(rot)
+    }
+
+    fn rad_to_orient(self, flop: bool, camera: Mat4) -> Orient {
+        // TODO
+        Orient::Iso
+    }
+
+    fn to_transform(self) -> Mat4 {
+        Mat4::from_scale_rotation_translation(
+            Vec3::new(self.0.signum(), 1.0, 1.0),
+            Quat::from_rotation_z(self.0),
+            Vec3::ZERO,
+        )
+    }
 }
 
 struct FractoryElement {
@@ -514,13 +542,10 @@ impl FractoryElement {
     fn draw_cursor(&mut self, ctx: &mut Context, text_tool: TextToolId) {
         match self.cursor {
             CursorState::Free => {}
-            CursorState::Holding {
-                tile_id,
-                rotation: orient,
-            } => {
+            CursorState::Holding { tile_id, orient } => {
                 let color = tile_color(&self.fractory_meta.fractory, tile_id);
                 let name = tile_name(self.cache.fragments.names(), tile_id);
-                ctx.apply(rotate_cw(orient), |ctx| {
+                ctx.apply(orient.to_transform(), |ctx| {
                     draw_tile(
                         ctx,
                         text_tool,
@@ -534,6 +559,7 @@ impl FractoryElement {
                 });
             }
         }
+        ctx.flush();
     }
 
     fn draw_inventory(&mut self, ctx: &mut Context, text_tool: TextToolId) {
@@ -542,6 +568,7 @@ impl FractoryElement {
             let x = idx % wrap;
             let y = idx / wrap;
         }
+        ctx.flush();
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
@@ -718,13 +745,6 @@ impl FractalViewElement {
         cache: &FractoryCache,
     ) {
         ctx.apply(self.frac_cam.camera, |ctx| {
-            // ctx.apply(shift(1.0, 0.0), |ctx| {
-            //     ctx.queue_polygon(&TRIANGLE, DARKGRAY)
-            // });
-            // ctx.apply(shift(-1.0, 0.0), |ctx| ctx.queue_polygon(&TRIANGLE, GRAY));
-
-            // ctx.flush();
-            // return;
             self.draw_subtree(
                 ctx,
                 text_tool,
@@ -856,15 +876,23 @@ impl FractalViewElement {
     }
 
     fn input_grab(&mut self, hit_pos: TilePos, fractal: &mut Fractal, cursor: &mut CursorState) {
+        let CursorState::Free = cursor else { return };
         let tile = fractal.set(hit_pos, Tile::SPACE);
+        if tile == Tile::SPACE {
+            return;
+        }
         *cursor = CursorState::Holding {
             tile_id: tile.id,
-            rotation: orient_to_rad(tile.orient, hit_pos.flop, self.frac_cam.camera),
+            orient: SmoothOrient::orient_to_rad(tile.orient, hit_pos.flop, self.frac_cam.camera),
         }
     }
 
     fn input_drop(&mut self, hit_pos: TilePos, fractal: &mut Fractal, cursor: &mut CursorState) {
-        let CursorState::Holding { tile_id, rotation } = cursor else {
+        let CursorState::Holding {
+            tile_id,
+            orient: rotation,
+        } = cursor
+        else {
             return;
         };
         if fractal.get(hit_pos) != Tile::SPACE {
@@ -874,7 +902,7 @@ impl FractalViewElement {
             hit_pos,
             Tile {
                 id: *tile_id,
-                orient: rad_to_orient(*rotation, hit_pos.flop, self.frac_cam.camera),
+                orient: rotation.rad_to_orient(hit_pos.flop, self.frac_cam.camera),
             },
         );
         *cursor = CursorState::Free;
@@ -942,9 +970,10 @@ impl FractalViewElement {
                     (false, false, Lmb) => self.input_grab(hit_pos, &mut fractory.fractal, cursor),
                     _ => {}
                 },
-                (false, cursor @ CursorState::Holding { .. }) => {
-                    self.input_drop(hit_pos, &mut fractory.fractal, cursor)
-                }
+                (false, cursor @ CursorState::Holding { .. }) => match (ctrl, shift, button) {
+                    (false, false, Lmb) => self.input_drop(hit_pos, &mut fractory.fractal, cursor),
+                    _ => {}
+                },
                 _ => {}
             }
         }
@@ -970,11 +999,8 @@ fn transform_to_mat4(transform: Transform) -> Mat4 {
     if transform.reflected() {
         matrix = flip_x() * matrix;
     }
-    match transform.rotation() {
-        Rotation::U => {}
-        Rotation::R => matrix = rotate_cw(TAU / 3.0) * matrix,
-        Rotation::L => matrix = rotate_cc(TAU / 3.0) * matrix,
-    }
+    let rot = transform.rotation() as u8 as f32 * TAU / 3.0;
+    matrix = rotate_cw(rot) * matrix;
     matrix
 }
 
