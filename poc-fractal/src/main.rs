@@ -276,7 +276,9 @@ fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
             h -= SPACING;
         }
         h += max_h;
-        draw_multiline_text(text, (0.0 - w) / 2.0, (0.5 + h) / 2.0, SPACING, params)
+        let x = (0.0 - w) / 2.0;
+        let y = (0.5 + h) / 2.0;
+        draw_multiline_text(text, x, y, SPACING, params)
     }
 }
 
@@ -346,7 +348,121 @@ struct FractoryCache {
     biome: Biome,
 }
 
+enum CursorState {
+    Free,
+    Holding { tile_id: usize, rotation: f32 },
+}
+
+fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
+    enum ColorMode {
+        Fragment,
+        Id,
+        Greyscale,
+    }
+    use ColorMode::*;
+
+    fn average(a: Color, b: Color) -> Color {
+        Color {
+            r: a.r + b.r / 2.0,
+            g: a.g + b.g / 2.0,
+            b: a.b + b.b / 2.0,
+            a: a.a + b.a / 2.0,
+        }
+    }
+
+    let SlotInfo {
+        quad,
+        fill,
+        symmetries: _,
+    } = fractory.fractal.library[tile_id];
+
+    // TODO: fragment coloring should first try to use the fragment sprite,
+    // otherwise use a hash color
+    // these should be specified by the fractal itself
+    let color_mode = match fill {
+        TileFill::Empty => Greyscale,
+        TileFill::Partial => Id,
+        TileFill::Full { .. } => Fragment,
+    };
+
+    match color_mode {
+        Id => {
+            const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
+            average(BLACK, PALETTE[tile_id % PALETTE.len()])
+        }
+        Fragment => {
+            // TODO: have a tile palette based on fragments
+            const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
+            PALETTE[tile_id % PALETTE.len()]
+        }
+        Greyscale => {
+            // const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
+            // PALETTE[pos.depth() % PALETTE.len()]
+            DARKGRAY
+        }
+    }
+}
+
+fn tile_name(names: &[String], tile_id: usize) -> String {
+    match names.get(tile_id) {
+        Some(name) => name.to_owned(),
+        None => tile_id.to_string(),
+    }
+}
+
+enum TileStyle {
+    Plain,
+    Bordered {
+        border_color: Color,
+        with_orient_icon: bool,
+    },
+}
+
+fn draw_tile(
+    ctx: &mut Context,
+    text_tool: TextToolId,
+    color: Color,
+    name: String,
+    style: TileStyle,
+) {
+    if let TileStyle::Bordered {
+        border_color,
+        with_orient_icon,
+    } = style
+    {
+        ctx.queue_polygon(&TRIANGLE, border_color);
+        ctx.apply(upscale(0.8), |ctx| {
+            ctx.queue_polygon(&TRIANGLE, color);
+        });
+        if with_orient_icon {
+            ctx.apply(
+                shift(0.0, -0.625) * downscale(8.0) * rotate_cw(TAU / 4.0),
+                |ctx| {
+                    ctx.queue_polygon(&TRIANGLE, border_color);
+                },
+            )
+        }
+    } else {
+        ctx.queue_polygon(&TRIANGLE, color);
+    }
+
+    let scale = 0.5 / name.len() as f32 + 0.5;
+    ctx.apply(upscale(scale), |ctx| ctx.queue_text(text_tool, name));
+}
+
+fn orient_to_rad(orient: Orient, flop: bool, camera: Mat4) -> f32 {
+    let rot = camera.to_scale_rotation_translation().1.z;
+    // TODO
+    0.0
+}
+
+fn rad_to_orient(rotation: f32, flop: bool, camera: Mat4) -> Orient {
+    // TODO
+    Orient::Iso
+}
+
 struct FractoryElement {
+    cursor: CursorState,
     fractory_meta: FractoryMeta,
     fractal_view: FractalViewElement,
     // inventory_view: InventoryViewElement,
@@ -364,6 +480,7 @@ impl FractoryElement {
             biome: biome.to_owned(),
         };
         Self {
+            cursor: CursorState::Free,
             fractory_meta,
             fractal_view: FractalViewElement::new(),
             cache,
@@ -373,7 +490,7 @@ impl FractoryElement {
     fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: TextToolId) {
         self.draw_inventory(ctx, text_tool);
         self.fractal_view
-            .draw(ctx, res, &self.fractory_meta, &self.cache, text_tool);
+            .draw(ctx, res, text_tool, &self.fractory_meta, &self.cache);
 
         ctx.apply(shift(0.0, 0.6) * downscale(10.0), |ctx| {
             ctx.queue_text(
@@ -391,6 +508,32 @@ impl FractoryElement {
                     .into(),
             );
         });
+        self.draw_cursor(ctx, text_tool);
+    }
+
+    fn draw_cursor(&mut self, ctx: &mut Context, text_tool: TextToolId) {
+        match self.cursor {
+            CursorState::Free => {}
+            CursorState::Holding {
+                tile_id,
+                rotation: orient,
+            } => {
+                let color = tile_color(&self.fractory_meta.fractory, tile_id);
+                let name = tile_name(self.cache.fragments.names(), tile_id);
+                ctx.apply(rotate_cw(orient), |ctx| {
+                    draw_tile(
+                        ctx,
+                        text_tool,
+                        color,
+                        name,
+                        TileStyle::Bordered {
+                            border_color: BLUE,
+                            with_orient_icon: true,
+                        },
+                    )
+                });
+            }
+        }
     }
 
     fn draw_inventory(&mut self, ctx: &mut Context, text_tool: TextToolId) {
@@ -402,8 +545,13 @@ impl FractoryElement {
     }
 
     fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
-        self.fractal_view
-            .input(ctx, res, &mut self.fractory_meta.fractory, &self.cache);
+        self.fractal_view.input(
+            ctx,
+            res,
+            &mut self.cursor,
+            &mut self.fractory_meta.fractory,
+            &self.cache,
+        );
     }
 }
 
@@ -426,6 +574,7 @@ impl FractalViewElement {
     fn draw_leaf(
         &self,
         ctx: &mut Context,
+        text_tool: TextToolId,
         fractory: &Fractory,
         cache: &FractoryCache,
         names: &[String],
@@ -433,24 +582,7 @@ impl FractalViewElement {
         tile_fill: TileFill,
         pos: Result<TilePos, usize>,
         hovered: bool,
-        text_tool: TextToolId,
     ) -> ControlFlow<()> {
-        enum ColorMode {
-            Fragment,
-            Depth,
-            Greyscale,
-        }
-        use ColorMode::*;
-
-        fn average(a: Color, b: Color) -> Color {
-            Color {
-                r: a.r + b.r / 2.0,
-                g: a.g + b.g / 2.0,
-                b: a.b + b.b / 2.0,
-                a: a.a + b.a / 2.0,
-            }
-        }
-
         let depth = match pos {
             Ok(p) => p.depth(),
             Err(d) => d,
@@ -477,94 +609,53 @@ impl FractalViewElement {
         // maybe solve this once you do bevy tbh
         // shift+scroll zooms the mouse cursor, scroll zooms the camera *and* the cursor
 
-        // TODO: fragment coloring should first try to use the fragment sprite,
-        // otherwise use a hash color
-        // these should be specified by the fractal itself
-        let color_mode = match tile_fill {
-            TileFill::Empty => Greyscale,
-            TileFill::Partial => Depth,
-            TileFill::Full { .. } => {
-                if control_flow == ControlFlow::Break(()) {
-                    Fragment
-                } else {
-                    Depth
-                }
-            }
-        };
-
-        let color = match color_mode {
-            Depth => {
-                const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
-                average(BLACK, PALETTE[pos.map_or(0, |p| p.depth() % PALETTE.len())])
-            }
-            Fragment => {
-                // TODO: have a tile palette based on fragments
-                const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
-                PALETTE[id % PALETTE.len()]
-            }
-            Greyscale => {
-                // const PALETTE: &[Color] = &[DARKGRAY, GRAY, LIGHTGRAY];
-                // PALETTE[pos.depth() % PALETTE.len()]
-                DARKGRAY
-            }
-        };
-
-        ctx.apply(upscale(self.view_state.scaling()), |ctx| {
-            let is_active = pos.is_ok_and(|p| fractory.activated.contains(p));
-            // FIXME: 2 of the same tile transformed differently will draw borders wrong.
-            if hovered || is_active {
-                let border_color = if is_active {
-                    if !cache
-                        .biome
-                        .behavior(cache.fragments.behaviors(), id)
-                        .is_empty()
-                    {
-                        WHITE
-                    } else {
-                        RED
-                    }
-                } else {
-                    GRAY
-                };
-                ctx.queue_polygon(&TRIANGLE, border_color);
-                ctx.apply(upscale(0.8), |ctx| {
-                    ctx.queue_polygon(&TRIANGLE, color);
-                });
-                if hovered {
-                    ctx.apply(
-                        shift(0.0, -0.625) * downscale(8.0) * rotate_cw(TAU / 4.0),
-                        |ctx| {
-                            ctx.queue_polygon(&TRIANGLE, border_color);
-                        },
-                    )
-                }
+        let is_active = pos.is_ok_and(|p| fractory.activated.contains(p));
+        let style = if hovered || is_active {
+            let border_color = if !is_active {
+                GRAY
+            } else if cache
+                .biome
+                .behavior(cache.fragments.behaviors(), id)
+                .is_empty()
+            {
+                RED
             } else {
-                ctx.queue_polygon(&TRIANGLE, color);
+                WHITE
+            };
+            TileStyle::Bordered {
+                border_color,
+                with_orient_icon: hovered,
             }
+        } else {
+            TileStyle::Plain
+        };
+        ctx.apply(upscale(self.view_state.scaling()), |ctx| {
             // ctx.apply(shift(0.0, -0.2) * downscale(4.0), |_| {
             //     let text = format!("{pos:#?}");
             //     text_tool(&text);
             // });
-            let name = match names.get(id) {
-                Some(name) => name.to_owned(),
-                None => id.to_string(),
-            };
-            let scale = 0.5 / name.len() as f32 + 0.5;
-            ctx.apply(upscale(scale), |ctx| ctx.queue_text(text_tool, name));
+            draw_tile(
+                ctx,
+                text_tool,
+                tile_color(fractory, id),
+                tile_name(names, id),
+                style,
+            );
         });
+
         control_flow
     }
 
     fn draw_subtree(
         &self,
         ctx: &mut Context,
+        text_tool: TextToolId,
         fractory: &Fractory,
         cache: &FractoryCache,
         names: &[String],
         cur_orient: Transform,
         tile: Tile,
         pos: Result<TilePos, usize>,
-        text_tool: TextToolId,
     ) {
         let mouse = ctx.mouse_pos().unwrap_or(Vec2::ZERO);
         let hovered = in_triangle(mouse);
@@ -594,7 +685,7 @@ impl FractalViewElement {
                 return;
             }
             match self.draw_leaf(
-                ctx, fractory, cache, names, tile.id, fill, pos, hovered, text_tool,
+                ctx, text_tool, fractory, cache, names, tile.id, fill, pos, hovered,
             ) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
@@ -612,7 +703,7 @@ impl FractalViewElement {
                     Err(d) => Err(d + 1),
                 };
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, fractory, cache, names, orient, child, pos, text_tool);
+                    self.draw_subtree(ctx, text_tool, fractory, cache, names, orient, child, pos);
                 });
             }
         });
@@ -622,9 +713,9 @@ impl FractalViewElement {
         &mut self,
         ctx: &mut Context,
         res: &mut Resources,
+        text_tool: TextToolId,
         fractory_meta: &FractoryMeta,
         cache: &FractoryCache,
-        text_tool: TextToolId,
     ) {
         ctx.apply(self.frac_cam.camera, |ctx| {
             // ctx.apply(shift(1.0, 0.0), |ctx| {
@@ -636,13 +727,13 @@ impl FractalViewElement {
             // return;
             self.draw_subtree(
                 ctx,
+                text_tool,
                 &fractory_meta.fractory,
                 cache,
                 cache.fragments.names(),
                 Transform::KU,
                 fractory_meta.fractory.fractal.root,
                 Ok(TilePos::UNIT),
-                text_tool,
             );
         });
         ctx.apply(shift(0.0, -0.7) * downscale(5.0), |ctx| {
@@ -703,10 +794,6 @@ impl FractalViewElement {
     }
 
     fn tree_click_pos(&mut self, ctx: &mut Context, click: Click) -> Option<TilePos> {
-        if click.held {
-            return None;
-        }
-
         let pos = self
             .frac_cam
             .camera
@@ -721,14 +808,20 @@ impl FractalViewElement {
         self.subtree_click_pos(pos, 0)
     }
 
-    fn input_edit(&mut self, hit_pos: TilePos, fractal: &mut Fractal, biome: &Biome) {
-        let increment = if is_mouse_button_released(MouseButton::Left) {
-            1
-        } else if is_mouse_button_released(MouseButton::Right) {
-            biome.leaf_count() - 1
-        } else {
-            debug_assert!(false, "unreachable");
-            return;
+    fn input_edit(
+        &mut self,
+        button: MouseButton,
+        hit_pos: TilePos,
+        fractal: &mut Fractal,
+        biome: &Biome,
+    ) {
+        let increment = match button {
+            MouseButton::Left => 1,
+            MouseButton::Right => biome.leaf_count() - 1,
+            _ => {
+                debug_assert!(false, "unreachable");
+                return;
+            }
         };
 
         let mut tile = fractal.get(hit_pos);
@@ -747,14 +840,14 @@ impl FractalViewElement {
         activated.toggle(hit_pos);
     }
 
-    fn input_rot(&mut self, hit_pos: TilePos, fractal: &mut Fractal) {
-        let tf = if is_mouse_button_released(MouseButton::Left) {
-            Transform::KL
-        } else if is_mouse_button_released(MouseButton::Right) {
-            Transform::KR
-        } else {
-            debug_assert!(false, "unreachable");
-            return;
+    fn input_rot(&mut self, button: MouseButton, hit_pos: TilePos, fractal: &mut Fractal) {
+        let tf = match button {
+            MouseButton::Right => Transform::KL,
+            MouseButton::Left => Transform::KR,
+            _ => {
+                debug_assert!(false, "unreachable");
+                return;
+            }
         };
 
         let mut tile = fractal.get(hit_pos);
@@ -762,10 +855,36 @@ impl FractalViewElement {
         fractal.set(hit_pos, tile);
     }
 
+    fn input_grab(&mut self, hit_pos: TilePos, fractal: &mut Fractal, cursor: &mut CursorState) {
+        let tile = fractal.set(hit_pos, Tile::SPACE);
+        *cursor = CursorState::Holding {
+            tile_id: tile.id,
+            rotation: orient_to_rad(tile.orient, hit_pos.flop, self.frac_cam.camera),
+        }
+    }
+
+    fn input_drop(&mut self, hit_pos: TilePos, fractal: &mut Fractal, cursor: &mut CursorState) {
+        let CursorState::Holding { tile_id, rotation } = cursor else {
+            return;
+        };
+        if fractal.get(hit_pos) != Tile::SPACE {
+            return;
+        }
+        fractal.set(
+            hit_pos,
+            Tile {
+                id: *tile_id,
+                orient: rad_to_orient(*rotation, hit_pos.flop, self.frac_cam.camera),
+            },
+        );
+        *cursor = CursorState::Free;
+    }
+
     fn input(
         &mut self,
         ctx: &mut Context,
         res: &mut Resources,
+        cursor: &mut CursorState,
         fractory: &mut Fractory,
         cache: &FractoryCache,
     ) {
@@ -787,27 +906,45 @@ impl FractalViewElement {
         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
         let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
         'click: {
-            let click = if is_mouse_button_released(MouseButton::Left) {
-                ctx.get_lmb()
-            } else if is_mouse_button_released(MouseButton::Right) {
-                ctx.get_rmb()
+            use MouseButton::{Left as Lmb, Right as Rmb};
+
+            let click = if is_mouse_button_down(Lmb) {
+                ctx.get_lmb().map(|click| (click, true, Lmb))
+            } else if is_mouse_button_released(Lmb) {
+                ctx.get_lmb().map(|click| (click, false, Lmb))
+            } else if is_mouse_button_down(Rmb) {
+                ctx.get_rmb().map(|click| (click, true, Rmb))
+            } else if is_mouse_button_released(Rmb) {
+                ctx.get_rmb().map(|click| (click, false, Rmb))
             } else {
                 None
             };
-            let Some(hit_pos) = click.and_then(|click| self.tree_click_pos(ctx, click)) else {
+
+            let Some((click, down, button)) = click else {
                 break 'click;
             };
 
-            match (ctrl, shift) {
-                (true, true) => self.input_edit(hit_pos, &mut fractory.fractal, &cache.biome),
-                (true, false) => {
-                    if is_mouse_button_released(MouseButton::Left) {
-                        self.input_act(hit_pos, &mut fractory.activated);
-                    } else if is_mouse_button_released(MouseButton::Right) {
-                        self.input_flip(hit_pos, &mut fractory.fractal);
+            let Some(hit_pos) = self.tree_click_pos(ctx, click) else {
+                break 'click;
+            };
+
+            match (down, cursor) {
+                (false, CursorState::Free) => match (ctrl, shift, button) {
+                    (true, true, _) => {
+                        self.input_edit(button, hit_pos, &mut fractory.fractal, &cache.biome)
                     }
+                    (true, false, Lmb) => self.input_act(hit_pos, &mut fractory.activated),
+                    (true, false, Rmb) => self.input_flip(hit_pos, &mut fractory.fractal),
+                    (false, true, _) => self.input_rot(button, hit_pos, &mut fractory.fractal),
+                    _ => {}
+                },
+                (true, cursor @ CursorState::Free) => match (ctrl, shift, button) {
+                    (false, false, Lmb) => self.input_grab(hit_pos, &mut fractory.fractal, cursor),
+                    _ => {}
+                },
+                (false, cursor @ CursorState::Holding { .. }) => {
+                    self.input_drop(hit_pos, &mut fractory.fractal, cursor)
                 }
-                (false, true) => self.input_rot(hit_pos, &mut fractory.fractal),
                 _ => {}
             }
         }

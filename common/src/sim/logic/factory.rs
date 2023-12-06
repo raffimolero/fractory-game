@@ -17,56 +17,6 @@ use std::{
 
 use glam::IVec2;
 
-// TODO: remove comment
-// /// A single planet, containing information about the fragments within it.
-// #[derive(Debug)]
-// pub struct Biome {
-//     /// How many predefined leaf nodes exist in this biome
-//     pub leaf_count: usize,
-
-//     // Fragment data: struct of arrays
-//     pub names: Vec<String>,
-//     behaviors: Vec<Behavior>,
-//     // sprites: Vec<Sprite>,
-
-//     // /// this will store both leaf and full non-leaf nodes
-//     // ///
-//     // /// currently, leaf tiles must be made of 4 full leaf nodes
-//     // base_library: Vec<(QuadTile, SlotInfo)>,
-
-//     // only in biomes
-//     // missions: Vec<Mission>,
-// }
-
-// impl Biome {
-//     /// TODO: FOR TESTING PURPOSES
-//     pub fn new_xyyy() -> Self {
-//         let xyyy = [
-//             ("", vec![]),
-//             ("X", vec![]),
-//             ("Y", vec![]),
-//             ("Flip-Flop", flip_self_and_below_self()),
-//             ("Spinner", hexagon()),
-//             ("Rotor", rotate()),
-//             ("Grower", grow()),
-//             ("Sucker", suck()),
-//             ("Wire", wire()),
-//         ];
-//         let leaf_count = xyyy.len();
-//         let mut names = Vec::with_capacity(leaf_count);
-//         let mut behaviors = Vec::with_capacity(leaf_count);
-//         for (name, behavior) in xyyy {
-//             names.push(name.to_string());
-//             behaviors.push(behavior);
-//         }
-//         Self {
-//             leaf_count,
-//             names,
-//             behaviors,
-//         }
-//     }
-// }
-
 #[derive(Debug)]
 pub struct ActiveTiles(HashSet<TilePos>);
 
