@@ -1,11 +1,10 @@
 use super::{
-    actions::{TargetedAction, TileAction},
+    actions::{RawMoveList, TargetedAction, TileAction},
     fractal::Fractal,
     orientation::Transform,
     path::{TileOffset, TilePos},
     planet::{Behavior, Biome, BiomeCache, BiomeId, Filter, Planet, PlanetCache, PlanetId},
     tile::Tile,
-    tree::collision::RawMoveList,
 };
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -109,9 +108,6 @@ impl Fractory {
 
     /// Simulates 1 tick of the Fractory.
     pub fn tick(&mut self, behaviors: &[Behavior], filter: &Filter) {
-        // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
-        // to be under common/src/sim/logic/actions.rs
-
         let Self {
             fractal,
             activated: ActiveTiles(activated),

@@ -929,10 +929,9 @@ impl FractalViewElement {
     ) {
         self.frac_cam = (FractalCam::input(ctx) * self.frac_cam).clamp_depth();
 
-        if is_key_pressed(KeyCode::Apostrophe) {
-            // dbg!(&fractory.fractal.library);
-            fractory.rot_cw();
-        }
+        // if is_key_pressed(KeyCode::Apostrophe) {
+        //     dbg!(&fractory.fractal.library);
+        // }
 
         if is_key_pressed(KeyCode::Enter) {
             fractory.tick(&cache.fragments.behaviors(), cache.biome.fragment_filter())

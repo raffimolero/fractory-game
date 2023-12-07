@@ -9,8 +9,129 @@ use crate::sim::logic::{
     path::TilePos,
     tile::{Quad, Tile},
 };
+use std::fmt::{Debug, Display};
 
-use super::*;
+type Index = usize;
+
+// TODO: figure out if you can merge Fractal with CollisionCleaner (Node) and DeadEndCleaner (hidden in collision::clean_dead_ends)
+// TODO: move self::{self, collision} to Actions?
+
+#[derive(Clone, PartialEq, Eq, Default)]
+pub enum Node {
+    #[default]
+    Free,
+    Bad,
+    Leaf(Index),
+    Branch(Box<Quad<Self>>),
+}
+
+impl Node {
+    pub fn create_at(mut path: TilePos, value: Index) -> Self {
+        match path.pop_front() {
+            Some(subtile) => {
+                // Node does not implement Copy, hardcoding 4 frees is easier.
+                let mut children = Quad([Node::Free, Node::Free, Node::Free, Node::Free]);
+                children[subtile] = Self::create_at(path, value);
+                Self::Branch(Box::new(children))
+            }
+            None => Self::Leaf(value),
+        }
+    }
+
+    /// a workaround for Drop which allows mutating a shared data structure
+    fn drop_with(&mut self, drop_item: &mut impl FnMut(Index)) {
+        match std::mem::replace(self, Node::Bad) {
+            Node::Free => {}
+            Node::Bad => {}
+            Node::Leaf(item) => drop_item(item),
+            Node::Branch(children) => {
+                for mut node in children.0 {
+                    node.drop_with(drop_item);
+                }
+            }
+        }
+    }
+
+    /// sets a specified value at a specified path.
+    /// calls drop_item if a collision happens.
+    pub fn set(&mut self, mut path: TilePos, value: Index, drop_item: &mut impl FnMut(Index)) {
+        let mut reject = |this: &mut Self| {
+            drop_item(value);
+            this.drop_with(drop_item);
+        };
+
+        match self {
+            Node::Free => *self = Self::create_at(path, value),
+            Node::Bad | Node::Leaf(_) => reject(self),
+            Node::Branch(children) => match path.pop_front() {
+                Some(subtile) => children[subtile].set(path, value, drop_item),
+                None => reject(self),
+            },
+        }
+    }
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Free => write!(f, "."),
+            Node::Bad => write!(f, "X"),
+            Node::Leaf(val) => write!(f, "{val}"),
+            Node::Branch(children) => {
+                write!(f, "{{ ")?;
+                for child in &children.0 {
+                    write!(f, "{child}")?;
+                    write!(f, " ")?;
+                }
+                write!(f, "}}")
+            }
+        }
+    }
+}
+
+impl Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Free => write!(f, "."),
+            Node::Bad => write!(f, "X"),
+            Node::Leaf(val) => write!(f, "{val:?}"),
+            Node::Branch(children) => {
+                write!(f, "{{ ")?;
+                for child in &children.0 {
+                    write!(f, "{child:?}")?;
+                    write!(f, " ")?;
+                }
+                write!(f, "}}")
+            }
+        }
+    }
+}
+
+/// builds a quadtree from braces, values, and dots
+/// ```
+/// let tree = tree! ({
+///     { .  () () .  }
+///     { () () .  () }
+///     { }
+///     .
+/// });
+/// println!("{tree:?}");
+/// ```
+macro_rules! tree {
+    (.) => {
+        Node::Free
+    };
+    (X) => {
+        Node::Bad
+    };
+    ({ $a:tt $b:tt $c:tt $d:tt }) => {
+        Node::Branch(Box::new(Quad([tree!($a), tree!($b), tree!($c), tree!($d)])))
+    };
+    ($t:expr) => {
+        Node::Leaf($t)
+    };
+}
+pub(crate) use tree;
 
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -128,10 +249,6 @@ impl RawMoveList {
         NOTE: must still produce a move list to store the animations which will be used for the UI
         */
 
-        // NOTE: this is so f###ing complicated dude
-        // i'm dealing with fractals right now
-
-        // TODO: test algo
         // this is an in-place algo btw
 
         // hypothetical algorithm
@@ -151,8 +268,8 @@ impl RawMoveList {
         let mut old_tiles = vec![];
         for (i, (src, (dst, _tf))) in self.moves.iter().copied().enumerate() {
             let old_tile = main_fractal.set(src, Tile::SPACE);
-            assert_ne!(old_tile, Tile::SPACE);
-            assert!(main_fractal.get_info(old_tile.id).fill.is_full());
+            debug_assert_ne!(old_tile, Tile::SPACE);
+            debug_assert!(main_fractal.get_info(old_tile.id).fill.is_full());
             old_tiles.push(old_tile);
             dsts.set(dst, i);
         }
@@ -168,10 +285,10 @@ impl RawMoveList {
         // invalidate dead ends and mark their dependents
         // preserve ordering
         while let Some(i) = dead.pop() {
-            let (src, _dst_tf) = self.moves[i];
             if old_tiles[i] == Tile::SPACE {
                 continue;
             }
+            let (src, _dst_tf) = self.moves[i];
             main_fractal.set(src, old_tiles[i]);
             old_tiles[i] = Tile::SPACE;
             dsts.invalidate(src, &mut |i| dead.push(i));
