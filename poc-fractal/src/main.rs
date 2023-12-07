@@ -14,6 +14,7 @@ use fractory_common::sim::logic::{
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
     planet::{Behavior, Biome, Filter, FragmentData, Planet, PlanetCache},
+    presets::new_xyyy_fractory_meta,
     tile::{SubTile, Tile},
 };
 use std::{
@@ -465,7 +466,7 @@ impl SmoothOrient {
             .to_euler(EulerRot::ZYX)
             .0;
 
-        let transform = orient.transform();
+        let transform = orient.to_transform();
         rot += transform.rotation() as u8 as f32 * TAU / 3.0;
         if flop {
             rot += TAU / 2.0; // no i will not use pi
@@ -507,7 +508,7 @@ struct FractoryElement {
 
 impl FractoryElement {
     fn new(res: &mut Resources) -> Self {
-        let fractory_meta = FractoryMeta::new_xyyy(&mut res.planets);
+        let fractory_meta = new_xyyy_fractory_meta(&mut res.planets);
         let planet = res.planets.get(&fractory_meta.planet).unwrap();
         let fragments = planet.fragments();
         let biome = planet.biomes().get(&fractory_meta.biome).unwrap();
@@ -730,7 +731,7 @@ impl FractalViewElement {
             for ((transform, child), subtile) in
                 transforms.into_iter().zip(quad.0).zip(SubTile::QUAD.0)
             {
-                let orient = cur_orient - tile.orient.transform();
+                let orient = cur_orient - tile.orient.to_transform();
 
                 let pos = match pos {
                     Ok(mut pos) => {

@@ -4,6 +4,7 @@ mod tests;
 use super::{
     orientation::{Symmetries, Transform},
     path::TilePos,
+    presets::{tiles::*, QUADS},
     tile::{Quad, SubTile, Tile},
 };
 use std::collections::HashMap;
@@ -103,27 +104,6 @@ impl Fractal {
         Ok(out)
     }
 
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_binary() -> Self {
-        Self::new(&[Quad::ONE]).unwrap()
-    }
-
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy() -> Self {
-        // TODO: take fragments as argument
-        Self::new(&[
-            Quad::X,
-            Quad::Y,
-            Quad::Z,
-            Quad::W,
-            Quad::ROTOR,
-            Quad::GROWER,
-            Quad::SUCKER,
-            Quad::WIRE,
-        ])
-        .unwrap()
-    }
-
     fn validate(&self) -> Result<(), ()> {
         if self.library.get(0).ok_or(())?.fill != TileFill::Empty {
             return Err(());
@@ -147,7 +127,7 @@ impl Fractal {
         let mut tile = self.root;
         for subtile in path {
             let mut quad = self.library[tile.id].quad;
-            quad += tile.orient.transform();
+            quad += tile.orient.to_transform();
             tile = quad[subtile];
         }
         tile
@@ -160,7 +140,7 @@ impl Fractal {
             .into_iter()
             .map(|subtile| {
                 let mut quad = self.library[cur_tile.id].quad;
-                quad += cur_tile.orient.transform();
+                quad += cur_tile.orient.to_transform();
                 cur_tile = quad[subtile];
                 (quad, subtile)
             })

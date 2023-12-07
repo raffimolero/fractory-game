@@ -1,6 +1,3 @@
-// NOTE: quick confession i am absolutely terrified of using these functions in larger scales
-// i don't know if they're reliable or anything
-
 #[cfg(test)]
 mod tests;
 

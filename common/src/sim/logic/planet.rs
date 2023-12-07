@@ -2,13 +2,12 @@ use std::{collections::HashMap, ops::Index, rc::Rc};
 
 use glam::IVec2;
 
+use super::{presets::tiles::*, tile::Tile};
 use crate::sim::logic::{
     actions::{TargetedAction, TileAction},
     orientation::Transform,
     path::TileOffset,
 };
-
-use super::tile::Tile;
 
 pub type Behavior = Vec<TargetedAction<TileOffset>>;
 
@@ -117,9 +116,7 @@ impl Biome {
         Self {
             name: "Spinless".into(),
             desc: "Disables rotors and spinners.".into(),
-            fragment_filter: Filter::all(frag_count)
-                .without(Tile::ROTOR.id)
-                .without(Tile::W.id),
+            fragment_filter: Filter::all(frag_count).without(ROTOR).without(W),
         }
     }
 

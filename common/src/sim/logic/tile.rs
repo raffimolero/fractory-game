@@ -13,59 +13,29 @@ impl Tile {
         orient: Orient::Iso,
     };
 
-    /// TODO: DELETE, FOR TESTING
-    pub const ONE: Self = Self {
-        id: 1,
-        orient: Orient::Iso,
-    };
+    pub fn transform(&mut self, tf: Transform) {
+        self.orient.transform(tf);
+    }
 
-    // TODO: FOR TESTING
-    pub const X: Self = Self {
-        id: 1,
-        orient: Orient::Iso,
-    };
-    pub const Y: Self = Self {
-        id: 2,
-        orient: Orient::Iso,
-    };
-    pub const Z: Self = Self {
-        id: 3,
-        orient: Orient::RfU,
-    };
-    pub const W: Self = Self {
-        id: 4,
-        orient: Orient::AKU,
-    };
-    pub const ROTOR: Self = Self {
-        id: 5,
-        orient: Orient::RtK,
-    };
-    pub const GROWER: Self = Self {
-        id: 6,
-        orient: Orient::RfU,
-    };
-    pub const SUCKER: Self = Self {
-        id: 7,
-        orient: Orient::RfU,
-    };
-    pub const WIRE: Self = Self {
-        id: 8,
-        orient: Orient::RfU,
-    };
+    pub const fn transformed(self, tf: Transform) -> Self {
+        Self {
+            orient: self.orient.transformed(tf),
+            ..self
+        }
+    }
 }
 
 impl AddAssign<Transform> for Tile {
     fn add_assign(&mut self, rhs: Transform) {
-        self.orient += rhs;
+        self.transform(rhs);
     }
 }
 
 impl Add<Transform> for Tile {
     type Output = Self;
 
-    fn add(mut self, rhs: Transform) -> Self::Output {
-        self += rhs;
-        self
+    fn add(self, rhs: Transform) -> Self::Output {
+        self.transformed(rhs)
     }
 }
 
@@ -132,30 +102,6 @@ impl<T> Quad<T> {
 
 impl Quad<Tile> {
     pub const SPACE: Self = Self([Tile::SPACE; 4]);
-
-    // TODO: FOR TESTING
-    pub const ONE: Self = Self([Tile::ONE; 4]);
-
-    // TODO: FOR TESTING
-    pub const X: Self = Self([Tile::X, Tile::Y, Tile::Y, Tile::Y]);
-    pub const Y: Self = Self([Tile::Y, Tile::X, Tile::X, Tile::X]);
-    pub const Z: Self = Self([Tile::X, Tile::X, Tile::Y, Tile::Y]);
-    pub const W: Self = Self([Tile::Z, Tile::X, Tile::Y, Tile::X]);
-    pub const ROTOR: Self = Self([
-        Tile::X,
-        Tile {
-            id: Tile::Z.id,
-            orient: Tile::Z.orient.rot_cw(),
-        },
-        Tile {
-            id: Tile::Z.id,
-            orient: Tile::Z.orient.rot_cw().rot_cw(),
-        },
-        Tile::Z,
-    ]);
-    pub const GROWER: Self = Self([Tile::Z, Tile::X, Tile::Y, Tile::Y]);
-    pub const SUCKER: Self = Self([Tile::Z, Tile::Y, Tile::X, Tile::X]);
-    pub const WIRE: Self = Self([Tile::Y, Tile::Y, Tile::X, Tile::X]);
 }
 
 impl<T> Index<SubTile> for Quad<T> {

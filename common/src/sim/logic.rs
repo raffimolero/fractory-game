@@ -6,3 +6,5 @@ pub mod path;
 pub mod planet;
 pub mod tile;
 pub mod tree;
+// TODO: for testing purposes
+pub mod presets;
