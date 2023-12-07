@@ -1,5 +1,3 @@
-// TODO: fractory game logic
-
 use super::{
     actions::{TargetedAction, TileAction},
     fractal::Fractal,
@@ -85,29 +83,6 @@ pub struct Fractory {
 }
 
 impl Fractory {
-    /// TODO: FOR TESTING PURPOSES
-    pub fn rot_cw(&mut self) {
-        let main = self.fractal.get(TilePos::UNIT);
-
-        self.fractal.set(
-            TilePos::UNIT,
-            Tile {
-                id: main.id,
-                orient: main.orient.rot_cw(),
-            },
-        );
-
-        let mut new_set = HashSet::new();
-        for pos in &self.activated.0 {
-            let mut new_pos = TilePos::UNIT;
-            for subtile in *pos {
-                new_pos.push_back(subtile + Transform::KR);
-            }
-            new_set.insert(new_pos);
-        }
-        self.activated.0 = new_set;
-    }
-
     pub fn toggle_activation(&mut self, pos: TilePos) {
         self.activated.toggle(pos);
     }
@@ -136,7 +111,6 @@ impl Fractory {
     pub fn tick(&mut self, behaviors: &[Behavior], filter: &Filter) {
         // TODO: move poc-fractal/src/tree.rs and poc-fractal/src/tree/collision.rs
         // to be under common/src/sim/logic/actions.rs
-        // and finish RawMoveList::apply();
 
         let Self {
             fractal,

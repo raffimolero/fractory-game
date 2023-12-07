@@ -16,7 +16,7 @@ pub type Behavior = Vec<TargetedAction<TileOffset>>;
 pub struct Filter(Vec<bool>);
 
 impl Filter {
-    fn all(frag_count: usize) -> Self {
+    pub fn all(frag_count: usize) -> Self {
         Self(vec![true; frag_count])
     }
 
@@ -24,7 +24,7 @@ impl Filter {
         self.0.get(idx).copied().unwrap_or(false)
     }
 
-    fn without(mut self, idx: usize) -> Self {
+    pub fn without(mut self, idx: usize) -> Self {
         self.0[idx] = false;
         self
     }
@@ -76,30 +76,12 @@ impl Planet {
 #[derive(Debug, Clone)]
 pub struct Biome {
     // icon: Icon,
-    name: String,
-    desc: String,
-    fragment_filter: Filter,
+    pub name: String,
+    pub desc: String,
+    pub fragment_filter: Filter,
 }
 
 impl Biome {
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy_spinless(frag_count: usize) -> Self {
-        Self {
-            name: "Spinless".into(),
-            desc: "Disables rotors and spinners.".into(),
-            fragment_filter: Filter::all(frag_count).without(ROTOR).without(SPINNER),
-        }
-    }
-
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy_landing_zone(frag_count: usize) -> Self {
-        Self {
-            name: "Landing Zone".into(),
-            desc: "Contains every fragment.".into(),
-            fragment_filter: Filter::all(frag_count),
-        }
-    }
-
     pub fn leaf_count(&self) -> usize {
         self.fragment_filter.0.len()
     }

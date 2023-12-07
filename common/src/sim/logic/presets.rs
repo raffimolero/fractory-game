@@ -10,7 +10,7 @@ use super::{
     orientation::Transform,
     orientation::{Orient, Transform::*},
     path::{TileOffset, TilePos},
-    planet::{Behavior, Biome, BiomeCache, BiomeId, FragmentData, Planet, PlanetCache},
+    planet::{Behavior, Biome, BiomeCache, BiomeId, Filter, FragmentData, Planet, PlanetCache},
     tile::{Quad, Tile},
 };
 
@@ -55,7 +55,6 @@ pub const TILES: [Tile; LEAF_COUNT] = {
     out
 };
 
-// // TODO: FOR TESTING
 pub const QUADS: [Quad<Tile>; LEAF_COUNT] = {
     const INDEX_TF: [[(usize, Transform); 4]; LEAF_COUNT] = [
         [(0, KU); 4],                         // SPACE
@@ -132,8 +131,16 @@ fn new_xyyy_biome_cache(frag_count: usize) -> BiomeCache {
     BiomeCache {
         biomes: HashMap::from(
             [
-                Biome::new_xyyy_spinless(frag_count),
-                Biome::new_xyyy_landing_zone(frag_count),
+                Biome {
+                    name: "Spinless".into(),
+                    desc: "Disables rotors and spinners.".into(),
+                    fragment_filter: Filter::all(frag_count).without(ROTOR).without(SPINNER),
+                },
+                Biome {
+                    name: "Landing Zone".into(),
+                    desc: "Contains every fragment.".into(),
+                    fragment_filter: Filter::all(frag_count),
+                },
             ]
             .map(|b| (b.default_id(), b)),
         ),

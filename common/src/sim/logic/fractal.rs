@@ -77,11 +77,6 @@ pub struct Fractal {
 }
 
 impl Fractal {
-    // TODO: make Fragment data structure, then implement this function
-    // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
-    //     todo!("get fragment data such as symmetries, composition, and behaviors")
-    // }
-
     /// creates a default fractal initialized to empty space.
     pub fn new_space() -> Self {
         let mut out = Self::default();
