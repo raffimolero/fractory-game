@@ -94,13 +94,10 @@ impl Fractal {
     /// fails if any of the quads aren't upright or aren't completely filled.
     pub fn new(leaf_quads: &[Quad<Tile>]) -> Result<Self, ()> {
         let mut out = Self::new_space();
-
         for quad in leaf_quads.iter().copied() {
             out.register_leaf(quad)?;
         }
-
         out.validate()?;
-
         Ok(out)
     }
 

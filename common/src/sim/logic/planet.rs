@@ -32,8 +32,8 @@ impl Filter {
 
 #[derive(Debug, Clone)]
 pub struct FragmentData {
-    names: Vec<String>,
-    behaviors: Vec<Behavior>,
+    pub names: Vec<String>,
+    pub behaviors: Vec<Behavior>,
 }
 
 impl FragmentData {
@@ -49,42 +49,13 @@ impl FragmentData {
 #[derive(Debug)]
 pub struct Planet {
     // icon: Icon,
-    name: String,
-    desc: String,
-    fragments: FragmentData,
-    biomes: BiomeCache,
+    pub name: String,
+    pub desc: String,
+    pub fragments: FragmentData,
+    pub biomes: BiomeCache,
 }
 
 impl Planet {
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy() -> Self {
-        let xyyy = [
-            ("", vec![]),
-            ("X", vec![]),
-            ("Y", vec![]),
-            ("Flip-Flop", flip_self_and_below_self()),
-            ("Spinner", hexagon()),
-            ("Rotor", rotate()),
-            ("Grower", grow()),
-            ("Sucker", suck()),
-            ("Wire", wire()),
-        ];
-        let frag_count = xyyy.len();
-        let mut names = Vec::with_capacity(frag_count);
-        let mut behaviors = Vec::with_capacity(frag_count);
-        for (name, behavior) in xyyy {
-            names.push(name.to_string());
-            behaviors.push(behavior);
-        }
-
-        Self {
-            name: "XYYY".into(),
-            desc: "The first planet.".into(),
-            fragments: FragmentData { names, behaviors },
-            biomes: BiomeCache::new_xyyy(frag_count),
-        }
-    }
-
     pub fn fragments(&self) -> &FragmentData {
         &self.fragments
     }
@@ -116,7 +87,7 @@ impl Biome {
         Self {
             name: "Spinless".into(),
             desc: "Disables rotors and spinners.".into(),
-            fragment_filter: Filter::all(frag_count).without(ROTOR).without(W),
+            fragment_filter: Filter::all(frag_count).without(ROTOR).without(SPINNER),
         }
     }
 
@@ -159,180 +130,13 @@ pub struct Fragment {
     behavior: Behavior,
 }
 
-// TODO: FOR TESTING PURPOSES
-fn swap_01_with_10() -> Behavior {
-    vec![
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: IVec2 { x: 1, y: 0 },
-                flop: false,
-            },
-            act: TileAction::Store,
-        },
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: IVec2 { x: 0, y: 1 },
-                flop: false,
-            },
-            act: TileAction::Move(
-                TileOffset {
-                    depth: 0,
-                    offset: IVec2 { x: 1, y: 0 },
-                    flop: false,
-                },
-                Transform::KU,
-            ),
-        },
-    ]
-}
-
-fn flip_self_and_below_self() -> Behavior {
-    let this = TileOffset::ZERO;
-    let below = TileOffset {
-        depth: 0,
-        offset: IVec2::ZERO,
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: this,
-            act: TileAction::Move(this, Transform::FU),
-        },
-        TargetedAction {
-            target: below,
-            act: TileAction::Move(below, Transform::FU),
-        },
-    ]
-}
-
-fn hexagon() -> Behavior {
-    let this = TileOffset::ZERO;
-    let below = TileOffset {
-        depth: 0,
-        offset: IVec2::ZERO,
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: this,
-            act: TileAction::Move(below, Transform::KR),
-        },
-        TargetedAction {
-            target: below,
-            act: TileAction::Activate,
-        },
-    ]
-}
-
-fn rotate() -> Behavior {
-    let this = TileOffset::ZERO;
-    let u = TileOffset {
-        depth: 0,
-        offset: IVec2::ZERO,
-        flop: true,
-    };
-    let l = TileOffset {
-        depth: 0,
-        offset: IVec2::new(0, -1),
-        flop: true,
-    };
-    let r = TileOffset {
-        depth: 0,
-        offset: IVec2::new(-1, -1),
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: u,
-            act: TileAction::Move(r, Transform::KR),
-        },
-        TargetedAction {
-            target: r,
-            act: TileAction::Move(l, Transform::KR),
-        },
-        TargetedAction {
-            target: l,
-            act: TileAction::Move(u, Transform::KR),
-        },
-        TargetedAction {
-            target: this,
-            act: TileAction::Activate,
-        },
-    ]
-}
-
-fn grow() -> Behavior {
-    let below = TileOffset {
-        depth: 0,
-        offset: IVec2::ZERO,
-        flop: true,
-    };
-    let center_below = TileOffset {
-        depth: 1,
-        offset: IVec2::new(1, 2),
-        flop: false,
-    };
-    vec![TargetedAction {
-        target: center_below,
-        act: TileAction::Move(below, Transform::KU),
-    }]
-}
-
-fn suck() -> Behavior {
-    let below = TileOffset {
-        depth: 0,
-        offset: IVec2::ZERO,
-        flop: true,
-    };
-    vec![TargetedAction {
-        target: below,
-        act: TileAction::Store,
-    }]
-}
-
-fn wire() -> Behavior {
-    vec![
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: IVec2::new(0, -1),
-                flop: true,
-            },
-            act: TileAction::Activate,
-        },
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: IVec2::new(-1, -1),
-                flop: true,
-            },
-            act: TileAction::Activate,
-        },
-    ]
-}
-
 // TODO: move to io
 #[derive(Debug, Default)]
 pub struct BiomeCache {
-    biomes: HashMap<BiomeId, Biome>,
+    pub biomes: HashMap<BiomeId, Biome>,
 }
 
 impl BiomeCache {
-    /// TODO: FOR TESTING PURPOSES
-    fn new_xyyy(frag_count: usize) -> Self {
-        Self {
-            biomes: HashMap::from(
-                [
-                    Biome::new_xyyy_spinless(frag_count),
-                    Biome::new_xyyy_landing_zone(frag_count),
-                ]
-                .map(|b| (b.default_id(), b)),
-            ),
-        }
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = &BiomeId> {
         self.biomes.keys()
     }
