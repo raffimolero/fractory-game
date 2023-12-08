@@ -1,5 +1,5 @@
 use super::*;
-use fractory_common::sim::logic::path::SubTile::{self, *};
+use crate::sim::logic::tile::SubTile::{self, *};
 
 #[test]
 fn test_macro() {
@@ -57,7 +57,7 @@ fn test_create_at_root() {
 
 #[test]
 fn test_create_at() {
-    let path = TilePos::from_inward_path(&[C, U, R, L]);
+    let path = TilePos::from_inward_path([C, U, R, L]);
     let tree = Node::create_at(path, 4);
     assert_eq!(tree, tree!({{ . { . . { . . . 4 } . } . . } . . . }));
 }
@@ -75,7 +75,7 @@ fn mock_node_set(sequence: &[(&[SubTile], &[Index], Node)]) {
         let mut iter = expected_deletions.iter().copied();
         let mut mock_delete = |idx| assert_eq!(iter.next(), Some(idx));
 
-        let path = TilePos::from_inward_path(path);
+        let path = TilePos::from_inward_path(path.iter().copied());
         node.set(path, i, &mut mock_delete);
 
         // must consume the whole sequence

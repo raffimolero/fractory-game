@@ -6,7 +6,10 @@ use std::{
 };
 
 use bevy::{asset::LoadedFolder, prelude::*, utils::HashMap};
-use fractory_common::sim::logic::factory::{Biome, BiomeId, BiomeLoader, Fractory};
+use fractory_common::sim::logic::{
+    factory::Fractory,
+    planet::{Biome, BiomeId},
+};
 
 // TODO: import fractory
 // render a tringle
@@ -84,7 +87,7 @@ fn load_folder(
                 return None;
             };
             let biome_name: &OsStr = parent.file_name().expect("this path better exist.");
-            let biome_id = BiomeId(biome_name.to_string_lossy().into_owned());
+            let biome_id = BiomeId::from(biome_name.to_string_lossy().into_owned());
             Some((handle, path, biome_id))
         })
         .collect::<Vec<_>>();
@@ -92,7 +95,7 @@ fn load_folder(
     // register all biome names
     filtered_handles.retain(|(_handle, path, biome)| {
         if path.file_name().expect("this path better exist.") == "icon.png" {
-            if biomes.biomes.insert(biome.to_owned()).is_some() {
+            if biomes.biomes.insert(biome.to_owned(), todo!()).is_some() {
                 println!("WARNING: Duplicate biomes");
             }
             false

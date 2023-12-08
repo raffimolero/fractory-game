@@ -4,6 +4,7 @@ mod tests;
 use super::{
     orientation::{Symmetries, Transform},
     path::TilePos,
+    presets::{tiles::*, QUADS},
     tile::{Quad, SubTile, Tile},
 };
 use std::collections::HashMap;
@@ -76,11 +77,6 @@ pub struct Fractal {
 }
 
 impl Fractal {
-    // TODO: make Fragment data structure, then implement this function
-    // pub fn load_base(root: Tile, nodes: impl IntoIterator<Item = Fragment>) -> Self {
-    //     todo!("get fragment data such as symmetries, composition, and behaviors")
-    // }
-
     /// creates a default fractal initialized to empty space.
     pub fn new_space() -> Self {
         let mut out = Self::default();
@@ -93,34 +89,11 @@ impl Fractal {
     /// fails if any of the quads aren't upright or aren't completely filled.
     pub fn new(leaf_quads: &[Quad<Tile>]) -> Result<Self, ()> {
         let mut out = Self::new_space();
-
         for quad in leaf_quads.iter().copied() {
             out.register_leaf(quad)?;
         }
-
         out.validate()?;
-
         Ok(out)
-    }
-
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_binary() -> Self {
-        Self::new(&[Quad::ONE]).unwrap()
-    }
-
-    /// TODO: FOR TESTING PURPOSES
-    pub fn new_xyyy() -> Self {
-        Self::new(&[
-            Quad::X,
-            Quad::Y,
-            Quad::Z,
-            Quad::W,
-            Quad::ROTOR,
-            Quad::GROWER,
-            Quad::SUCKER,
-            Quad::WIRE,
-        ])
-        .unwrap()
     }
 
     fn validate(&self) -> Result<(), ()> {
@@ -146,7 +119,7 @@ impl Fractal {
         let mut tile = self.root;
         for subtile in path {
             let mut quad = self.library[tile.id].quad;
-            quad += Transform::from(tile.orient);
+            quad += tile.orient.to_transform();
             tile = quad[subtile];
         }
         tile
@@ -159,7 +132,7 @@ impl Fractal {
             .into_iter()
             .map(|subtile| {
                 let mut quad = self.library[cur_tile.id].quad;
-                quad += Transform::from(cur_tile.orient);
+                quad += cur_tile.orient.to_transform();
                 cur_tile = quad[subtile];
                 (quad, subtile)
             })

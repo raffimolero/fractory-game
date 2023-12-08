@@ -1,5 +1,5 @@
 use super::tile::SubTile;
-use std::ops::{Add, AddAssign, Mul, Neg};
+use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 #[test]
 fn test_reorient_table() {
@@ -22,7 +22,7 @@ fn test_neg_table() {
         //         break;
         //     }
         // }
-        assert_eq!(a.upright(), a + -a);
+        assert_eq!(a.upright(), a - a.to_transform());
     }
     println!();
 }
@@ -104,6 +104,37 @@ impl Orient {
         Self::AFR,
         Self::AFL,
     ];
+
+    pub fn to_transform(self) -> Transform {
+        Transform::from(self)
+    }
+
+    pub const fn transformed(self, tf: Transform) -> Self {
+        use Orient::*;
+
+        const TABLE: [Orient; 12 * 6] = [
+            /*
+            KU   KR   KL   FU   FR   FL   */
+            Iso, Iso, Iso, Iso, Iso, Iso, //
+            RtK, RtK, RtK, RtF, RtF, RtF, //
+            RtF, RtF, RtF, RtK, RtK, RtK, //
+            RfU, RfR, RfL, RfU, RfR, RfL, //
+            RfR, RfL, RfU, RfL, RfU, RfR, //
+            RfL, RfU, RfR, RfR, RfL, RfU, //
+            AKU, AKR, AKL, AFU, AFR, AFL, //
+            AKR, AKL, AKU, AFL, AFU, AFR, //
+            AKL, AKU, AKR, AFR, AFL, AFU, //
+            AFU, AFR, AFL, AKU, AKR, AKL, //
+            AFR, AFL, AFU, AKL, AKU, AKR, //
+            AFL, AFU, AFR, AKR, AKL, AKU, //
+        ];
+
+        TABLE[self as usize * 6 + tf as usize]
+    }
+
+    pub fn transform(&mut self, tf: Transform) {
+        *self = self.transformed(tf);
+    }
 
     pub const fn symmetries(self) -> Symmetries {
         use Orient::*;
@@ -217,59 +248,31 @@ impl From<Symmetries> for Orient {
     }
 }
 
-impl Neg for Orient {
-    type Output = Transform;
-
-    fn neg(self) -> Self::Output {
-        use Orient::*;
-        use Transform::*;
-        match self {
-            Iso => KU,
-            RtK => KU,
-            RtF => FU,
-            RfU => KU,
-            RfR => KL,
-            RfL => KR,
-            AKU => KU,
-            AKR => KL,
-            AKL => KR,
-            AFU => FU,
-            AFR => FR,
-            AFL => FL,
-        }
-    }
-}
-
 impl Add<Transform> for Orient {
     type Output = Self;
 
     fn add(self, rhs: Transform) -> Self::Output {
-        use Orient::*;
-
-        const TABLE: [Orient; 12 * 6] = [
-            /*
-            KU   KR   KL   FU   FR   FL   */
-            Iso, Iso, Iso, Iso, Iso, Iso, //
-            RtK, RtK, RtK, RtF, RtF, RtF, //
-            RtF, RtF, RtF, RtK, RtK, RtK, //
-            RfU, RfR, RfL, RfU, RfR, RfL, //
-            RfR, RfL, RfU, RfL, RfU, RfR, //
-            RfL, RfU, RfR, RfR, RfL, RfU, //
-            AKU, AKR, AKL, AFU, AFR, AFL, //
-            AKR, AKL, AKU, AFL, AFU, AFR, //
-            AKL, AKU, AKR, AFR, AFL, AFU, //
-            AFU, AFR, AFL, AKU, AKR, AKL, //
-            AFR, AFL, AFU, AKL, AKU, AKR, //
-            AFL, AFU, AFR, AKR, AKL, AKU, //
-        ];
-
-        TABLE[self as usize * 6 + rhs as usize]
+        self.transformed(rhs)
     }
 }
 
 impl AddAssign<Transform> for Orient {
     fn add_assign(&mut self, rhs: Transform) {
-        *self = *self + rhs;
+        self.transform(rhs)
+    }
+}
+
+impl Sub<Transform> for Orient {
+    type Output = Self;
+
+    fn sub(self, rhs: Transform) -> Self::Output {
+        self + -rhs
+    }
+}
+
+impl SubAssign<Transform> for Orient {
+    fn sub_assign(&mut self, rhs: Transform) {
+        *self = *self - rhs;
     }
 }
 
@@ -324,6 +327,14 @@ impl Add for Transform {
     }
 }
 
+impl Sub for Transform {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + -rhs
+    }
+}
+
 impl Mul for Transform {
     type Output = Self;
 
@@ -365,19 +376,6 @@ impl From<Orient> for Transform {
             AFU => FU,
             AFR => FR,
             AFL => FL,
-        }
-    }
-}
-
-impl From<SubTile> for Transform {
-    fn from(value: SubTile) -> Self {
-        use SubTile::*;
-        use Transform::*;
-        match value {
-            C => KU,
-            U => KU,
-            R => KR,
-            L => KL,
         }
     }
 }
