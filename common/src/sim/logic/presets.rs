@@ -123,26 +123,30 @@ pub fn new_xyyy_planet() -> Planet {
         name: "XYYY".into(),
         desc: "The first planet.".into(),
         fragments: FragmentData { names, behaviors },
-        biomes: new_xyyy_biome_cache(frag_count),
+        biomes: new_xyyy_biome_cache(),
     }
 }
 
-fn new_xyyy_biome_cache(frag_count: usize) -> BiomeCache {
+fn new_xyyy_biome_spinless() -> Biome {
+    Biome {
+        name: "Spinless".into(),
+        desc: "Disables rotors and spinners.".into(),
+        fragment_filter: Filter::all(LEAF_COUNT).without(ROTOR).without(SPINNER),
+    }
+}
+
+fn new_xyyy_biome_landing_zone() -> Biome {
+    Biome {
+        name: "Landing Zone".into(),
+        desc: "Contains every fragment.".into(),
+        fragment_filter: Filter::all(LEAF_COUNT),
+    }
+}
+
+fn new_xyyy_biome_cache() -> BiomeCache {
     BiomeCache {
         biomes: HashMap::from(
-            [
-                Biome {
-                    name: "Spinless".into(),
-                    desc: "Disables rotors and spinners.".into(),
-                    fragment_filter: Filter::all(frag_count).without(ROTOR).without(SPINNER),
-                },
-                Biome {
-                    name: "Landing Zone".into(),
-                    desc: "Contains every fragment.".into(),
-                    fragment_filter: Filter::all(frag_count),
-                },
-            ]
-            .map(|b| (b.default_id(), b)),
+            [new_xyyy_biome_spinless(), new_xyyy_biome_landing_zone()].map(|b| (b.default_id(), b)),
         ),
     }
 }
