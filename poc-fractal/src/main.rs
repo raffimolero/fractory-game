@@ -1,6 +1,7 @@
 #![allow(warnings)]
 
-mod ctx;
+pub mod ctx;
+pub mod ui;
 
 const DRAW_BRANCHES: bool = false;
 
@@ -20,6 +21,7 @@ use fractory_common::sim::logic::{
 use std::{
     f32::consts::TAU,
     ops::{ControlFlow, Mul},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -409,7 +411,7 @@ fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
 
 fn tile_name(names: &[String], tile_id: usize) -> String {
     match names.get(tile_id) {
-        Some(name) => name.to_owned(),
+        Some(name) => name.clone(),
         None => tile_id.to_string(),
     }
 }
@@ -615,7 +617,6 @@ impl FractalViewElement {
         text_tool: TextToolId,
         fractory: &Fractory,
         cache: &FractoryCache,
-        names: &[String],
         id: usize,
         tile_fill: TileFill,
         pos: Result<TilePos, usize>,
@@ -676,7 +677,7 @@ impl FractalViewElement {
                 ctx,
                 text_tool,
                 tile_color(fractory, id),
-                tile_name(names, id),
+                tile_name(cache.fragments.names(), id),
                 style,
             );
         });
@@ -690,7 +691,6 @@ impl FractalViewElement {
         text_tool: TextToolId,
         fractory: &Fractory,
         cache: &FractoryCache,
-        names: &[String],
         cur_orient: Transform,
         tile: Tile,
         pos: Result<TilePos, usize>,
@@ -722,9 +722,7 @@ impl FractalViewElement {
             if !ctx.is_onscreen(&TRIANGLE) {
                 return;
             }
-            match self.draw_leaf(
-                ctx, text_tool, fractory, cache, names, tile.id, fill, pos, hovered,
-            ) {
+            match self.draw_leaf(ctx, text_tool, fractory, cache, tile.id, fill, pos, hovered) {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return,
             }
@@ -741,7 +739,7 @@ impl FractalViewElement {
                     Err(d) => Err(d + 1),
                 };
                 ctx.apply(transform, |ctx| {
-                    self.draw_subtree(ctx, text_tool, fractory, cache, names, orient, child, pos);
+                    self.draw_subtree(ctx, text_tool, fractory, cache, orient, child, pos);
                 });
             }
         });
@@ -761,7 +759,6 @@ impl FractalViewElement {
                 text_tool,
                 &fractory_meta.fractory,
                 cache,
-                cache.fragments.names(),
                 Transform::KU,
                 fractory_meta.fractory.fractal.root,
                 Ok(TilePos::UNIT),
