@@ -11,16 +11,16 @@ impl Plugin for Plug {
 }
 
 pub struct Blocc {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    h: f32,
-    color: Color,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub w: f32,
+    pub h: f32,
+    pub color: Color,
 }
 
 impl Blocc {
-    fn bundle(self) -> SpriteBundle {
+    pub fn bundle(self) -> SpriteBundle {
         let Self {
             x,
             y,
