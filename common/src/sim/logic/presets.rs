@@ -25,13 +25,14 @@ pub mod tiles {
     pub const SUCKER: usize = 7;
     pub const WIRE: usize = 8;
 
-    pub const LEAF_COUNT: usize = 9;
+    pub const LEAF_COUNT: usize = 8;
+    pub const TILE_COUNT: usize = LEAF_COUNT + 1;
 }
 use tiles::*;
 
-pub const TILES: [Tile; LEAF_COUNT] = {
+pub const TILES: [Tile; TILE_COUNT] = {
     use Orient::*;
-    const ORIENTS: [Orient; LEAF_COUNT] = [
+    const ORIENTS: [Orient; TILE_COUNT] = [
         Iso, // SPACE
         Iso, // X
         Iso, // Y
@@ -43,7 +44,7 @@ pub const TILES: [Tile; LEAF_COUNT] = {
         RfU, // WIRE
     ];
 
-    let mut out = [Tile::SPACE; LEAF_COUNT];
+    let mut out = [Tile::SPACE; TILE_COUNT];
     let mut i = 0;
     while i < LEAF_COUNT {
         out[i] = Tile {
@@ -55,8 +56,8 @@ pub const TILES: [Tile; LEAF_COUNT] = {
     out
 };
 
-pub const QUADS: [Quad<Tile>; LEAF_COUNT] = {
-    const INDEX_TF: [[(usize, Transform); 4]; LEAF_COUNT] = [
+pub const QUADS: [Quad<Tile>; TILE_COUNT] = {
+    const INDEX_TF: [[(usize, Transform); 4]; TILE_COUNT] = [
         [(0, KU); 4],                         // SPACE
         [(1, KU), (2, KU), (2, KU), (2, KU)], // X
         [(2, KU), (1, KU), (1, KU), (1, KU)], // Y
@@ -68,9 +69,9 @@ pub const QUADS: [Quad<Tile>; LEAF_COUNT] = {
         [(2, KU), (2, KU), (1, KU), (1, KU)], // WIRE
     ];
 
-    let mut out = [Quad::SPACE; LEAF_COUNT];
+    let mut out = [Quad::SPACE; TILE_COUNT];
     let mut i = 0;
-    while i < LEAF_COUNT {
+    while i < TILE_COUNT {
         let mut j = 0;
         while j < 4 {
             let (id, tf) = INDEX_TF[i][j];
@@ -82,16 +83,20 @@ pub const QUADS: [Quad<Tile>; LEAF_COUNT] = {
     out
 };
 
+pub const XYYY: &'static str = "xyyy";
+pub const XYYY_LANDING_ZONE: &'static str = "Landing Zone";
+pub const XYYY_SPINLESS: &'static str = "Spinless";
+
 pub fn new_xyyy_fractal() -> Fractal {
     // TODO: take fragments as argument
-    Fractal::new(&QUADS[1..]).unwrap()
+    Fractal::new(&QUADS[1..], LEAF_COUNT).unwrap()
 }
 
 pub fn new_xyyy_fractory_meta(planets: &mut PlanetCache) -> FractoryMeta {
     let xyyy = new_xyyy_planet();
     let planet_id = xyyy.default_id();
-    // let biome_id = BiomeId::from("Spinless");
-    let biome_id = BiomeId::from("Landing Zone");
+    // let biome_id = BiomeId::from(XYYY_SPINLESS);
+    let biome_id = BiomeId::from(XYYY_LANDING_ZONE);
     planets.register(planet_id.clone(), xyyy);
     FractoryMeta {
         fractory: new_xyyy_fractory(),
@@ -122,28 +127,34 @@ pub fn new_xyyy_planet() -> Planet {
     Planet {
         name: "XYYY".into(),
         desc: "The first planet.".into(),
-        fragments: FragmentData { names, behaviors },
-        biomes: new_xyyy_biome_cache(),
+        fragments: FragmentData {
+            quads: QUADS.to_vec(),
+            names,
+            behaviors,
+            leaf_count: LEAF_COUNT,
+        },
     }
 }
 
-fn new_xyyy_biome_spinless() -> Biome {
+pub fn new_xyyy_biome_spinless() -> Biome {
     Biome {
-        name: "Spinless".into(),
+        name: XYYY_SPINLESS.into(),
         desc: "Disables rotors and spinners.".into(),
         fragment_filter: Filter::all(LEAF_COUNT).without(ROTOR).without(SPINNER),
+        starting_tile: TILES[Y],
     }
 }
 
-fn new_xyyy_biome_landing_zone() -> Biome {
+pub fn new_xyyy_biome_landing_zone() -> Biome {
     Biome {
-        name: "Landing Zone".into(),
+        name: XYYY_LANDING_ZONE.into(),
         desc: "Contains every fragment.".into(),
         fragment_filter: Filter::all(LEAF_COUNT),
+        starting_tile: TILES[X],
     }
 }
 
-fn new_xyyy_biome_cache() -> BiomeCache {
+pub fn new_xyyy_biome_cache() -> BiomeCache {
     BiomeCache {
         biomes: HashMap::from(
             [new_xyyy_biome_spinless(), new_xyyy_biome_landing_zone()].map(|b| (b.default_id(), b)),

@@ -1,13 +1,14 @@
 mod cam;
 pub mod debug;
 mod fractal;
-// mod io;
+mod io;
 
 use bevy::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(io::Plug)
         .add_plugins((
             cam::Plug,
             // debug::Plug,

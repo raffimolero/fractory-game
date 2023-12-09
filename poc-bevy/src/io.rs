@@ -1,5 +1,76 @@
 // TODO: make this not broken
 
+use fractory_common::sim::logic::{
+    factory::{Fractory, FractoryMeta},
+    planet::{Biome, BiomeId, FragmentData, Planet, PlanetCache, PlanetId},
+    presets::{
+        new_xyyy_biome_landing_zone, new_xyyy_biome_spinless, new_xyyy_planet, XYYY,
+        XYYY_LANDING_ZONE, XYYY_SPINLESS,
+    },
+};
+use std::{
+    ffi::{OsStr, OsString},
+    path::PathBuf,
+};
+
+use bevy::{asset::LoadedFolder, prelude::*, sprite::Anchor, text::Text2dBounds, utils::HashMap};
+use indexmap::IndexMap;
+
+pub struct Plug;
+impl Plugin for Plug {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<PlanetList>()
+            .add_systems(Startup, setup);
+        // .add_systems(Update, load_folder.run_if(folder_is_loaded));
+    }
+}
+
+fn setup(mut commands: Commands, mut planets: ResMut<PlanetList>) {
+    // planets.add_planet(planet, new_xyyy_planet());
+    // planets.add_planet(PlanetId::from(XYYY));
+}
+
+#[derive(Resource, Default)]
+pub struct PlanetList {
+    pub planets: IndexMap<PlanetId, Planet>,
+    pub biomes: IndexMap<(PlanetId, BiomeId), Biome>,
+}
+
+impl PlanetList {
+    // TODO: loading
+    fn get_or_load_planet(planets: &mut IndexMap<PlanetId, Planet>, planet: PlanetId) -> &Planet {
+        planets.entry(planet.clone()).or_insert_with(|| {
+            if planet == PlanetId::from(XYYY) {
+                new_xyyy_planet()
+            } else {
+                todo!()
+            }
+        })
+    }
+
+    // TODO: loading
+    fn get_or_load_biome(
+        biomes: &mut IndexMap<(PlanetId, BiomeId), Biome>,
+        planet: PlanetId,
+        biome: BiomeId,
+    ) -> &Biome {
+        biomes
+            .entry((planet.clone(), biome.clone()))
+            .or_insert_with(|| match (planet.0.as_ref(), biome.0.as_ref()) {
+                (XYYY, XYYY_LANDING_ZONE) => new_xyyy_biome_landing_zone(),
+                (XYYY, XYYY_SPINLESS) => new_xyyy_biome_spinless(),
+                _ => todo!(),
+            })
+    }
+
+    pub fn new_fractory(&mut self, planet: PlanetId, biome: BiomeId) -> FractoryMeta {
+        let planet_data = Self::get_or_load_planet(&mut self.planets, planet.clone());
+        let biome_data = Self::get_or_load_biome(&mut self.biomes, planet.clone(), biome.clone());
+        FractoryMeta::new(planet, biome, planet_data, biome_data)
+    }
+}
+
+/*
 struct BiomeWrapper {
     /// the biome data
     biome: Biome,
@@ -83,3 +154,4 @@ fn load_folder(
     //     }
     // }
 }
+*/

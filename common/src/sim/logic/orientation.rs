@@ -1,5 +1,8 @@
 use super::tile::SubTile;
-use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign},
+};
 
 #[test]
 fn test_reorient_table() {
@@ -65,6 +68,12 @@ impl Symmetries {
     }
 }
 
+impl Display for Symmetries {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Orient {
     // isotropic
@@ -87,6 +96,27 @@ pub enum Orient {
     AFU,
     AFR,
     AFL,
+}
+
+impl Display for Orient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sym = self.symmetries();
+        let tf = match self {
+            Orient::Iso => "",
+            Orient::RtK => ", Unflipped",
+            Orient::RtF => ", Flipped",
+            Orient::RfU => ", Upright",
+            Orient::RfR => ", Right turn",
+            Orient::RfL => ", Left turn",
+            Orient::AKU => ", Unflipped, Upright",
+            Orient::AKR => ", Unflipped, Right turn",
+            Orient::AKL => ", Unflipped, Left turn",
+            Orient::AFU => ", Flipped, Upright",
+            Orient::AFR => ", Flipped, Right turn",
+            Orient::AFL => ", Flipped, Left turn",
+        };
+        write!(f, "{sym}{tf}")
+    }
 }
 
 impl Orient {

@@ -2,7 +2,10 @@ use std::{collections::HashMap, ops::Index, sync::Arc};
 
 use glam::IVec2;
 
-use super::{presets::tiles::*, tile::Tile};
+use super::{
+    presets::tiles::*,
+    tile::{Quad, Tile},
+};
 use crate::sim::logic::{
     actions::{TargetedAction, TileAction},
     orientation::Transform,
@@ -32,6 +35,8 @@ impl Filter {
 
 #[derive(Debug, Clone)]
 pub struct FragmentData {
+    pub quads: Vec<Quad<Tile>>,
+    pub leaf_count: usize,
     pub names: Vec<String>,
     pub behaviors: Vec<Behavior>,
 }
@@ -52,20 +57,11 @@ pub struct Planet {
     pub name: String,
     pub desc: String,
     pub fragments: FragmentData,
-    pub biomes: BiomeCache,
 }
 
 impl Planet {
     pub fn fragments(&self) -> &FragmentData {
         &self.fragments
-    }
-
-    pub fn biomes(&self) -> &BiomeCache {
-        &self.biomes
-    }
-
-    pub fn biomes_mut(&mut self) -> &mut BiomeCache {
-        &mut self.biomes
     }
 
     pub fn default_id(&self) -> PlanetId {
@@ -79,6 +75,7 @@ pub struct Biome {
     pub name: String,
     pub desc: String,
     pub fragment_filter: Filter,
+    pub starting_tile: Tile,
 }
 
 impl Biome {
@@ -146,7 +143,7 @@ impl BiomeCache {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BiomeId(Arc<str>);
+pub struct BiomeId(pub Arc<str>);
 
 impl<T: Into<Arc<str>>> From<T> for BiomeId {
     fn from(value: T) -> Self {
@@ -188,4 +185,10 @@ impl PlanetCache {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PlanetId(Arc<str>);
+pub struct PlanetId(pub Arc<str>);
+
+impl<T: Into<Arc<str>>> From<T> for PlanetId {
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}

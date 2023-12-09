@@ -1,5 +1,8 @@
 use super::orientation::{Orient, Transform};
-use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Index, IndexMut, Sub},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Tile {
@@ -48,7 +51,20 @@ pub enum SubTile {
 }
 
 impl SubTile {
-    pub const QUAD: Quad<Self> = Quad([Self::C, Self::U, Self::R, Self::L]);
+    pub const ORDER: [Self; 4] = [Self::C, Self::U, Self::R, Self::L];
+    pub const QUAD: Quad<Self> = Quad(Self::ORDER);
+}
+
+impl Display for SubTile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            SubTile::C => "Center",
+            SubTile::U => "Top",
+            SubTile::R => "Right",
+            SubTile::L => "Left",
+        };
+        write!(f, "{name}")
+    }
 }
 
 impl AddAssign<Transform> for SubTile {

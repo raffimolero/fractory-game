@@ -3,7 +3,9 @@ use super::{
     fractal::Fractal,
     orientation::Transform,
     path::{TileOffset, TilePos},
-    planet::{Behavior, Biome, BiomeCache, BiomeId, Filter, Planet, PlanetCache, PlanetId},
+    planet::{
+        Behavior, Biome, BiomeCache, BiomeId, Filter, FragmentData, Planet, PlanetCache, PlanetId,
+    },
     tile::Tile,
 };
 use std::{
@@ -64,6 +66,14 @@ pub struct FractoryMeta {
 }
 
 impl FractoryMeta {
+    pub fn new(planet: PlanetId, biome: BiomeId, planet_data: &Planet, biome_data: &Biome) -> Self {
+        Self {
+            fractory: Fractory::new(planet_data, biome_data),
+            planet,
+            biome,
+        }
+    }
+
     pub fn load(f: &str) -> io::Result<Self> {
         todo!()
     }
@@ -82,6 +92,17 @@ pub struct Fractory {
 }
 
 impl Fractory {
+    pub fn new(planet: &Planet, biome: &Biome) -> Self {
+        let FragmentData {
+            quads, leaf_count, ..
+        } = &planet.fragments;
+        Self {
+            fractal: Fractal::new(dbg!(quads), *leaf_count).unwrap(),
+            activated: ActiveTiles::new(),
+            inventory: BTreeMap::new(),
+        }
+    }
+
     pub fn toggle_activation(&mut self, pos: TilePos) {
         self.activated.toggle(pos);
     }
