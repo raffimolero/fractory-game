@@ -93,11 +93,8 @@ pub struct Fractory {
 
 impl Fractory {
     pub fn new(planet: &Planet, biome: &Biome) -> Self {
-        let FragmentData {
-            quads, leaf_count, ..
-        } = &planet.fragments;
         Self {
-            fractal: Fractal::new(dbg!(quads), *leaf_count).unwrap(),
+            fractal: Fractal::new(&planet.fragments.quads).unwrap(),
             activated: ActiveTiles::new(),
             inventory: BTreeMap::new(),
         }

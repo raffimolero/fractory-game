@@ -15,16 +15,17 @@ use thiserror::Error;
 pub enum TileFill {
     Empty,
     Partial,
-    Full { is_leaf: bool },
+    Full,
+    Leaf,
 }
 
 impl TileFill {
     pub fn is_leaf(self) -> bool {
-        matches!(self, Self::Empty | Self::Full { is_leaf: true })
+        matches!(self, Self::Empty | Self::Leaf)
     }
 
     pub fn is_full(self) -> bool {
-        matches!(self, Self::Full { .. })
+        matches!(self, Self::Full | Self::Leaf)
     }
 
     fn infer(quad: Quad<Self>) -> Self {
@@ -33,17 +34,17 @@ impl TileFill {
         for child in quad.0.into_iter() {
             match (info, child) {
                 (Some(Partial), _) => unreachable!(),
-                (Some(Full { is_leaf: true }), _) => unreachable!(),
+                (Some(Leaf), _) => unreachable!(),
 
                 (None, Empty) => info = Some(Empty),
-                (None, Full { .. }) => info = Some(Full { is_leaf: false }),
+                (None, Full | Leaf) => info = Some(Full),
 
                 (Some(Empty), Empty) => {}
-                (Some(Full { .. }), Full { .. }) => {}
+                (Some(Full | Leaf), Full | Leaf) => {}
 
                 (_, Partial) => return Partial,
-                (Some(Empty), Full { .. }) => return Partial,
-                (Some(Full { .. }), Empty) => return Partial,
+                (Some(Empty), Full | Leaf) => return Partial,
+                (Some(Full | Leaf), Empty) => return Partial,
             }
         }
         info.unwrap()
@@ -65,9 +66,13 @@ impl SlotInfo {
     };
 }
 
+// TODO: these errors happen in Planet parsing, not Fractal.
 #[derive(Error, Debug)]
 pub enum FractalError {
-    #[error("The Zero tile in this planet wasn't space.")]
+    #[error(
+        "The Zero tile in this planet wasn't space.\n\
+        This is probably a bug. Please report the file that causes this."
+    )]
     ZeroNotSpace,
 
     #[error("Tile {0} contained a hole.")]
@@ -83,16 +88,22 @@ pub enum FractalError {
     Duplicate(usize, usize),
 
     #[error(
-        "Tile {0}'s {1} tile has id of {2} and orientation of {3},\n\
-        but that tile's symmetries were {4}."
+        "Tile {id}'s {sub} tile has id of {sub_id} and orientation of {orient},\n\
+        but that tile's symmetries were {symmetries}."
     )]
-    WrongSymmetries(usize, SubTile, usize, Orient, Symmetries),
+    WrongSymmetries {
+        id: usize,
+        sub: SubTile,
+        sub_id: usize,
+        orient: Orient,
+        symmetries: Symmetries,
+    },
 }
 type Result<T> = std::result::Result<T, FractalError>;
 
 // TODO: double check every pub
-// separate { recognizer, leaf_count } from Fractal into Biome
-// make Fractal just a normal quadtree with leaf and branch nodes
+// separate { recognizer } from Fractal into Biome?
+// make Fractal just a normal quadtree with leaf and branch nodes?
 // garbage collection
 
 /// a quadtree specialized to not have root nodes,
@@ -114,65 +125,48 @@ pub struct Fractal {
 impl Fractal {
     /// creates a default fractal initialized to empty space.
     pub fn new_space() -> Self {
-        Self::new(&[Quad::SPACE], 0).unwrap()
+        Self::new(&[Quad::SPACE]).unwrap()
     }
 
     /// creates a fractal with some leaf tiles.
     /// fails if any of the quads aren't upright or aren't completely filled.
-    pub fn new(quads: &[Quad<Tile>], leaf_count: usize) -> Result<Self> {
+    pub fn new(quads: &[Quad<Tile>]) -> Result<Self> {
         let mut out = Self::default();
-
-        if quads[0] != Quad::SPACE {
-            return Err(FractalError::ZeroNotSpace);
+        for quad in quads {
+            out.register_new(*quad, true, true)?;
         }
-        out.register_leaf(Quad::SPACE).unwrap();
-        out.library[0].fill = TileFill::Empty;
-
-        let (leaves, intermediates) = quads[1..].split_at(leaf_count);
-        for quad in leaves.iter().copied() {
-            out.register_leaf(quad)?;
-        }
-        for quad in intermediates.iter().copied() {
-            out.register_new(quad)?;
-        }
-        out.validate_library(leaf_count)?;
-        Ok(out)
+        out.finalize_library()
     }
 
     /// Does validate:
     /// - that all tiles refer to each other with the correct orientations
     ///
     /// Does NOT validate:
+    /// - that no leaves other than space contain holes
     /// - that 0 is space
     /// - that space is isotropic and 0 0 0 0
-    fn validate_library(&self, leaf_count: usize) -> Result<()> {
+    fn finalize_library(self) -> Result<Self> {
+        // all tiles must exist and have the correct symmetries
         for (i, info) in self.library.iter().enumerate() {
-            if i <= leaf_count {
-                let subtile_fills = info.quad.map(|child| self.library[child.id].fill);
-                let fill = TileFill::infer(subtile_fills);
-                if !fill.is_full() {
-                    return Err(FractalError::NonLeaf(i));
-                }
-                assert!(info.fill.is_leaf());
-            }
             for (st, sub) in info.quad.0.iter().enumerate() {
                 let real_sub = self
                     .library
                     .get(sub.id)
                     .ok_or(FractalError::NonExistentTile(i, sub.id))?;
+
                 if sub.orient.symmetries() != real_sub.symmetries {
-                    return Err(FractalError::WrongSymmetries(
-                        i,
-                        SubTile::ORDER[st],
-                        sub.id,
-                        sub.orient,
-                        real_sub.symmetries,
-                    ));
+                    return Err(FractalError::WrongSymmetries {
+                        id: i,
+                        sub: SubTile::ORDER[st],
+                        sub_id: sub.id,
+                        orient: sub.orient,
+                        symmetries: real_sub.symmetries,
+                    });
                 }
             }
         }
 
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_info(&self, tile_id: usize) -> SlotInfo {
@@ -223,46 +217,53 @@ impl Fractal {
         self.recognizer
             .get(&quad)
             .copied()
-            .unwrap_or_else(|| self.register_new(quad).unwrap())
+            .unwrap_or_else(|| self.register_new(quad, false, true).unwrap())
     }
 
-    /// registers a new leaf quadtile into the library.
-    /// returns Err if the tile isn't upright, or if it has a hole.
-    fn register_leaf(&mut self, mut quad: Quad<Tile>) -> Result<()> {
+    /// registers a new quadtile into the library.
+    fn register_new(
+        &mut self,
+        mut quad: Quad<Tile>,
+        is_base_tile: bool,
+        cache: bool,
+    ) -> Result<Tile> {
         let id = self.library.len();
         let orient = quad.reorient();
-        if !orient.is_upright() {
-            return Err(FractalError::NonCanonOrient(id, orient));
+
+        let fill = if is_base_tile {
+            let is_space = id == 0;
+            if !orient.is_upright() {
+                return Err(FractalError::NonCanonOrient(id, orient));
+            }
+            for sub in quad.0 {
+                if is_space != (sub.id == 0) {
+                    return Err(FractalError::NonLeaf(id));
+                }
+            }
+            if is_space {
+                TileFill::Empty
+            } else {
+                TileFill::Leaf
+            }
+        } else {
+            let sub_info = quad.map(|child| self.library[child.id].fill);
+            TileFill::infer(sub_info)
+        };
+        self.library.push(SlotInfo {
+            quad,
+            fill,
+            symmetries: orient.symmetries(),
+        });
+
+        if cache {
+            self.cache(
+                quad,
+                Tile {
+                    id,
+                    orient: orient.upright(),
+                },
+            )?;
         }
-
-        self.library.push(SlotInfo {
-            quad,
-            fill: TileFill::Full { is_leaf: true },
-            symmetries: orient.symmetries(),
-        });
-
-        self.cache(quad, Tile { id, orient })
-    }
-
-    /// registers a new non-leaf quadtile into the library.
-    fn register_new(&mut self, mut quad: Quad<Tile>) -> Result<Tile> {
-        let orient = quad.reorient();
-        let id = self.library.len();
-
-        let sub_info = quad.map(|child| self.library[child.id].fill);
-        self.library.push(SlotInfo {
-            quad,
-            fill: TileFill::infer(sub_info),
-            symmetries: orient.symmetries(),
-        });
-
-        self.cache(
-            quad,
-            Tile {
-                id,
-                orient: orient.upright(),
-            },
-        )?;
 
         Ok(Tile { id, orient })
     }

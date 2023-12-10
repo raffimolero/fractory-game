@@ -45,6 +45,7 @@ impl FractoryEntity {
         commands
             .entity(fractory)
             .insert(FractoryEntity { meta })
+            .insert(Transform::from_scale(Vec2::splat(60.0).extend(1.0)))
             .id()
     }
 }
@@ -73,26 +74,34 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
         },
         text_anchor: Anchor::Center,
         text_2d_bounds: Text2dBounds { size: bounds },
-        transform: Transform::from_xyz(0.0, 0.0, 1.0),
+        transform: Transform {
+            translation: Vec3::new(0.0, 0.0, 1.0),
+            rotation: default(),
+            scale: Vec2::splat(1.0 / font_size).extend(1.0),
+        },
         ..default()
     }
 }
 
 impl NodeEntity {
     fn spawn(commands: &mut Commands, color: Color, name: String) -> Entity {
-        let size = Vec2::new(60.0, 60.0);
+        let size = Vec2::new(1.0, 1.0);
         let sprite = commands
             .spawn(
                 Blocc {
-                    w: 60.0,
-                    h: 60.0,
+                    w: size.x,
+                    h: size.y,
                     color,
                     ..default()
                 }
                 .bundle(),
             )
             .id();
-        let name = commands.spawn(text(name, 30.0, size)).id();
-        commands.spawn(Self { sprite, name }).id()
+        let name = commands.spawn(text(name, 120.0, size)).id();
+        commands
+            .spawn((Self { sprite, name }, TransformBundle::default()))
+            .add_child(sprite)
+            .add_child(name)
+            .id()
     }
 }

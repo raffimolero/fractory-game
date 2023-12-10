@@ -89,7 +89,7 @@ pub const XYYY_SPINLESS: &'static str = "Spinless";
 
 pub fn new_xyyy_fractal() -> Fractal {
     // TODO: take fragments as argument
-    Fractal::new(&QUADS[1..], LEAF_COUNT).unwrap()
+    Fractal::new(&QUADS[1..]).unwrap()
 }
 
 pub fn new_xyyy_fractory_meta(planets: &mut PlanetCache) -> FractoryMeta {
@@ -131,7 +131,6 @@ pub fn new_xyyy_planet() -> Planet {
             quads: QUADS.to_vec(),
             names,
             behaviors,
-            leaf_count: LEAF_COUNT,
         },
     }
 }

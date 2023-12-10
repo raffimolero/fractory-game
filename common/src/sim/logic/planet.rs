@@ -36,7 +36,6 @@ impl Filter {
 #[derive(Debug, Clone)]
 pub struct FragmentData {
     pub quads: Vec<Quad<Tile>>,
-    pub leaf_count: usize,
     pub names: Vec<String>,
     pub behaviors: Vec<Behavior>,
 }
