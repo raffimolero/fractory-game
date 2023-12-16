@@ -1,23 +1,15 @@
 // TODO: make this not broken
 
+use std::hash::BuildHasherDefault;
+
+use bevy::{asset::AssetServer, prelude::*, utils::AHasher};
 use fractory_common::sim::logic::{
-    factory::{Fractory, FractoryMeta},
-    planet::{Biome, BiomeId, FragmentData, Planet, PlanetCache, PlanetId},
+    factory::FractoryMeta,
+    planet::{Biome, BiomeId, Planet, PlanetId},
     presets::{XYYY, XYYY_LANDING_ZONE, XYYY_SPINLESS},
 };
-use std::{
-    ffi::{OsStr, OsString},
-    path::PathBuf,
-};
 
-use bevy::{
-    asset::{AssetServer, LoadedFolder},
-    prelude::*,
-    sprite::Anchor,
-    text::Text2dBounds,
-    utils::HashMap,
-};
-use indexmap::IndexMap;
+type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<AHasher>>;
 
 pub struct Plug;
 impl Plugin for Plug {

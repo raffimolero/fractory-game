@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -61,9 +63,12 @@ pub fn setup(mut commands: Commands) {
 }
 
 pub fn control(
+    time: Res<Time>,
     mut controllables: Query<&mut Transform, With<WasdControl>>,
     keys: Res<Input<KeyCode>>,
 ) {
+    let delta = time.delta_seconds();
+    let spd = 300.0;
     let mut mov = Vec2::ZERO;
     if keys.pressed(KeyCode::W) {
         mov.y += 1.0;
@@ -77,7 +82,7 @@ pub fn control(
     if keys.pressed(KeyCode::A) {
         mov.x -= 1.0;
     }
-    let mov = mov.normalize_or_zero().extend(0.0);
+    let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
 
     controllables.for_each_mut(|mut tf| {
         tf.translation += mov;
@@ -87,9 +92,22 @@ pub fn control(
 #[derive(Component)]
 pub struct Sbinalla;
 
-pub fn sbinalla(time: Res<Time>, mut sbinners: Query<&mut Transform, With<Sbinalla>>) {
-    let time = time.elapsed_seconds();
-    for mut tf in sbinners.iter_mut() {
-        tf.rotation = Quat::from_rotation_z(time);
+pub fn sbinalla(
+    time: Res<Time>,
+    mut sbinners: Query<&mut Transform, With<Sbinalla>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    let delta = time.delta_seconds();
+    let spd = TAU;
+    let mut dir = 0.0;
+    if keys.pressed(KeyCode::E) {
+        dir += 1.0;
     }
+    if keys.pressed(KeyCode::Q) {
+        dir -= 1.0;
+    }
+
+    sbinners.for_each_mut(|mut tf| {
+        tf.rotation *= Quat::from_rotation_z(dir * spd * delta);
+    });
 }

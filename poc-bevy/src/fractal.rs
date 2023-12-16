@@ -1,14 +1,13 @@
-mod assets;
-
 use crate::{
     debug::{Blocc, Sbinalla},
     io::PlanetList,
+    ui::{Hitbox, HitboxKind, TRI_CENTER_OFF_Y, TRI_HEIGHT, TRI_INSC_R},
 };
 
-use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, utils::HashMap};
+use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
 use fractory_common::sim::logic::{
-    factory::{Fractory, FractoryMeta},
-    planet::{Biome, BiomeId, Planet, PlanetCache, PlanetId},
+    factory::FractoryMeta,
+    planet::{BiomeId, PlanetId},
     presets::{XYYY, XYYY_LANDING_ZONE},
 };
 
@@ -107,23 +106,23 @@ impl NodeEntity {
         sprite: Handle<Image>,
         name: String,
     ) -> Entity {
-        let side = 1.0;
-        /// std::f32::consts::SQRT_3 is unstable so here it is
-        const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
-        let out_r = SQRT_3 / 3.0 * side;
-        let in_r = out_r / 2.0;
-
-        let size = Vec2::new(side, out_r + in_r);
+        let size = Vec2::new(1.0, TRI_HEIGHT);
         let sprite = commands
-            .spawn(SpriteBundle {
-                sprite: Sprite {
-                    custom_size: Some(size),
+            .spawn((
+                SpriteBundle {
+                    sprite: Sprite {
+                        custom_size: Some(size),
+                        ..default()
+                    },
+                    texture: sprite,
+                    transform: Transform::from_xyz(0.0, TRI_CENTER_OFF_Y, 0.0),
                     ..default()
                 },
-                texture: sprite,
-                transform: Transform::from_xyz(0.0, in_r / 2.0, 0.0),
-                ..default()
-            })
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: Some(CursorIcon::Progress),
+                },
+            ))
             .id();
         let name = commands.spawn(text(name, 120.0, size)).id();
         commands
