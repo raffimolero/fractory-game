@@ -87,204 +87,221 @@ pub const XYYY: &'static str = "xyyy";
 pub const XYYY_LANDING_ZONE: &'static str = "Landing Zone";
 pub const XYYY_SPINLESS: &'static str = "Spinless";
 
-pub fn new_xyyy_fractal() -> Fractal {
-    // TODO: take fragments as argument
-    Fractal::new(&QUADS[1..]).unwrap()
-}
-
-pub fn new_xyyy_fractory_meta(planets: &mut PlanetCache) -> FractoryMeta {
-    let xyyy = new_xyyy_planet();
-    let planet_id = xyyy.default_id();
-    // let biome_id = BiomeId::from(XYYY_SPINLESS);
-    let biome_id = BiomeId::from(XYYY_LANDING_ZONE);
-    planets.register(planet_id.clone(), xyyy);
-    FractoryMeta {
-        fractory: new_xyyy_fractory(),
-        planet: planet_id,
-        biome: biome_id,
-    }
-}
-pub fn new_xyyy_planet() -> Planet {
-    let xyyy = [
-        ("", vec![]),
-        ("X", vec![]),
-        ("Y", vec![]),
-        ("Flip-Flop", flip_self_and_below_self()),
-        ("Spinner", hexagon()),
-        ("Rotor", rotate()),
-        ("Grower", grow()),
-        ("Sucker", suck()),
-        ("Wire", wire()),
-    ];
-    let frag_count = xyyy.len();
-    let mut names = Vec::with_capacity(frag_count);
-    let mut behaviors = Vec::with_capacity(frag_count);
-    for (name, behavior) in xyyy {
-        names.push(name.to_string());
-        behaviors.push(behavior);
-    }
-
-    Planet {
-        name: "XYYY".into(),
-        desc: "The first planet.".into(),
-        fragments: FragmentData {
-            quads: QUADS.to_vec(),
-            names,
-            behaviors,
-        },
+impl Fractal {
+    pub fn new_xyyy() -> Self {
+        // TODO: take fragments as argument
+        Self::new(&QUADS[1..]).unwrap()
     }
 }
 
-pub fn new_xyyy_biome_spinless() -> Biome {
-    Biome {
-        name: XYYY_SPINLESS.into(),
-        desc: "Disables rotors and spinners.".into(),
-        fragment_filter: Filter::all(LEAF_COUNT).without(ROTOR).without(SPINNER),
-        starting_tile: TILES[Y],
+impl FractoryMeta {
+    fn new_xyyy(planets: &mut PlanetCache) -> Self {
+        let xyyy = Planet::new_xyyy();
+        let planet_id = xyyy.default_id();
+        // let biome_id = BiomeId::from(XYYY_SPINLESS);
+        let biome_id = BiomeId::from(XYYY_LANDING_ZONE);
+        planets.register(planet_id.clone(), xyyy);
+        Self {
+            fractory: new_xyyy_fractory(),
+            planet: planet_id,
+            biome: biome_id,
+        }
     }
 }
 
-pub fn new_xyyy_biome_landing_zone() -> Biome {
-    Biome {
-        name: XYYY_LANDING_ZONE.into(),
-        desc: "Contains every fragment.".into(),
-        fragment_filter: Filter::all(LEAF_COUNT),
-        starting_tile: TILES[X],
-    }
-}
+impl Planet {
+    pub fn new_xyyy() -> Self {
+        let xyyy = [
+            ("", vec![]),
+            ("X", vec![]),
+            ("Y", vec![]),
+            ("Flip-Flop", flip_self_and_below_self()),
+            ("Spinner", hexagon()),
+            ("Rotor", rotate()),
+            ("Grower", grow()),
+            ("Sucker", suck()),
+            ("Wire", wire()),
+        ];
+        let frag_count = xyyy.len();
+        let mut names = Vec::with_capacity(frag_count);
+        let mut behaviors = Vec::with_capacity(frag_count);
+        for (name, behavior) in xyyy {
+            names.push(name.to_string());
+            behaviors.push(behavior);
+        }
 
-pub fn new_xyyy_biome_cache() -> BiomeCache {
-    BiomeCache {
-        biomes: HashMap::from(
-            [new_xyyy_biome_spinless(), new_xyyy_biome_landing_zone()].map(|b| (b.default_id(), b)),
-        ),
-    }
-}
-
-fn flip_self_and_below_self() -> Behavior {
-    let this = TileOffset::ZERO;
-    let below = TileOffset {
-        depth: 0,
-        offset: (0, 0).into(),
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: this,
-            act: TileAction::Move(this, FU),
-        },
-        TargetedAction {
-            target: below,
-            act: TileAction::Move(below, FU),
-        },
-    ]
-}
-
-fn hexagon() -> Behavior {
-    let this = TileOffset::ZERO;
-    let below = TileOffset {
-        depth: 0,
-        offset: (0, 0).into(),
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: this,
-            act: TileAction::Move(below, KR),
-        },
-        TargetedAction {
-            target: below,
-            act: TileAction::Activate,
-        },
-    ]
-}
-
-fn rotate() -> Behavior {
-    let this = TileOffset::ZERO;
-    let u = TileOffset {
-        depth: 0,
-        offset: (0, 0).into(),
-        flop: true,
-    };
-    let l = TileOffset {
-        depth: 0,
-        offset: (0, -1).into(),
-        flop: true,
-    };
-    let r = TileOffset {
-        depth: 0,
-        offset: (-1, -1).into(),
-        flop: true,
-    };
-    vec![
-        TargetedAction {
-            target: u,
-            act: TileAction::Move(r, KR),
-        },
-        TargetedAction {
-            target: r,
-            act: TileAction::Move(l, KR),
-        },
-        TargetedAction {
-            target: l,
-            act: TileAction::Move(u, KR),
-        },
-        TargetedAction {
-            target: this,
-            act: TileAction::Activate,
-        },
-    ]
-}
-
-fn grow() -> Behavior {
-    let below = TileOffset {
-        depth: 0,
-        offset: (0, 0).into(),
-        flop: true,
-    };
-    let center_below = TileOffset {
-        depth: 1,
-        offset: (1, 2).into(),
-        flop: false,
-    };
-    vec![TargetedAction {
-        target: center_below,
-        act: TileAction::Move(below, KU),
-    }]
-}
-
-fn suck() -> Behavior {
-    let below = TileOffset {
-        depth: 0,
-        offset: (0, 0).into(),
-        flop: true,
-    };
-    vec![TargetedAction {
-        target: below,
-        act: TileAction::Store,
-    }]
-}
-
-fn wire() -> Behavior {
-    vec![
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: (0, -1).into(),
-                flop: true,
+        Self {
+            name: "XYYY".into(),
+            desc: "The first planet.".into(),
+            fragments: FragmentData {
+                quads: QUADS.to_vec(),
+                names,
+                behaviors,
             },
-            act: TileAction::Activate,
-        },
-        TargetedAction {
-            target: TileOffset {
-                depth: 0,
-                offset: (-1, -1).into(),
-                flop: true,
-            },
-            act: TileAction::Activate,
-        },
-    ]
+        }
+    }
 }
+
+impl Biome {
+    pub fn new_xyyy_spinless() -> Self {
+        Self {
+            name: XYYY_SPINLESS.into(),
+            desc: "Disables rotors and spinners.".into(),
+            fragment_filter: Filter::all(LEAF_COUNT).without(ROTOR).without(SPINNER),
+            starting_tile: TILES[Y],
+        }
+    }
+
+    pub fn new_xyyy_landing_zone() -> Self {
+        Self {
+            name: XYYY_LANDING_ZONE.into(),
+            desc: "Contains every fragment.".into(),
+            fragment_filter: Filter::all(LEAF_COUNT),
+            starting_tile: TILES[X],
+        }
+    }
+}
+
+impl BiomeCache {
+    pub fn new_xyyy() -> Self {
+        Self {
+            biomes: HashMap::from(
+                [Biome::new_xyyy_spinless(), Biome::new_xyyy_landing_zone()]
+                    .map(|b| (b.default_id(), b)),
+            ),
+        }
+    }
+}
+
+mod behaviors {
+    use super::*;
+
+    pub fn flip_self_and_below_self() -> Behavior {
+        let this = TileOffset::ZERO;
+        let below = TileOffset {
+            depth: 0,
+            offset: (0, 0).into(),
+            flop: true,
+        };
+        vec![
+            TargetedAction {
+                target: this,
+                act: TileAction::Move(this, FU),
+            },
+            TargetedAction {
+                target: below,
+                act: TileAction::Move(below, FU),
+            },
+        ]
+    }
+
+    pub fn hexagon() -> Behavior {
+        let this = TileOffset::ZERO;
+        let below = TileOffset {
+            depth: 0,
+            offset: (0, 0).into(),
+            flop: true,
+        };
+        vec![
+            TargetedAction {
+                target: this,
+                act: TileAction::Move(below, KR),
+            },
+            TargetedAction {
+                target: below,
+                act: TileAction::Activate,
+            },
+        ]
+    }
+
+    pub fn rotate() -> Behavior {
+        let this = TileOffset::ZERO;
+        let u = TileOffset {
+            depth: 0,
+            offset: (0, 0).into(),
+            flop: true,
+        };
+        let l = TileOffset {
+            depth: 0,
+            offset: (0, -1).into(),
+            flop: true,
+        };
+        let r = TileOffset {
+            depth: 0,
+            offset: (-1, -1).into(),
+            flop: true,
+        };
+        vec![
+            TargetedAction {
+                target: u,
+                act: TileAction::Move(r, KR),
+            },
+            TargetedAction {
+                target: r,
+                act: TileAction::Move(l, KR),
+            },
+            TargetedAction {
+                target: l,
+                act: TileAction::Move(u, KR),
+            },
+            TargetedAction {
+                target: this,
+                act: TileAction::Activate,
+            },
+        ]
+    }
+
+    pub fn grow() -> Behavior {
+        let below = TileOffset {
+            depth: 0,
+            offset: (0, 0).into(),
+            flop: true,
+        };
+        let center_below = TileOffset {
+            depth: 1,
+            offset: (1, 2).into(),
+            flop: false,
+        };
+        vec![TargetedAction {
+            target: center_below,
+            act: TileAction::Move(below, KU),
+        }]
+    }
+
+    pub fn suck() -> Behavior {
+        let below = TileOffset {
+            depth: 0,
+            offset: (0, 0).into(),
+            flop: true,
+        };
+        vec![TargetedAction {
+            target: below,
+            act: TileAction::Store,
+        }]
+    }
+
+    pub fn wire() -> Behavior {
+        vec![
+            TargetedAction {
+                target: TileOffset {
+                    depth: 0,
+                    offset: (0, -1).into(),
+                    flop: true,
+                },
+                act: TileAction::Activate,
+            },
+            TargetedAction {
+                target: TileOffset {
+                    depth: 0,
+                    offset: (-1, -1).into(),
+                    flop: true,
+                },
+                act: TileAction::Activate,
+            },
+        ]
+    }
+}
+use behaviors::*;
 
 struct PlaceCommand {
     depth: u8,
@@ -309,7 +326,7 @@ impl FromStr for Preset {
 
 pub fn new_xyyy_fractory() -> Fractory {
     let mut out = Fractory {
-        fractal: new_xyyy_fractal(),
+        fractal: Fractal::new_xyyy(),
         activated: ActiveTiles::new(),
         inventory: BTreeMap::new(),
     };

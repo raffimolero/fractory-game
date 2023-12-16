@@ -3,17 +3,20 @@
 use fractory_common::sim::logic::{
     factory::{Fractory, FractoryMeta},
     planet::{Biome, BiomeId, FragmentData, Planet, PlanetCache, PlanetId},
-    presets::{
-        new_xyyy_biome_landing_zone, new_xyyy_biome_spinless, new_xyyy_planet, XYYY,
-        XYYY_LANDING_ZONE, XYYY_SPINLESS,
-    },
+    presets::{XYYY, XYYY_LANDING_ZONE, XYYY_SPINLESS},
 };
 use std::{
     ffi::{OsStr, OsString},
     path::PathBuf,
 };
 
-use bevy::{asset::LoadedFolder, prelude::*, sprite::Anchor, text::Text2dBounds, utils::HashMap};
+use bevy::{
+    asset::{AssetServer, LoadedFolder},
+    prelude::*,
+    sprite::Anchor,
+    text::Text2dBounds,
+    utils::HashMap,
+};
 use indexmap::IndexMap;
 
 pub struct Plug;
@@ -25,47 +28,117 @@ impl Plugin for Plug {
     }
 }
 
-fn setup(mut commands: Commands, mut planets: ResMut<PlanetList>) {
+// TODO: load assets
+fn setup(mut commands: Commands, mut planets: ResMut<PlanetList>, mut assets: ResMut<AssetServer>) {
     // planets.add_planet(planet, new_xyyy_planet());
     // planets.add_planet(PlanetId::from(XYYY));
 }
 
+pub struct PlanetAssets {
+    pub icon: Handle<Image>,
+    pub fragment_icons: Vec<Handle<Image>>,
+}
+
+impl PlanetAssets {
+    fn new_xyyy(asset_server: &mut AssetServer) -> Self {
+        Self {
+            icon: asset_server.load("content/planets/xyyy/sprites/icon.png"),
+            fragment_icons: vec![asset_server.load("content/planets/xyyy/sprites/tringle.png")],
+        }
+    }
+}
+
+pub struct BiomeAssets {
+    pub icon: Handle<Image>,
+}
+
+impl BiomeAssets {
+    fn new_xyyy_landing_zone(asset_server: &mut AssetServer) -> Self {
+        Self {
+            icon: asset_server.load("content/planets/xyyy/sprites/landing_zone.png"),
+        }
+    }
+
+    fn new_xyyy_spinless(asset_server: &mut AssetServer) -> Self {
+        Self {
+            icon: asset_server.load("content/planets/xyyy/sprites/spinless.png"),
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct PlanetList {
-    pub planets: IndexMap<PlanetId, Planet>,
-    pub biomes: IndexMap<(PlanetId, BiomeId), Biome>,
+    pub planets: IndexMap<PlanetId, (Planet, PlanetAssets)>,
+    pub biomes: IndexMap<(PlanetId, BiomeId), (Biome, BiomeAssets)>,
 }
 
 impl PlanetList {
     // TODO: loading
-    fn get_or_load_planet(planets: &mut IndexMap<PlanetId, Planet>, planet: PlanetId) -> &Planet {
+    pub fn get_or_load_planet(
+        &mut self,
+        asset_server: &mut AssetServer,
+        planet: PlanetId,
+    ) -> &(Planet, PlanetAssets) {
+        Self::_get_or_load_planet(&mut self.planets, asset_server, planet)
+    }
+    pub fn _get_or_load_planet<'a>(
+        planets: &'a mut IndexMap<PlanetId, (Planet, PlanetAssets)>,
+        asset_server: &mut AssetServer,
+        planet: PlanetId,
+    ) -> &'a (Planet, PlanetAssets) {
         planets.entry(planet.clone()).or_insert_with(|| {
             if planet == PlanetId::from(XYYY) {
-                new_xyyy_planet()
+                (Planet::new_xyyy(), PlanetAssets::new_xyyy(asset_server))
             } else {
-                todo!()
+                todo!("actually load planet")
             }
         })
     }
 
     // TODO: loading
-    fn get_or_load_biome(
-        biomes: &mut IndexMap<(PlanetId, BiomeId), Biome>,
+    pub fn get_or_load_biome(
+        &mut self,
+        asset_server: &mut AssetServer,
         planet: PlanetId,
         biome: BiomeId,
-    ) -> &Biome {
+    ) -> &(Biome, BiomeAssets) {
+        Self::_get_or_load_biome(&mut self.biomes, asset_server, planet, biome)
+    }
+    pub fn _get_or_load_biome<'a>(
+        biomes: &'a mut IndexMap<(PlanetId, BiomeId), (Biome, BiomeAssets)>,
+        asset_server: &mut AssetServer,
+        planet: PlanetId,
+        biome: BiomeId,
+    ) -> &'a (Biome, BiomeAssets) {
         biomes
             .entry((planet.clone(), biome.clone()))
             .or_insert_with(|| match (planet.0.as_ref(), biome.0.as_ref()) {
-                (XYYY, XYYY_LANDING_ZONE) => new_xyyy_biome_landing_zone(),
-                (XYYY, XYYY_SPINLESS) => new_xyyy_biome_spinless(),
-                _ => todo!(),
+                (XYYY, XYYY_LANDING_ZONE) => (
+                    Biome::new_xyyy_landing_zone(),
+                    BiomeAssets::new_xyyy_landing_zone(asset_server),
+                ),
+                (XYYY, XYYY_SPINLESS) => (
+                    Biome::new_xyyy_spinless(),
+                    BiomeAssets::new_xyyy_spinless(asset_server),
+                ),
+                _ => todo!("actually load biome"),
             })
     }
 
-    pub fn new_fractory(&mut self, planet: PlanetId, biome: BiomeId) -> FractoryMeta {
-        let planet_data = Self::get_or_load_planet(&mut self.planets, planet.clone());
-        let biome_data = Self::get_or_load_biome(&mut self.biomes, planet.clone(), biome.clone());
+    pub fn new_fractory(
+        &mut self,
+        asset_server: &mut AssetServer,
+        planet: PlanetId,
+        biome: BiomeId,
+    ) -> FractoryMeta {
+        let (planet_data, planet_assets) =
+            Self::_get_or_load_planet(&mut self.planets, asset_server, planet.clone());
+        let (biome_data, biome_assets) = Self::_get_or_load_biome(
+            &mut self.biomes,
+            asset_server,
+            planet.clone(),
+            biome.clone(),
+        );
         FractoryMeta::new(planet, biome, planet_data, biome_data)
     }
 }
