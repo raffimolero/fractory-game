@@ -55,9 +55,10 @@ impl HitboxKind {
         match self {
             HitboxKind::Rect(rect) => rect.contains(p),
             HitboxKind::Tri { r } => {
-                let top = TRI_CIRC_R * *r + (p.x * SQRT_3);
+                let top = TRI_CIRC_R * *r - p.x.abs() * SQRT_3;
                 let bot = -TRI_INSC_R * *r;
-                (top..bot).contains(&p.y)
+                // dbg!(top, bot);
+                (bot..top).contains(&p.y)
             }
         }
     }
@@ -67,7 +68,7 @@ fn hover(
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     camera: Query<(&GlobalTransform, &Camera), With<MainCam>>,
     hoverables: Query<(&GlobalTransform, &Hitbox)>,
-    mut gizmos: Gizmos,
+    // mut gizmos: Gizmos,
 ) {
     let mut window = window.single_mut();
     let Some(pos) = window.cursor_position() else {
@@ -87,16 +88,15 @@ fn hover(
             .transform_point3(world_cursor_pos.extend(0.0))
             .truncate();
 
-        let gizmo_scale = 200.0;
-        gizmos.circle_2d(projected_cursor * gizmo_scale, 5.0, Color::RED);
-        let verts = TRI_VERTS.map(|v| v * gizmo_scale);
-        for i in 0..3 {
-            gizmos.line_2d(verts[i], verts[(i + 1) % 3], Color::ORANGE);
-        }
+        // let gizmo_scale = 200.0;
+        // gizmos.circle_2d(projected_cursor * gizmo_scale, 5.0, Color::RED);
+        // let verts = TRI_VERTS.map(|v| v * gizmo_scale);
+        // for i in 0..3 {
+        //     gizmos.line_2d(verts[i], verts[(i + 1) % 3], Color::ORANGE);
+        // }
+        // println!("{}", projected_cursor);
 
-        println!("{}", projected_cursor);
         if hbx.kind.contains(projected_cursor) {
-            println!("HIT");
             if let Some(cursor) = hbx.cursor {
                 window.cursor.icon = cursor;
             }

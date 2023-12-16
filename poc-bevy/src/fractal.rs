@@ -108,26 +108,24 @@ impl NodeEntity {
     ) -> Entity {
         let size = Vec2::new(1.0, TRI_HEIGHT);
         let sprite = commands
-            .spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        custom_size: Some(size),
-                        ..default()
-                    },
-                    texture: sprite,
-                    transform: Transform::from_xyz(0.0, TRI_CENTER_OFF_Y, 0.0),
+            .spawn((SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(size),
                     ..default()
                 },
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: Some(CursorIcon::Progress),
-                },
-            ))
+                texture: sprite,
+                transform: Transform::from_xyz(0.0, TRI_CENTER_OFF_Y, 0.0),
+                ..default()
+            },))
             .id();
         let name = commands.spawn(text(name, 120.0, size)).id();
         commands
             .spawn((
                 Self { sprite, name },
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: Some(CursorIcon::Hand),
+                },
                 Sbinalla,
                 SpatialBundle {
                     transform,
