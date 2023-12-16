@@ -68,7 +68,7 @@ pub fn control(
     keys: Res<Input<KeyCode>>,
 ) {
     let delta = time.delta_seconds();
-    let spd = 300.0;
+    let spd = 800.0;
     let mut mov = Vec2::ZERO;
     if keys.pressed(KeyCode::W) {
         mov.y += 1.0;
