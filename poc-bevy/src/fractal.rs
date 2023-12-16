@@ -1,6 +1,9 @@
 mod assets;
 
-use crate::{debug::Blocc, io::PlanetList};
+use crate::{
+    debug::{Blocc, Sbinalla},
+    io::PlanetList,
+};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, utils::HashMap};
 use fractory_common::sim::logic::{
@@ -12,8 +15,7 @@ use fractory_common::sim::logic::{
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .add_systems(Update, sbinalla);
+        app.add_systems(Startup, setup);
         // .add_systems(Update, load_folder.run_if(folder_is_loaded));
     }
 }
@@ -54,7 +56,7 @@ impl FractoryEntity {
         let meta = planets.new_fractory(asset_server, planet, biome);
         let fractory = NodeEntity::spawn(
             commands,
-            Transform::from_scale(Vec2::splat(200.0).extend(1.0)),
+            Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
             sprite,
             "X".into(),
         );
@@ -98,16 +100,6 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
     }
 }
 
-#[derive(Component)]
-struct Sbinalla;
-
-fn sbinalla(time: Res<Time>, mut sbinners: Query<&mut Transform, With<Sbinalla>>) {
-    let time = time.elapsed_seconds();
-    for mut tf in sbinners.iter_mut() {
-        tf.rotation = Quat::from_rotation_z(time);
-    }
-}
-
 impl NodeEntity {
     fn spawn(
         commands: &mut Commands,
@@ -133,77 +125,7 @@ impl NodeEntity {
                 ..default()
             })
             .id();
-
         let name = commands.spawn(text(name, 120.0, size)).id();
-
-        let center = commands
-            .spawn(
-                Blocc {
-                    z: 2.0,
-                    w: 1.0 / 10.0,
-                    h: 1.0 / 10.0,
-                    color: Color::YELLOW,
-                    ..default()
-                }
-                .bundle(),
-            )
-            .id();
-        let top = commands
-            .spawn(
-                Blocc {
-                    y: out_r,
-                    z: 2.0,
-                    w: 1.0 / 10.0,
-                    h: 1.0 / 10.0,
-                    color: Color::YELLOW,
-                    ..default()
-                }
-                .bundle(),
-            )
-            .id();
-        let bot = commands
-            .spawn(
-                Blocc {
-                    y: -in_r,
-                    z: 2.0,
-                    w: 1.0 / 10.0,
-                    h: 1.0 / 10.0,
-                    color: Color::YELLOW,
-                    ..default()
-                }
-                .bundle(),
-            )
-            .id();
-        let lft = commands
-            .spawn(
-                Blocc {
-                    x: -side / 2.0,
-                    y: -in_r,
-                    z: 2.0,
-                    w: 1.0 / 10.0,
-                    h: 1.0 / 10.0,
-                    color: Color::YELLOW,
-                    ..default()
-                }
-                .bundle(),
-            )
-            .id();
-
-        let rgt = commands
-            .spawn(
-                Blocc {
-                    x: side / 2.0,
-                    y: -in_r,
-                    z: 2.0,
-                    w: 1.0 / 10.0,
-                    h: 1.0 / 10.0,
-                    color: Color::YELLOW,
-                    ..default()
-                }
-                .bundle(),
-            )
-            .id();
-
         commands
             .spawn((
                 Self { sprite, name },
@@ -215,11 +137,6 @@ impl NodeEntity {
             ))
             .add_child(sprite)
             .add_child(name)
-            .add_child(center)
-            .add_child(top)
-            .add_child(bot)
-            .add_child(lft)
-            .add_child(rgt)
             .id()
     }
 }

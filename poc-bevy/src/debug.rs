@@ -6,7 +6,8 @@ pub struct WasdControl;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup).add_systems(Update, control);
+        app.add_systems(Startup, setup)
+            .add_systems(Update, (control, sbinalla));
     }
 }
 
@@ -55,11 +56,14 @@ impl Default for Blocc {
     }
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn((Blocc::default().bundle(), WasdControl));
+pub fn setup(mut commands: Commands) {
+    // commands.spawn((Blocc::default().bundle(), WasdControl));
 }
 
-fn control(mut controllables: Query<&mut Transform, With<WasdControl>>, keys: Res<Input<KeyCode>>) {
+pub fn control(
+    mut controllables: Query<&mut Transform, With<WasdControl>>,
+    keys: Res<Input<KeyCode>>,
+) {
     let mut mov = Vec2::ZERO;
     if keys.pressed(KeyCode::W) {
         mov.y += 1.0;
@@ -78,4 +82,14 @@ fn control(mut controllables: Query<&mut Transform, With<WasdControl>>, keys: Re
     controllables.for_each_mut(|mut tf| {
         tf.translation += mov;
     });
+}
+
+#[derive(Component)]
+pub struct Sbinalla;
+
+pub fn sbinalla(time: Res<Time>, mut sbinners: Query<&mut Transform, With<Sbinalla>>) {
+    let time = time.elapsed_seconds();
+    for mut tf in sbinners.iter_mut() {
+        tf.rotation = Quat::from_rotation_z(time);
+    }
 }

@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::debug::WasdControl;
+
 #[derive(Component, Debug, Clone, Copy)]
 pub struct MainCam;
 
@@ -11,5 +13,5 @@ impl Plugin for Plug {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn((Camera2dBundle::default(), MainCam));
+    commands.spawn((Camera2dBundle::default(), MainCam, WasdControl));
 }
