@@ -1,10 +1,6 @@
 //! Utility stuff for ui related stuff.
 
-use crate::{
-    cam::MainCam,
-    debug::{Blocc, Sbinalla},
-    io::PlanetList,
-};
+use crate::{cam::MainCam, debug::Blocc, io::PlanetList};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, window::PrimaryWindow};
 use fractory_common::sim::logic::{
@@ -55,7 +51,7 @@ impl HitboxKind {
         match self {
             HitboxKind::Rect(rect) => rect.contains(p),
             HitboxKind::Tri { r } => {
-                let top = TRI_CIRC_R * *r - p.x.abs() * SQRT_3;
+                let top = TRI_CIRC_R * *r - p.x.abs() * TRI_SLOPE;
                 let bot = -TRI_INSC_R * *r;
                 // dbg!(top, bot);
                 (bot..top).contains(&p.y)

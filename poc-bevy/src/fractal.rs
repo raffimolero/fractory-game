@@ -1,5 +1,5 @@
 use crate::{
-    debug::{Blocc, Sbinalla},
+    debug::Blocc,
     io::PlanetList,
     ui::{Hitbox, HitboxKind, TRI_CENTER_OFF_Y, TRI_HEIGHT, TRI_INSC_R},
 };
@@ -126,7 +126,6 @@ impl NodeEntity {
                     kind: HitboxKind::Tri { r: 1.0 },
                     cursor: Some(CursorIcon::Hand),
                 },
-                Sbinalla,
                 SpatialBundle {
                     transform,
                     ..default()

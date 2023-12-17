@@ -8,8 +8,7 @@ pub struct WasdControl;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .add_systems(Update, (control, sbinalla));
+        app.add_systems(Startup, setup).add_systems(Update, control);
     }
 }
 
@@ -84,30 +83,18 @@ pub fn control(
     }
     let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
 
-    controllables.for_each_mut(|mut tf| {
-        tf.translation += mov;
-    });
-}
-
-#[derive(Component)]
-pub struct Sbinalla;
-
-pub fn sbinalla(
-    time: Res<Time>,
-    mut sbinners: Query<&mut Transform, With<Sbinalla>>,
-    keys: Res<Input<KeyCode>>,
-) {
-    let delta = time.delta_seconds();
     let spd = TAU;
     let mut dir = 0.0;
-    if keys.pressed(KeyCode::E) {
+    if keys.pressed(KeyCode::Q) {
         dir += 1.0;
     }
-    if keys.pressed(KeyCode::Q) {
+    if keys.pressed(KeyCode::E) {
         dir -= 1.0;
     }
 
-    sbinners.for_each_mut(|mut tf| {
+    controllables.for_each_mut(|mut tf| {
         tf.rotation *= Quat::from_rotation_z(dir * spd * delta);
+        let transformed_mov = tf.rotation * mov;
+        tf.translation += transformed_mov;
     });
 }
