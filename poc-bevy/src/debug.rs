@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -6,21 +8,22 @@ pub struct WasdControl;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup).add_systems(Update, control);
+        app.add_systems(Startup, setup)
+            .add_systems(Update, (control, sbinalla));
     }
 }
 
 pub struct Blocc {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    h: f32,
-    color: Color,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub w: f32,
+    pub h: f32,
+    pub color: Color,
 }
 
 impl Blocc {
-    fn bundle(self) -> SpriteBundle {
+    pub fn bundle(self) -> SpriteBundle {
         let Self {
             x,
             y,
@@ -55,11 +58,17 @@ impl Default for Blocc {
     }
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn((Blocc::default().bundle(), WasdControl));
+pub fn setup(mut commands: Commands) {
+    // commands.spawn((Blocc::default().bundle(), WasdControl));
 }
 
-fn control(mut controllables: Query<&mut Transform, With<WasdControl>>, keys: Res<Input<KeyCode>>) {
+pub fn control(
+    time: Res<Time>,
+    mut controllables: Query<&mut Transform, With<WasdControl>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    let delta = time.delta_seconds();
+    let spd = 800.0;
     let mut mov = Vec2::ZERO;
     if keys.pressed(KeyCode::W) {
         mov.y += 1.0;
@@ -73,9 +82,32 @@ fn control(mut controllables: Query<&mut Transform, With<WasdControl>>, keys: Re
     if keys.pressed(KeyCode::A) {
         mov.x -= 1.0;
     }
-    let mov = mov.normalize_or_zero().extend(0.0);
+    let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
 
     controllables.for_each_mut(|mut tf| {
         tf.translation += mov;
+    });
+}
+
+#[derive(Component)]
+pub struct Sbinalla;
+
+pub fn sbinalla(
+    time: Res<Time>,
+    mut sbinners: Query<&mut Transform, With<Sbinalla>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    let delta = time.delta_seconds();
+    let spd = TAU;
+    let mut dir = 0.0;
+    if keys.pressed(KeyCode::E) {
+        dir += 1.0;
+    }
+    if keys.pressed(KeyCode::Q) {
+        dir -= 1.0;
+    }
+
+    sbinners.for_each_mut(|mut tf| {
+        tf.rotation *= Quat::from_rotation_z(dir * spd * delta);
     });
 }

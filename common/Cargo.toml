@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 glam = "0.24.0"
 indexmap = "1.9.3"
+thiserror = "1.0.50"
 
 [dev-dependencies]
 rand = "0.8.5"
