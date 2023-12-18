@@ -1,10 +1,12 @@
-use crate::{
-    debug::Blocc,
-    io::PlanetList,
-    ui::{Hitbox, HitboxKind, TRI_CENTER_OFF_Y, TRI_HEIGHT, TRI_INSC_R},
-};
+use std::{f32::consts::TAU, time::Duration};
+
+use crate::{debug::Blocc, io::PlanetList, ui::prelude::*};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
+use bevy_tweening::{
+    lens::{TransformPositionLens, TransformRotateZLens, TransformScaleLens},
+    *,
+};
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
     planet::{BiomeId, PlanetId},
@@ -53,15 +55,16 @@ impl FractoryEntity {
             planets.get_or_load_planet(asset_server, planet.clone());
         let sprite = planet_assets.fragment_icons[0].clone();
         let meta = planets.new_fractory(asset_server, planet, biome);
-        let fractory = NodeEntity::spawn(
-            commands,
-            Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
-            sprite,
-            "X".into(),
-        );
+        let fractory = NodeEntity::spawn(commands, Transform::IDENTITY, sprite, "X".into());
         commands
-            .entity(fractory)
-            .insert(FractoryEntity { meta })
+            .spawn((
+                FractoryEntity { meta },
+                SpatialBundle {
+                    transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
+                    ..default()
+                },
+            ))
+            .add_child(fractory)
             .id()
     }
 }
@@ -99,7 +102,23 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
     }
 }
 
+struct TransformFractalLens;
+
+impl Lens<Transform> for TransformFractalLens {
+    fn lerp(&mut self, target: &mut Transform, ratio: f32) {
+        target.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
+        target.rotation = Quat::from_rotation_z(TAU / 2.0 * ratio);
+    }
+}
+
 impl NodeEntity {
+    fn split_tween() -> impl Bundle {
+        let duration = Duration::from_secs(1);
+        let easing = EaseFunction::CubicInOut;
+        let shrink = Tween::new(easing, duration, TransformFractalLens);
+        (Animator::new(shrink),)
+    }
+
     fn spawn(
         commands: &mut Commands,
         transform: Transform,
@@ -108,7 +127,7 @@ impl NodeEntity {
     ) -> Entity {
         let size = Vec2::new(1.0, TRI_HEIGHT);
         let sprite = commands
-            .spawn((SpriteBundle {
+            .spawn(SpriteBundle {
                 sprite: Sprite {
                     custom_size: Some(size),
                     ..default()
@@ -116,9 +135,10 @@ impl NodeEntity {
                 texture: sprite,
                 transform: Transform::from_xyz(0.0, TRI_CENTER_OFF_Y, 0.0),
                 ..default()
-            },))
+            })
             .id();
         let name = commands.spawn(text(name, 120.0, size)).id();
+
         commands
             .spawn((
                 Self { sprite, name },
@@ -126,10 +146,12 @@ impl NodeEntity {
                     kind: HitboxKind::Tri { r: 1.0 },
                     cursor: Some(CursorIcon::Hand),
                 },
+                Hovered(false),
                 SpatialBundle {
                     transform,
                     ..default()
                 },
+                Self::split_tween(),
             ))
             .add_child(sprite)
             .add_child(name)

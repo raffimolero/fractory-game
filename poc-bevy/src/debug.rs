@@ -83,18 +83,19 @@ pub fn control(
     }
     let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
 
-    let spd = TAU;
-    let mut dir = 0.0;
+    let spd = TAU / 2.0;
+    let mut rot = 0.0;
     if keys.pressed(KeyCode::Q) {
-        dir += 1.0;
+        rot += 1.0;
     }
     if keys.pressed(KeyCode::E) {
-        dir -= 1.0;
+        rot -= 1.0;
     }
+    let rot = Quat::from_rotation_z(rot * spd * delta);
 
     controllables.for_each_mut(|mut tf| {
-        tf.rotation *= Quat::from_rotation_z(dir * spd * delta);
         let transformed_mov = tf.rotation * mov;
+        tf.rotation *= rot;
         tf.translation += transformed_mov;
     });
 }

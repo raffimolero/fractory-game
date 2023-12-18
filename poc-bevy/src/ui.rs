@@ -1,5 +1,11 @@
 //! Utility stuff for ui related stuff.
 
+pub mod prelude {
+    pub use super::*;
+}
+
+mod tween;
+
 use crate::{cam::MainCam, debug::Blocc, io::PlanetList};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, window::PrimaryWindow};
@@ -29,9 +35,21 @@ impl Plugin for Plug {
 }
 
 #[derive(Component, Debug, Clone, Copy)]
+pub struct Hovered(pub bool);
+
+#[derive(Component, Debug, Clone, Copy)]
 pub struct Hitbox {
     pub kind: HitboxKind,
     pub cursor: Option<CursorIcon>,
+}
+
+impl Default for Hitbox {
+    fn default() -> Self {
+        Self {
+            kind: HitboxKind::Rect(Rect::new(-1.0, -1.0, 1.0, 1.0)),
+            cursor: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,7 +81,7 @@ impl HitboxKind {
 fn hover(
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     camera: Query<(&GlobalTransform, &Camera), With<MainCam>>,
-    hoverables: Query<(&GlobalTransform, &Hitbox)>,
+    mut hoverables: Query<(&GlobalTransform, &Hitbox, &mut Hovered)>,
     // mut gizmos: Gizmos,
 ) {
     let mut window = window.single_mut();
@@ -77,7 +95,9 @@ fn hover(
         return;
     };
 
-    for (gtf, hbx) in hoverables.iter() {
+    window.cursor.icon = CursorIcon::Default;
+    let mut top = f32::MIN;
+    for (gtf, hbx, mut hovered) in hoverables.iter_mut() {
         let projected_cursor = gtf
             .affine()
             .inverse()
@@ -93,11 +113,14 @@ fn hover(
         // println!("{}", projected_cursor);
 
         if hbx.kind.contains(projected_cursor) {
-            if let Some(cursor) = hbx.cursor {
-                window.cursor.icon = cursor;
+            hovered.0 = true;
+            let z = gtf.to_scale_rotation_translation().2.z;
+            if z > top {
+                top = z;
+                if let Some(cursor) = hbx.cursor {
+                    window.cursor.icon = cursor;
+                }
             }
-            return;
         }
-        window.cursor.icon = CursorIcon::Default;
     }
 }
