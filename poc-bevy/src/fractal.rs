@@ -3,10 +3,10 @@ use std::{f32::consts::TAU, time::Duration};
 use crate::{debug::Blocc, io::PlanetList, ui::prelude::*};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
-// use bevy_tweening::{
-//     lens::{TransformPositionLens, TransformRotateZLens, TransformScaleLens},
-//     *,
-// };
+use bevy_tweening::{
+    lens::{TransformPositionLens, TransformRotateZLens, TransformScaleLens},
+    *,
+};
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
     planet::{BiomeId, PlanetId},
@@ -17,57 +17,12 @@ use fractory_common::sim::logic::{
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.init_resource::<FragmentAnimations>().add_systems(Startup, setup)
-            // .add_systems(Update, fragment_hover)
+        app
+            // .init_resource::<FragmentAnimations>()
+            .add_systems(Startup, setup)
+            .add_systems(Update, fragment_hover)
             // .add_systems(Update, load_folder.run_if(folder_is_loaded));
         ;
-    }
-}
-
-#[derive(Resource)]
-struct FragmentAnimations {
-    names: Quad<Name>,
-    animations: Quad<Handle<AnimationClip>>,
-}
-
-impl FromWorld for FragmentAnimations {
-    fn from_world(world: &mut World) -> Self {
-        let names = Quad([
-            Name::new("C"),
-            Name::new("U"),
-            Name::new("R"),
-            Name::new("L"),
-        ]);
-
-        let Some(mut animations) = world.get_resource_mut::<Assets<AnimationClip>>() else {
-            panic!("animationclip assets not initialized yet");
-        };
-
-        let mut c = AnimationClip::default();
-        c.add_curve_to_path(
-            EntityPath {
-                parts: vec![names[SubTile::C].clone()],
-            },
-            VariableCurve {
-                keyframe_timestamps: vec![0.0, 1.0],
-                keyframes: Keyframes::Scale(vec![Vec3::ONE, Vec2::splat(0.5).extend(1.0)]),
-            },
-        );
-        let c = animations.add(c);
-
-        let mut u = AnimationClip::default();
-        let u = animations.add(u);
-
-        let mut r = AnimationClip::default();
-        let r = animations.add(r);
-
-        let mut l = AnimationClip::default();
-        let l = animations.add(l);
-
-        Self {
-            names,
-            animations: Quad([c, u, r, l]),
-        }
     }
 }
 
@@ -75,18 +30,83 @@ fn setup(
     mut commands: Commands,
     mut asset_server: ResMut<AssetServer>,
     mut planets: ResMut<PlanetList>,
-    mut animations: ResMut<Assets<AnimationClip>>,
-    frag_animations: Res<FragmentAnimations>,
+    // animations: Res<Assets<AnimationClip>>,
+    // frag_animations: Res<FragmentAnimations>,
 ) {
     FractoryEntity::spawn(
         &mut commands,
         &mut asset_server,
         &mut planets,
-        &frag_animations,
+        // &frag_animations,
         XYYY.into(),
         XYYY_LANDING_ZONE.into(),
     );
 }
+
+fn fragment_hover(
+    time: Res<Time>,
+    mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
+) {
+    let delta = time.delta();
+    for (is_hovered, mut animator) in fragments.iter_mut() {
+        if is_hovered.0 {
+            animator.set_speed(1.0);
+        } else {
+            // HACK: manually reverse the animation
+            animator.set_speed(0.0);
+            let tweenable = animator.tweenable_mut();
+            let elapsed = tweenable.elapsed();
+            tweenable.set_elapsed(elapsed.saturating_sub(delta));
+        }
+    }
+}
+
+// #[derive(Resource)]
+// struct FragmentAnimations {
+//     names: Quad<Name>,
+//     animations: Quad<Handle<AnimationClip>>,
+// }
+
+// impl FromWorld for FragmentAnimations {
+//     fn from_world(world: &mut World) -> Self {
+//         let names = Quad([
+//             Name::new("C"),
+//             Name::new("U"),
+//             Name::new("R"),
+//             Name::new("L"),
+//         ]);
+
+//         let Some(mut animations) = world.get_resource_mut::<Assets<AnimationClip>>() else {
+//             panic!("animationclip assets not initialized yet");
+//         };
+
+//         let mut c = AnimationClip::default();
+//         c.add_curve_to_path(
+//             EntityPath {
+//                 parts: vec![names[SubTile::C].clone()],
+//             },
+//             VariableCurve {
+//                 keyframe_timestamps: vec![0.0, 1.0],
+//                 keyframes: Keyframes::Scale(vec![Vec3::ONE, Vec2::splat(0.5).extend(1.0)]),
+//             },
+//         );
+//         let c = animations.add(c);
+
+//         let mut u = AnimationClip::default();
+//         let u = animations.add(u);
+
+//         let mut r = AnimationClip::default();
+//         let r = animations.add(r);
+
+//         let mut l = AnimationClip::default();
+//         let l = animations.add(l);
+
+//         Self {
+//             names,
+//             animations: Quad([c, u, r, l]),
+//         }
+//     }
+// }
 
 // fn fragment_hover(
 //     time: Res<Time>,
@@ -119,7 +139,7 @@ impl FractoryEntity {
         commands: &mut Commands,
         asset_server: &mut AssetServer,
         planets: &mut PlanetList,
-        frag_animations: &FragmentAnimations,
+        // frag_animations: &FragmentAnimations,
         planet: PlanetId,
         biome: BiomeId,
     ) -> Entity {
@@ -127,7 +147,12 @@ impl FractoryEntity {
             planets.get_or_load_planet(asset_server, planet.clone());
         let sprite = planet_assets.fragment_icons[0].clone();
         let meta = planets.new_fractory(asset_server, planet, biome);
-        let root_fragment = FragmentData::spawn(commands, frag_animations, sprite, "X".into());
+        let root_fragment = FragmentData::spawn(
+            commands,
+            // frag_animations,
+            sprite,
+            "X".into(),
+        );
         commands
             .spawn((
                 FractoryEntity { meta },
@@ -150,16 +175,16 @@ pub struct FragmentData {
 }
 
 impl FragmentData {
-    // fn split_tween() -> impl Bundle {
-    //     let duration = Duration::from_millis(250);
-    //     let easing = EaseFunction::CubicInOut;
-    //     let shrink = Tween::new(easing, duration, TransformFractalLens);
-    //     Animator::new(shrink).with_speed(0.0)
-    // }
+    fn split_tween() -> impl Bundle {
+        let duration = Duration::from_millis(250);
+        let easing = EaseFunction::CubicInOut;
+        let shrink = Tween::new(easing, duration, TransformFractalLens);
+        Animator::new(shrink).with_speed(0.0)
+    }
 
     fn spawn(
         commands: &mut Commands,
-        frag_animations: &FragmentAnimations,
+        // frag_animations: &FragmentAnimations,
         sprite: Handle<Image>,
         name: String,
     ) -> Entity {
@@ -167,7 +192,7 @@ impl FragmentData {
 
         let sprite = commands
             .spawn((
-                frag_animations.names[SubTile::C].clone(),
+                // frag_animations.names[SubTile::C].clone(),
                 SpriteBundle {
                     sprite: Sprite {
                         custom_size: Some(size),
@@ -181,8 +206,8 @@ impl FragmentData {
             .id();
         let name = commands.spawn(text(name, 120.0, size)).id();
 
-        let mut player = AnimationPlayer::default();
-        player.play(frag_animations.animations[SubTile::C].clone());
+        // let mut player = AnimationPlayer::default();
+        // player.play(frag_animations.animations[SubTile::C].clone());
 
         commands
             .spawn((
@@ -193,9 +218,9 @@ impl FragmentData {
                 },
                 IsHovered(false),
                 SpatialBundle::default(),
-                frag_animations.names[SubTile::C].clone(),
-                player,
-                // Self::split_tween(),
+                // frag_animations.names[SubTile::C].clone(),
+                // player,
+                Self::split_tween(),
             ))
             .add_child(sprite)
             .add_child(name)
@@ -228,11 +253,11 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
     }
 }
 
-// struct TransformFractalLens;
+struct TransformFractalLens;
 
-// impl Lens<Transform> for TransformFractalLens {
-//     fn lerp(&mut self, target: &mut Transform, ratio: f32) {
-//         target.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
-//         target.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
-//     }
-// }
+impl Lens<Transform> for TransformFractalLens {
+    fn lerp(&mut self, target: &mut Transform, ratio: f32) {
+        target.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
+        target.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+    }
+}
