@@ -43,6 +43,8 @@ fn setup(
     );
 }
 
+// TODO: change from IsHovered to some sort of tag that the parent can add onto the children
+// traversing the parent/child hierarchy is inconvenient, so we should limit hierarchial queries
 fn fragment_hover(
     time: Res<Time>,
     mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
@@ -175,7 +177,7 @@ pub struct FragmentData {
 }
 
 impl FragmentData {
-    fn split_tween() -> impl Bundle {
+    fn center_tween() -> impl Bundle {
         let duration = Duration::from_millis(250);
         let easing = EaseFunction::CubicInOut;
         let shrink = Tween::new(easing, duration, TransformFractalLens);
@@ -193,6 +195,7 @@ impl FragmentData {
         let sprite = commands
             .spawn((
                 // frag_animations.names[SubTile::C].clone(),
+                Self::center_tween(),
                 SpriteBundle {
                     sprite: Sprite {
                         custom_size: Some(size),
@@ -220,7 +223,6 @@ impl FragmentData {
                 SpatialBundle::default(),
                 // frag_animations.names[SubTile::C].clone(),
                 // player,
-                Self::split_tween(),
             ))
             .add_child(sprite)
             .add_child(name)
