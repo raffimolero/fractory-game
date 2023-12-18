@@ -34,8 +34,26 @@ impl Plugin for Plug {
     }
 }
 
+#[derive(Component)]
+pub struct OnMouseEnter(Box<dyn FnMut(&mut Commands) + Send + Sync>);
+
+impl OnMouseEnter {
+    pub fn new(f: impl FnMut(&mut Commands) + Send + Sync + 'static) -> Self {
+        Self(Box::new(f))
+    }
+}
+
+#[derive(Component)]
+pub struct OnMouseLeave(Box<dyn FnMut(&mut Commands) + Send + Sync>);
+
+impl OnMouseLeave {
+    pub fn new(f: impl FnMut(&mut Commands) + Send + Sync + 'static) -> Self {
+        Self(Box::new(f))
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy)]
-pub struct Hovered(pub bool);
+pub struct IsHovered(pub bool);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Hitbox {
@@ -81,7 +99,14 @@ impl HitboxKind {
 fn hover(
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     camera: Query<(&GlobalTransform, &Camera), With<MainCam>>,
-    mut hoverables: Query<(&GlobalTransform, &Hitbox, &mut Hovered)>,
+    mut hoverables: Query<(
+        &GlobalTransform,
+        &Hitbox,
+        &mut IsHovered,
+        Option<&mut OnMouseEnter>,
+        Option<&mut OnMouseLeave>,
+    )>,
+    mut commands: Commands,
     // mut gizmos: Gizmos,
 ) {
     let mut window = window.single_mut();
@@ -97,7 +122,7 @@ fn hover(
 
     window.cursor.icon = CursorIcon::Default;
     let mut top = f32::MIN;
-    for (gtf, hbx, mut hovered) in hoverables.iter_mut() {
+    for (gtf, hbx, mut hovered, on_enter, on_leave) in hoverables.iter_mut() {
         let projected_cursor = gtf
             .affine()
             .inverse()
@@ -113,7 +138,12 @@ fn hover(
         // println!("{}", projected_cursor);
 
         if hbx.kind.contains(projected_cursor) {
-            hovered.0 = true;
+            if !hovered.0 {
+                hovered.0 = true;
+                if let Some(mut f) = on_enter {
+                    f.0(&mut commands);
+                }
+            }
             let z = gtf.to_scale_rotation_translation().2.z;
             if z > top {
                 top = z;
@@ -121,6 +151,17 @@ fn hover(
                     window.cursor.icon = cursor;
                 }
             }
+        } else {
+            if hovered.0 {
+                hovered.0 = false;
+                if let Some(mut f) = on_leave {
+                    f.0(&mut commands);
+                }
+            }
         }
     }
 }
+
+// fn on_mouse_hover(mut commands: Commands, hoverables: Query<(&IsHovered, &mut OnMouseHover), Changed<IsHovered>>) {
+//     hoverables.iter_mut()
+// }
