@@ -1,6 +1,10 @@
 use std::f32::consts::TAU;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
+    prelude::*,
+    window::PrimaryWindow,
+};
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct MainCam;
@@ -48,6 +52,7 @@ fn control(
     cursor: Res<MousePos>,
     mut camera: Query<&mut Transform, With<MainCam>>,
     mouse: Res<Input<MouseButton>>,
+    mut scroll: EventReader<MouseWheel>,
     keys: Res<Input<KeyCode>>,
 ) {
     let mut cam_tf = camera.single_mut();
@@ -67,7 +72,7 @@ fn control(
     if keys.pressed(KeyCode::A) {
         mov.x -= 1.0;
     }
-    mov = mov.normalize_or_zero() * spd * delta;
+    mov = spd * delta * mov.normalize_or_zero();
 
     if mouse.pressed(MouseButton::Right) {
         mov -= cursor.delta();
@@ -81,7 +86,7 @@ fn control(
     if keys.pressed(KeyCode::Q) {
         rot -= 1.0;
     }
-    let rot = Quat::from_rotation_z(rot * spd * delta);
+    let rot = Quat::from_rotation_z(spd * delta * rot);
 
     let spd = 4_f32;
     let mut scl = 0.0;
@@ -92,6 +97,14 @@ fn control(
         scl -= 1.0;
     }
     scl = spd.powf(delta * scl);
+
+    for delta in scroll.read() {
+        let unit = match delta.unit {
+            MouseScrollUnit::Line => 0.5,
+            MouseScrollUnit::Pixel => 0.01,
+        };
+        scl *= spd.powf(-delta.y * unit);
+    }
 
     cam_tf.translation = *cam_tf * cursor.pos.extend(0.0);
     cam_tf.scale *= scl;
