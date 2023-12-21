@@ -8,7 +8,9 @@ pub struct WasdControl;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup).add_systems(Update, control);
+        app.add_systems(Startup, setup)
+            //.add_systems(Update, control)
+        ;
     }
 }
 
@@ -59,43 +61,4 @@ impl Default for Blocc {
 
 pub fn setup(mut commands: Commands) {
     // commands.spawn((Blocc::default().bundle(), WasdControl));
-}
-
-pub fn control(
-    time: Res<Time>,
-    mut controllables: Query<&mut Transform, With<WasdControl>>,
-    keys: Res<Input<KeyCode>>,
-) {
-    let delta = time.delta_seconds();
-    let spd = 800.0;
-    let mut mov = Vec2::ZERO;
-    if keys.pressed(KeyCode::W) {
-        mov.y += 1.0;
-    }
-    if keys.pressed(KeyCode::S) {
-        mov.y -= 1.0;
-    }
-    if keys.pressed(KeyCode::D) {
-        mov.x += 1.0;
-    }
-    if keys.pressed(KeyCode::A) {
-        mov.x -= 1.0;
-    }
-    let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
-
-    let spd = TAU / 2.0;
-    let mut rot = 0.0;
-    if keys.pressed(KeyCode::Q) {
-        rot += 1.0;
-    }
-    if keys.pressed(KeyCode::E) {
-        rot -= 1.0;
-    }
-    let rot = Quat::from_rotation_z(rot * spd * delta);
-
-    controllables.for_each_mut(|mut tf| {
-        let transformed_mov = tf.rotation * mov;
-        tf.rotation *= rot;
-        tf.translation += transformed_mov;
-    });
 }
