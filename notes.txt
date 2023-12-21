@@ -2,7 +2,7 @@
 ANIMATION/UI FRAMEWORK
 
 Design concept:
-- structured (keyframes are a graph and can only animate between nodes)
+- structured (keyframes are nodes in a graph and animations are transitions between nodes)
   - reactive (state transitions can be set by events like mouse enter/leave, and clicks)
   - proactive (can send events and oneshots on enter/exit per node)
     * takes precedence over everything else, and is an escape hatch a.k.a. a footgun

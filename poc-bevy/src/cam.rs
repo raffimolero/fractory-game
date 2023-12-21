@@ -1,20 +1,26 @@
 use std::f32::consts::TAU;
 
-use bevy::{
-    prelude::*,
-    window::{PrimaryWindow, WindowResolution},
-};
+use bevy::{prelude::*, window::PrimaryWindow};
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct MainCam;
 
 #[derive(Resource, Clone, Copy, Default)]
-struct LastMousePos(Vec2);
+pub struct MousePos {
+    pub pos: Vec2,
+    pub prev: Vec2,
+}
+
+impl MousePos {
+    pub fn delta(&self) -> Vec2 {
+        self.pos - self.prev
+    }
+}
 
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LastMousePos>()
+        app.init_resource::<MousePos>()
             .add_systems(Startup, setup)
             .add_systems(Update, (update_mouse, control).chain());
     }
@@ -24,10 +30,7 @@ fn setup(mut commands: Commands) {
     commands.spawn((Camera2dBundle::default(), MainCam));
 }
 
-fn update_mouse(
-    window: Query<&Window, With<PrimaryWindow>>,
-    mut last_mouse_pos: ResMut<LastMousePos>,
-) {
+fn update_mouse(window: Query<&Window, With<PrimaryWindow>>, mut mouse: ResMut<MousePos>) {
     let window = window.single();
     let Some(mut cursor) = window.cursor_position() else {
         return;
@@ -36,13 +39,15 @@ fn update_mouse(
     let size = Vec2::new(resolution.width(), resolution.height());
     cursor -= size / 2.0;
     cursor.y *= -1.0;
-    last_mouse_pos.0 = cursor;
+    mouse.prev = mouse.pos;
+    mouse.pos = cursor;
 }
 
 fn control(
     time: Res<Time>,
-    cursor: Res<LastMousePos>,
+    cursor: Res<MousePos>,
     mut camera: Query<&mut Transform, With<MainCam>>,
+    mouse: Res<Input<MouseButton>>,
     keys: Res<Input<KeyCode>>,
 ) {
     let mut cam_tf = camera.single_mut();
@@ -62,7 +67,11 @@ fn control(
     if keys.pressed(KeyCode::A) {
         mov.x -= 1.0;
     }
-    let mov = mov.normalize_or_zero() * spd * delta;
+    mov = mov.normalize_or_zero() * spd * delta;
+
+    if mouse.pressed(MouseButton::Right) {
+        mov -= cursor.delta();
+    }
 
     let spd = TAU / 2.0;
     let mut rot = 0.0;
@@ -82,10 +91,10 @@ fn control(
     if keys.pressed(KeyCode::Space) {
         scl -= 1.0;
     }
-    let scl = spd.powf(delta * scl);
+    scl = spd.powf(delta * scl);
 
-    cam_tf.translation = *cam_tf * cursor.0.extend(0.0);
+    cam_tf.translation = *cam_tf * cursor.pos.extend(0.0);
     cam_tf.scale *= scl;
     cam_tf.rotation *= rot;
-    cam_tf.translation = *cam_tf * (mov - cursor.0).extend(0.0);
+    cam_tf.translation = *cam_tf * (mov - cursor.pos).extend(0.0);
 }
