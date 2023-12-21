@@ -62,7 +62,7 @@ fn control(
     if keys.pressed(KeyCode::A) {
         mov.x -= 1.0;
     }
-    let mov = mov.normalize_or_zero().extend(0.0) * spd * delta;
+    let mov = mov.normalize_or_zero() * spd * delta;
 
     let spd = TAU / 2.0;
     let mut rot = 0.0;
@@ -84,14 +84,8 @@ fn control(
     }
     let scl = spd.powf(delta * scl);
 
-    let tf = *cam_tf;
-    cam_tf.translation = tf * cursor.0.extend(0.0);
-
-    let transformed_mov = *cam_tf * mov;
+    cam_tf.translation = *cam_tf * cursor.0.extend(0.0);
     cam_tf.scale *= scl;
     cam_tf.rotation *= rot;
-    cam_tf.translation = transformed_mov;
-
-    let tf = *cam_tf;
-    cam_tf.translation = tf * -cursor.0.extend(0.0);
+    cam_tf.translation = *cam_tf * (mov - cursor.0).extend(0.0);
 }
