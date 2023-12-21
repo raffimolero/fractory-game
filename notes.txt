@@ -1,3 +1,32 @@
+=========================================================
+ANIMATION/UI FRAMEWORK
+
+Design concept:
+- structured (keyframes are a graph and can only animate between nodes)
+  - reactive (state transitions can be set by events like mouse enter/leave, and clicks)
+  - proactive (can send events and oneshots on enter/exit per node)
+    * takes precedence over everything else, and is an escape hatch a.k.a. a footgun
+  - stateful (animation nodes can be an enum with data)
+  - centralized (transitions between nodes must be triggered from the parent)
+    - chainable (animations can be sequenced one after another by queueing transitions)
+      - reversible (an in-progress animation can be reversed by queueing the reverse transition)
+    - coordinated (animations won't play unless every child node is done with their animations)
+  - directionless
+    * ties in to reversible
+    - consistent (the state of an entity, its components, and its children depend only on where it is in the graph (at a node/somewhere between nodes), not the direction in which it is animated)
+    - tweenable (any animation can have a tween applied to it, even an already tweened animation)
+- flexible
+  - able to transform any component in any way through a lens(value: &mut T, progress: f32)
+  - able to spawn and despawn entities
+  - able to add and remove components
+- localized (registering a new animation must be done in just 2 places: a global resource and the parent entity)
+- composable? (any two animations can be combined into one, so long as they don't conflict)
+  - animation A can play during animation B
+  - possibly just implemented with parent/child hierarchy tbh
+
+=========================================================
+UPDATE PATTERN
+
         from-ct  to-ct  result
 empty     _        0    empty
 empty     _        1    filled
@@ -15,7 +44,9 @@ updates the internal simulation
 updates the display grid
 🥳🎉
 
-CLI:
+
+=========================================================
+FILE ORGANIZATION
 
 FRACTORY
 > Planets
