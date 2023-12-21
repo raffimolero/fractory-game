@@ -1,16 +1,9 @@
-use std::f32::consts::TAU;
-
 use bevy::prelude::*;
-
-#[derive(Component, Debug, Clone, Copy)]
-pub struct WasdControl;
 
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            //.add_systems(Update, control)
-        ;
+        app.add_systems(Startup, setup);
     }
 }
 
@@ -59,6 +52,4 @@ impl Default for Blocc {
     }
 }
 
-pub fn setup(mut commands: Commands) {
-    // commands.spawn((Blocc::default().bundle(), WasdControl));
-}
+pub fn setup() {}
