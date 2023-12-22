@@ -6,7 +6,7 @@ Design concept:
   - reactive (state transitions can be set by events like mouse enter/leave, and clicks)
   - proactive (can send events and oneshots on enter/exit per node)
     * takes precedence over everything else, and is an escape hatch a.k.a. a footgun
-  - stateful (animation nodes can be an enum with data)
+  - not stateful (animation nodes themselves should not store data besides components)
   - centralized (transitions between nodes must be triggered from the parent)
     - chainable (animations can be sequenced one after another by queueing transitions)
       - reversible (an in-progress animation can be reversed by queueing the reverse transition)
