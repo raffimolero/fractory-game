@@ -167,7 +167,7 @@ impl BiomeCache {
         Self {
             biomes: HashMap::from(
                 [Biome::new_xyyy_spinless(), Biome::new_xyyy_landing_zone()]
-                    .map(|b| (b.default_id(), b)),
+                    .map(|b| ((XYYY.into(), b.name.clone().into()), b)),
             ),
         }
     }

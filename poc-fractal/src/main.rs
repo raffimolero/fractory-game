@@ -14,8 +14,10 @@ use fractory_common::sim::logic::{
     fractal::{Fractal, SlotInfo, TileFill},
     orientation::{Orient, Rotation, Transform},
     path::TilePos,
-    planet::{Behavior, Biome, Filter, FragmentData, Planet, PlanetCache},
-    presets::new_xyyy_fractory_meta,
+    planet::{
+        Behavior, Biome, BiomeCache, BiomeId, Filter, FragmentData, Planet, PlanetCache, PlanetId,
+    },
+    presets::*,
     tile::{SubTile, Tile},
 };
 use std::{
@@ -49,12 +51,14 @@ const TRIANGLE: [Vec2; 3] = {
 
 struct Resources {
     planets: PlanetCache,
+    biomes: BiomeCache,
 }
 
 impl Resources {
     fn new() -> Self {
         Self {
             planets: PlanetCache::default(),
+            biomes: BiomeCache::default(),
         }
     }
 }
@@ -388,7 +392,7 @@ fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
     let color_mode = match fill {
         TileFill::Empty => Greyscale,
         TileFill::Partial => Id,
-        TileFill::Full { .. } => Fragment,
+        TileFill::Full | TileFill::Leaf => Fragment,
     };
 
     match color_mode {
@@ -510,14 +514,24 @@ struct FractoryElement {
 
 impl FractoryElement {
     fn new(res: &mut Resources) -> Self {
-        let fractory_meta = new_xyyy_fractory_meta(&mut res.planets);
-        let planet = res.planets.get(&fractory_meta.planet).unwrap();
-        let fragments = planet.fragments();
-        let biome = planet.biomes().get(&fractory_meta.biome).unwrap();
+        let planet_id = PlanetId::from(XYYY);
+        let planet = Planet::new_xyyy();
+        res.planets.register(planet_id.clone(), Planet::new_xyyy());
+
+        let biome_id = BiomeId::from(XYYY_LANDING_ZONE);
+        let biome = Biome::new_xyyy_landing_zone();
+        res.biomes.register(
+            planet_id.clone(),
+            biome_id.clone(),
+            Biome::new_xyyy_landing_zone(),
+        );
+
+        let fractory_meta = FractoryMeta::new(planet_id, biome_id, &planet, &biome);
         let cache = FractoryCache {
-            fragments: fragments.to_owned(),
-            biome: biome.to_owned(),
+            fragments: planet.fragments().to_owned(),
+            biome,
         };
+
         Self {
             cursor: CursorState::Free,
             fractory_meta,

@@ -111,33 +111,33 @@ pub struct Fragment {
 // TODO: move to io
 #[derive(Debug, Default)]
 pub struct BiomeCache {
-    pub biomes: HashMap<BiomeId, Biome>,
+    pub biomes: HashMap<(PlanetId, BiomeId), Biome>,
 }
 
 impl BiomeCache {
-    pub fn iter(&self) -> impl Iterator<Item = &BiomeId> {
+    pub fn iter(&self) -> impl Iterator<Item = &(PlanetId, BiomeId)> {
         self.biomes.keys()
     }
 
     /// inserts a new biomeid-biome pair into the cache.
-    pub fn register(&mut self, id: BiomeId, biome: Biome) {
-        self.biomes.insert(id, biome);
+    pub fn register(&mut self, planet: PlanetId, biome: BiomeId, data: Biome) {
+        self.biomes.insert((planet, biome), data);
     }
 
-    pub fn load(&mut self, id: BiomeId) -> std::io::Result<&Biome> {
+    pub fn load(&mut self, planet: PlanetId, biome: BiomeId) -> std::io::Result<&Biome> {
         todo!("load a new biome");
     }
 
-    pub fn get_or_load(&mut self, id: BiomeId) -> std::io::Result<&Biome> {
-        if self.biomes.contains_key(&id) {
-            Ok(&self.biomes[&id])
+    pub fn get_or_load(&mut self, planet: PlanetId, biome: BiomeId) -> std::io::Result<&Biome> {
+        if self.biomes.contains_key(&(planet.clone(), biome.clone())) {
+            Ok(&self.biomes[&(planet, biome)])
         } else {
-            self.load(id)
+            self.load(planet, biome)
         }
     }
 
-    pub fn get(&self, id: &BiomeId) -> Option<&Biome> {
-        self.biomes.get(id)
+    pub fn get(&self, planet: &PlanetId, biome: &BiomeId) -> Option<&Biome> {
+        self.biomes.get(&(planet.clone(), biome.clone()))
     }
 }
 

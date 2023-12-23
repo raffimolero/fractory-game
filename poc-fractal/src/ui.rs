@@ -80,7 +80,7 @@ fn tile_color(fractal: &Fractal, tile_id: usize) -> Color {
     let color_mode = match fill {
         TileFill::Empty => Greyscale,
         TileFill::Partial => Id,
-        TileFill::Full { .. } => Fragment,
+        TileFill::Full | TileFill::Leaf => Fragment,
     };
 
     match color_mode {
