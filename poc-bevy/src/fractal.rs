@@ -203,7 +203,7 @@ impl FragmentData {
         // add real animations
 
         let center = commands
-            .spawn((SpatialBundle::default(),))
+            .spawn(SpatialBundle::default())
             .push_children(&[sprite, name])
             .id();
 
@@ -221,18 +221,29 @@ impl FragmentData {
             ))
             .add_child(center)
             .id();
+        commands.entity(center).insert((
+            AnimationPuppetBundle::track(fragment),
+            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                tf.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
+                tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+            }),
+        ));
         commands.entity(fragment).insert((
             AutoPause,
-            AnimationBundle::from_events(
+            AnimationControlBundle::from_events(
                 1.0,
                 [
-                    // (
-                    //     0.0,
-                    //     REvent::boxed(
-                    //         |commands, puppets| ,
-                    //         |commands, puppets| ,
-                    //     ),
-                    // ),
+                    (
+                        0.0,
+                        REvent::boxed(
+                            move |commands, puppets| {
+                                // spawn peripheral tiles
+                            },
+                            move |commands, puppets| {
+                                // despawn peripheral tiles
+                            },
+                        ),
+                    ),
                     (
                         0.0,
                         REvent::boxed(

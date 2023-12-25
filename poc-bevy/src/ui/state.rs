@@ -29,13 +29,13 @@ impl Plugin for Plug {
 }
 
 #[derive(Bundle, Default)]
-pub struct AnimationBundle {
+pub struct AnimationControlBundle {
     pub control: AnimationControl,
     pub progress: AnimationProgress,
     pub events: AnimationEvents,
 }
 
-impl AnimationBundle {
+impl AnimationControlBundle {
     /// supports events happening before the start or after the end of the animation.
     ///
     /// allows tweens like back-in and back-out to work. maybe.
@@ -82,8 +82,29 @@ impl AnimationBundle {
     }
 }
 
+#[derive(Bundle)]
+pub struct AnimationPuppetBundle {
+    pub progress: AnimationProgress,
+    pub tracker: AnimationTracker,
+}
+
+impl AnimationPuppetBundle {
+    pub fn track(controller: Entity) -> Self {
+        Self {
+            progress: default(),
+            tracker: AnimationTracker(controller),
+        }
+    }
+}
+
 pub trait Tweener<T> {
     fn lerp(&mut self, target: &mut T, ratio: f32);
+}
+
+impl<T, F: FnMut(&mut T, f32)> Tweener<T> for F {
+    fn lerp(&mut self, target: &mut T, ratio: f32) {
+        self(target, ratio)
+    }
 }
 
 // pub struct Keyframes<T> {
@@ -105,6 +126,12 @@ pub struct AutoPause;
 
 #[derive(Component)]
 pub struct ComponentAnimator<T: Component>(pub Box<dyn Tweener<T> + Send + Sync>);
+
+impl<T: Component> ComponentAnimator<T> {
+    pub fn boxed(tweener: impl Tweener<T> + 'static + Send + Sync) -> Self {
+        Self(Box::new(tweener))
+    }
+}
 
 #[derive(Component, Default)]
 pub struct AnimationProgress(f32);
@@ -173,7 +200,7 @@ impl AnimationEvents {
 }
 
 #[derive(Component)]
-pub struct AnimationTracker(Entity);
+pub struct AnimationTracker(pub Entity);
 
 /// puppets must be spawned by AnimationEvents
 #[derive(Component)]
@@ -206,11 +233,11 @@ fn update_controllers(
     animators.for_each_mut(|(id, mut control)| {
         if control.playback_speed == 0.0 {
             for puppet in &mut control.puppets {
-                commands.entity(*puppet).insert(AnimationTracker(id));
+                commands.entity(*puppet).remove::<AnimationTracker>();
             }
         } else {
             for puppet in &mut control.puppets {
-                commands.entity(*puppet).remove::<AnimationTracker>();
+                commands.entity(*puppet).insert(AnimationTracker(id));
             }
         }
     });
@@ -258,10 +285,10 @@ fn run_events(
 }
 
 fn track_progress(
-    mut progressors: Query<(&AnimationTracker, &mut AnimationProgress)>,
+    mut trackers: Query<(&AnimationTracker, &mut AnimationProgress)>,
     tracked: Query<&AnimationProgress, Without<AnimationTracker>>,
 ) {
-    progressors.for_each_mut(|(tracker, mut progress)| {
+    trackers.for_each_mut(|(tracker, mut progress)| {
         if let Ok(tracked) = tracked.get(tracker.0) {
             progress.0 = tracked.0;
         }
