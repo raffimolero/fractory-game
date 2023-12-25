@@ -302,7 +302,7 @@ fn animate<T: Component>(
     >,
 ) {
     animators.for_each_mut(|(mut animator, mut target, progress)| {
-        animator.0.lerp(target.as_mut(), progress.0);
+        animator.0.lerp(&mut target, progress.0);
     })
 }
 

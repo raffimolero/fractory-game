@@ -14,14 +14,18 @@ type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<AHasher>>;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlanetList>()
+        app.init_resource::<PlanetCache>()
             .add_systems(Startup, setup);
         // .add_systems(Update, load_folder.run_if(folder_is_loaded));
     }
 }
 
 // TODO: load assets
-fn setup(mut commands: Commands, mut planets: ResMut<PlanetList>, mut assets: ResMut<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    mut planets: ResMut<PlanetCache>,
+    mut assets: ResMut<AssetServer>,
+) {
     // planets.add_planet(planet, new_xyyy_planet());
     // planets.add_planet(PlanetId::from(XYYY));
 }
@@ -59,12 +63,12 @@ impl BiomeAssets {
 }
 
 #[derive(Resource, Default)]
-pub struct PlanetList {
+pub struct PlanetCache {
     pub planets: IndexMap<PlanetId, (Planet, PlanetAssets)>,
     pub biomes: IndexMap<(PlanetId, BiomeId), (Biome, BiomeAssets)>,
 }
 
-impl PlanetList {
+impl PlanetCache {
     // TODO: loading
     pub fn get_or_load_planet(
         &mut self,
@@ -86,6 +90,10 @@ impl PlanetList {
             }
         })
     }
+
+    // pub fn get_planet(&self, planet: PlanetId) -> Option<&(Planet, PlanetAssets)> {
+    //     self.planets.get(&planet)
+    // }
 
     // TODO: loading
     pub fn get_or_load_biome(
@@ -117,15 +125,19 @@ impl PlanetList {
             })
     }
 
+    // pub fn get_biome(&self, planet: PlanetId, biome: BiomeId) -> Option<&(Planet, PlanetAssets)> {
+    //     self.biomes.get(&(planet, biome))
+    // }
+
     pub fn new_fractory(
         &mut self,
         asset_server: &mut AssetServer,
         planet: PlanetId,
         biome: BiomeId,
     ) -> FractoryMeta {
-        let (planet_data, planet_assets) =
+        let (planet_data, _planet_assets) =
             Self::_get_or_load_planet(&mut self.planets, asset_server, planet.clone());
-        let (biome_data, biome_assets) = Self::_get_or_load_biome(
+        let (biome_data, _biome_assets) = Self::_get_or_load_biome(
             &mut self.biomes,
             asset_server,
             planet.clone(),

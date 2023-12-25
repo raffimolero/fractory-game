@@ -1,6 +1,6 @@
 use std::{f32::consts::TAU, time::Duration};
 
-use crate::{debug::Blocc, io::PlanetList, ui::prelude::*};
+use crate::{debug::Blocc, io::PlanetCache, ui::prelude::*};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
 // use bevy_tweening::{
@@ -9,6 +9,7 @@ use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
 // };
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
+    path::TilePos,
     planet::{BiomeId, PlanetId},
     presets::{XYYY, XYYY_LANDING_ZONE},
     tile::{Quad, SubTile},
@@ -20,7 +21,7 @@ impl Plugin for Plug {
         app
             // .init_resource::<FragmentAnimations>()
             .add_systems(Startup, setup)
-            .add_systems(Update, fragment_hover)
+            .add_systems(Update, (load, fragment_hover))
             // .add_systems(Update, load_folder.run_if(folder_is_loaded));
         ;
     }
@@ -29,7 +30,7 @@ impl Plugin for Plug {
 fn setup(
     mut commands: Commands,
     mut asset_server: ResMut<AssetServer>,
-    mut planets: ResMut<PlanetList>,
+    mut planets: ResMut<PlanetCache>,
     // animations: Res<Assets<AnimationClip>>,
     // frag_animations: Res<FragmentAnimations>,
 ) {
@@ -131,16 +132,12 @@ impl FractoryEntity {
     fn spawn(
         commands: &mut Commands,
         asset_server: &mut AssetServer,
-        planets: &mut PlanetList,
+        planets: &mut PlanetCache,
         planet: PlanetId,
         biome: BiomeId,
     ) -> Entity {
-        let (_planet_data, planet_assets) =
-            planets.get_or_load_planet(asset_server, planet.clone());
-        let sprite = planet_assets.fragment_icons[0].clone();
         let meta = planets.new_fractory(asset_server, planet, biome);
-        let root_fragment = FragmentData::spawn(commands, sprite, "X".into());
-        commands
+        let fractory = commands
             .spawn((
                 Self { meta },
                 SpatialBundle {
@@ -148,36 +145,49 @@ impl FractoryEntity {
                     ..default()
                 },
             ))
-            .add_child(root_fragment)
-            .id()
+            .id();
+        let root_fragment = FragmentData::spawn(commands, fractory, TilePos::UNIT);
+        commands.entity(fractory).add_child(root_fragment);
+        fractory
     }
 }
 
 #[derive(Component)]
-pub struct FragmentData {
-    sprite: Entity,
-    name: Entity,
-    // data idk
-    // tilepos?
+struct Unloaded {
+    root: Entity,
+    pos: TilePos,
 }
 
-impl FragmentData {
-    // fn center_tween() -> impl Bundle {
-    //     let duration = Duration::from_millis(250);
-    //     let easing = EaseFunction::CubicInOut;
-    //     let shrink = Tween::new(easing, duration, TransformFractalLens);
-    //     Animator::new(shrink).with_speed(0.0)
-    // }
+fn load(
+    mut commands: Commands,
+    fractories: Query<&FractoryEntity>,
+    planet_cache: Res<PlanetCache>,
+    unloaded: Query<(Entity, &Unloaded)>,
+) {
+    unloaded.for_each(|(entity, unloaded)| {
+        let Ok(fractory) = fractories.get(unloaded.root) else {
+            panic!(
+                "attempted to access nonexistent fractory entity.\n\
+                fractory root should've despawned before children."
+            );
+        };
+        let id = fractory.meta.fractory.fractal.get(unloaded.pos).id;
 
-    fn spawn(
-        commands: &mut Commands,
-        // frag_animations: &FragmentAnimations,
-        sprite: Handle<Image>,
-        name: String,
-    ) -> Entity {
+        let (planet_data, planet_assets) = planet_cache
+            .planets
+            .get(&fractory.meta.planet)
+            .expect("Planets should be loaded by now.");
+        let name = planet_data
+            .fragments()
+            .names()
+            .get(id)
+            .cloned()
+            .unwrap_or(format!("<#{id}>"));
+
+        let sprite = planet_assets.fragment_icons[id].clone();
+
         let size = Vec2::new(1.0, TRI_HEIGHT);
-
-        let sprite = commands
+        let tringle = commands
             .spawn((
                 // frag_animations.names[SubTile::C].clone(),
                 // Self::center_tween(),
@@ -192,58 +202,92 @@ impl FragmentData {
                 },
             ))
             .id();
-        let name = commands.spawn(text(name, 120.0, size)).id();
 
+        let tag = commands.spawn(text(name, 120.0, size)).id();
+
+        commands
+            .entity(entity)
+            .push_children(&[tringle, tag])
+            .remove::<Unloaded>();
+    })
+}
+
+#[derive(Component)]
+pub struct FragmentData {
+    root: Entity,
+    id: usize,
+    pos: TilePos,
+}
+
+impl FragmentData {
+    // fn center_tween() -> impl Bundle {
+    //     let duration = Duration::from_millis(250);
+    //     let easing = EaseFunction::CubicInOut;
+    //     let shrink = Tween::new(easing, duration, TransformFractalLens);
+    //     Animator::new(shrink).with_speed(0.0)
+    // }
+
+    fn spawn(
+        commands: &mut Commands,
+        root: Entity,
+        pos: TilePos,
+        // frag_animations: &FragmentAnimations,
+        // sprite: Handle<Image>,
+        // name: String,
+    ) -> Entity {
         // let mut player = AnimationPlayer::default();
         // player.play(frag_animations.animations[SubTile::C].clone());
 
-        // TODO: add (sprite, name) under one "center" entity for unified transforming
-        // add REvents for spawning new peripheral entities
+        // TODO: add REvents for spawning new peripheral entities
         // abstract spawn/despawn REvent
         // add real animations
 
-        let center = commands
-            .spawn(SpatialBundle::default())
-            .push_children(&[sprite, name])
-            .id();
-
         let fragment = commands
             .spawn((
-                Self { sprite, name },
+                Self { root, id: 0, pos },
                 Hitbox {
                     kind: HitboxKind::Tri { r: 1.0 },
                     cursor: Some(CursorIcon::Hand),
                 },
                 IsHovered(false),
                 SpatialBundle::default(),
-                // frag_animations.names[SubTile::C].clone(),
-                // player,
             ))
-            .add_child(center)
             .id();
-        commands.entity(center).insert((
-            AnimationPuppetBundle::track(fragment),
-            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                tf.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
-                tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
-            }),
-        ));
-        commands.entity(fragment).insert((
+
+        let center = commands
+            .spawn((
+                Unloaded { root, pos },
+                SpatialBundle::default(),
+                AnimationPuppetBundle::track(fragment),
+                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                    tf.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
+                    tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+                }),
+            ))
+            .id();
+
+        let spawn_despawn_peripherals = {
+            REvent::boxed(
+                // TODO: fix
+                move |commands, puppets| {
+                    // let top = Self::spawn(commands, root, pos + SubTile::U);
+                    // commands
+                    //     .entity(top)
+                    //     .insert(AnimationPuppetBundle::track(fragment));
+                    // puppets.push(top);
+                },
+                move |commands, puppets| {
+                    // despawn peripheral tiles
+                },
+            )
+        };
+
+        commands.entity(fragment).add_child(center).insert((
             AutoPause,
             AnimationControlBundle::from_events(
                 1.0,
                 [
-                    (
-                        0.0,
-                        REvent::boxed(
-                            move |commands, puppets| {
-                                // spawn peripheral tiles
-                            },
-                            move |commands, puppets| {
-                                // despawn peripheral tiles
-                            },
-                        ),
-                    ),
+                    (0.0, spawn_despawn_peripherals),
                     (
                         0.0,
                         REvent::boxed(

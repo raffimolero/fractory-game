@@ -18,7 +18,7 @@ fn test_subtiles() {
         }
         for subtile in SubTile::QUAD {
             let save = *pos;
-            pos.push_front(subtile);
+            pos.push_outer(subtile);
             assert!(pos.is_valid());
             assert!(set_front.insert(*pos));
             assert!(set_back.insert(*pos));
@@ -26,18 +26,18 @@ fn test_subtiles() {
 
             inner(pos, set_front, set_back, depth - 1);
 
-            assert_eq!(pos.pop_front(), Some(subtile));
+            assert_eq!(pos.pop_outer(), Some(subtile));
             assert_eq!(*pos, save);
         }
     }
 
     let mut pos = TilePos::UNIT;
-    assert_eq!(pos.pop_front(), None);
+    assert_eq!(pos.pop_outer(), None);
     assert_eq!(pos.pop_back(), None);
     let mut set_front = HashSet::new();
     let mut set_back = HashSet::new();
     inner(&mut pos, &mut set_front, &mut set_back, 5);
-    assert_eq!(pos.pop_front(), None);
+    assert_eq!(pos.pop_outer(), None);
     assert_eq!(pos.pop_back(), None);
 }
 
@@ -46,7 +46,7 @@ fn test_supertile_path() {
     let mut pos = TilePos::UNIT;
 
     let a = pos;
-    pos.push_front(SubTile::L);
+    pos.push_outer(SubTile::L);
     assert_eq!(
         pos,
         TilePos {
@@ -57,7 +57,7 @@ fn test_supertile_path() {
     );
 
     let b = pos;
-    pos.push_front(SubTile::U);
+    pos.push_outer(SubTile::U);
     assert_eq!(
         pos,
         TilePos {
@@ -68,7 +68,7 @@ fn test_supertile_path() {
     );
 
     let c = pos;
-    pos.push_front(SubTile::C);
+    pos.push_outer(SubTile::C);
     assert_eq!(
         pos,
         TilePos {
@@ -79,7 +79,7 @@ fn test_supertile_path() {
     );
 
     let d = pos;
-    pos.push_front(SubTile::R);
+    pos.push_outer(SubTile::R);
     assert_eq!(
         pos,
         TilePos {
@@ -89,15 +89,15 @@ fn test_supertile_path() {
         }
     );
 
-    assert_eq!(pos.pop_front(), Some(SubTile::R));
+    assert_eq!(pos.pop_outer(), Some(SubTile::R));
     assert_eq!(pos, d);
-    assert_eq!(pos.pop_front(), Some(SubTile::C));
+    assert_eq!(pos.pop_outer(), Some(SubTile::C));
     assert_eq!(pos, c);
-    assert_eq!(pos.pop_front(), Some(SubTile::U));
+    assert_eq!(pos.pop_outer(), Some(SubTile::U));
     assert_eq!(pos, b);
-    assert_eq!(pos.pop_front(), Some(SubTile::L));
+    assert_eq!(pos.pop_outer(), Some(SubTile::L));
     assert_eq!(pos, a);
-    assert_eq!(pos.pop_front(), None);
+    assert_eq!(pos.pop_outer(), None);
     assert_eq!(pos, a);
     assert_eq!(pos, TilePos::UNIT);
 }

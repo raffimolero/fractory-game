@@ -53,7 +53,7 @@ pub enum Node {
 
 impl Node {
     pub fn create_at(mut path: TilePos, value: Index) -> Self {
-        match path.pop_front() {
+        match path.pop_outer() {
             Some(subtile) => {
                 // Node does not implement Copy, hardcoding 4 frees is easier.
                 let mut children = Quad([Node::Free, Node::Free, Node::Free, Node::Free]);
@@ -89,7 +89,7 @@ impl Node {
         match self {
             Node::Free => *self = Self::create_at(path, value),
             Node::Bad | Node::Leaf(_) => reject(self),
-            Node::Branch(children) => match path.pop_front() {
+            Node::Branch(children) => match path.pop_outer() {
                 Some(subtile) => children[subtile].set(path, value, drop_item),
                 None => reject(self),
             },
@@ -338,7 +338,7 @@ impl RawMoveList {
                     "should be no collisions at this point"
                 );
 
-                let Some(subtile) = pos.pop_front() else {
+                let Some(subtile) = pos.pop_outer() else {
                     *self = Tree::Leaf(val);
                     return;
                 };
@@ -366,7 +366,7 @@ impl RawMoveList {
                 match self {
                     Tree::Free => {}
                     Tree::Leaf(_) => self.drop_with(drop_item),
-                    Tree::Branch(children) => match pos.pop_front() {
+                    Tree::Branch(children) => match pos.pop_outer() {
                         Some(subtile) => children[subtile].invalidate(pos, drop_item),
                         None => self.drop_with(drop_item),
                     },

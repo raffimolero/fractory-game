@@ -307,7 +307,7 @@ impl TilePos {
     pub fn from_inward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
         let mut out = Self::UNIT;
         for subtile in path_iter {
-            out.push_back(subtile);
+            out.push_inner(subtile);
         }
         out
     }
@@ -315,7 +315,7 @@ impl TilePos {
     pub fn from_outward_path(path_iter: impl IntoIterator<Item = SubTile>) -> Self {
         let mut out = Self::UNIT;
         for subtile in path_iter {
-            out.push_front(subtile);
+            out.push_outer(subtile);
         }
         out
     }
@@ -341,7 +341,8 @@ impl TilePos {
             && self.row() < self.height()
     }
 
-    pub fn push_front(&mut self, placement: SubTile) {
+    #[doc(alias = "push_front")]
+    pub fn push_outer(&mut self, placement: SubTile) {
         let h = self.height();
         self.depth += 1;
         match placement {
@@ -357,7 +358,8 @@ impl TilePos {
         }
     }
 
-    pub fn push_back(&mut self, placement: SubTile) {
+    #[doc(alias = "push_back")]
+    pub fn push_inner(&mut self, placement: SubTile) {
         self.depth += 1;
         self.pos *= 2;
         let f = if self.flop {
@@ -375,7 +377,8 @@ impl TilePos {
         }
     }
 
-    pub fn pop_front(&mut self) -> Option<SubTile> {
+    #[doc(alias = "pop_front")]
+    pub fn pop_outer(&mut self) -> Option<SubTile> {
         self.depth = self.depth.checked_sub(1)?;
 
         let h = self.height();
@@ -400,7 +403,8 @@ impl TilePos {
         Some(SubTile::C)
     }
 
-    pub fn pop_back(&mut self) -> Option<SubTile> {
+    #[doc(alias = "pop_back")]
+    pub fn pop_inner(&mut self) -> Option<SubTile> {
         self.depth = self.depth.checked_sub(1)?;
 
         let IVec2 { x, y } = self.pos % 2;
@@ -425,13 +429,31 @@ impl TilePos {
     }
 }
 
+impl Add<SubTile> for TilePos {
+    type Output = Self;
+
+    fn add(mut self, rhs: SubTile) -> Self::Output {
+        self.push_inner(rhs);
+        self
+    }
+}
+
+impl Mul<SubTile> for TilePos {
+    type Output = Self;
+
+    fn mul(mut self, rhs: SubTile) -> Self::Output {
+        self.push_outer(rhs);
+        self
+    }
+}
+
 impl Add<TileOffset> for TilePos {
     type Output = Option<Self>;
 
     /// returns None if out of bounds.
     fn add(mut self, mut rhs: TileOffset) -> Self::Output {
         for _ in 0..rhs.depth {
-            self.push_back(SubTile::U);
+            self.push_inner(SubTile::U);
         }
         if self.flop {
             rhs.offset *= -1;
@@ -446,13 +468,13 @@ impl Iterator for TilePos {
     type Item = SubTile;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.pop_front()
+        self.pop_outer()
     }
 }
 
 impl DoubleEndedIterator for TilePos {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.pop_back()
+        self.pop_inner()
     }
 }
 
