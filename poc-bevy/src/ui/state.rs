@@ -5,8 +5,8 @@ use bevy::prelude::*;
 
 pub mod prelude {
     pub use super::{
-        AnimationControl, AnimationEvents, AnimationProgress, AnimationTracker, ComponentAnimator,
-        REvent, Tweener,
+        AnimationControl, AnimationEvents, AnimationProgress, AnimationTracker, AutoPause,
+        ComponentAnimator, REvent, Tweener,
     };
 }
 
@@ -16,8 +16,10 @@ impl Plugin for Plug {
         app.add_systems(
             Update,
             (
-                update_progress,
                 update_controllers,
+                update_progress,
+                auto_pause,
+                run_events,
                 track_progress,
                 (animate::<Transform>),
             )
@@ -36,7 +38,7 @@ pub struct AnimationBundle {
 impl AnimationBundle {
     /// supports events happening before the start or after the end of the animation.
     ///
-    /// allows tweens like back-in and back-out to work.
+    /// allows tweens like back-in and back-out to work. maybe.
     pub fn from_events(
         duration_secs: f32,
         second_event_pairs: impl IntoIterator<Item = (f32, Box<dyn ReversibleEvent>)>,
@@ -65,6 +67,12 @@ impl AnimationBundle {
             },
         }
     }
+
+    /// we are assuming that there are only a fixed number of starting puppets.
+    pub fn with_puppets<const N: usize>(mut self, puppets: [Entity; N]) -> Self {
+        self.control.puppets = puppets.to_vec();
+        self
+    }
 }
 
 pub trait Tweener<T> {
@@ -86,27 +94,30 @@ pub trait Tweener<T> {
 // }
 
 #[derive(Component)]
+pub struct AutoPause;
+
+#[derive(Component)]
 pub struct ComponentAnimator<T: Component>(pub Box<dyn Tweener<T> + Send + Sync>);
 
 #[derive(Component, Default)]
 pub struct AnimationProgress(f32);
 
 pub trait ReversibleEvent: Send + Sync {
-    fn run_forward(&mut self, commands: &mut Commands);
-    fn run_backward(&mut self, commands: &mut Commands);
+    fn run_forward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>);
+    fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>);
 }
 
 pub struct REvent<
-    F: FnMut(&mut Commands) + 'static + Send + Sync,
-    B: FnMut(&mut Commands) + 'static + Send + Sync,
+    F: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
+    B: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
 > {
     pub fore: F,
     pub back: B,
 }
 
 impl<
-        F: FnMut(&mut Commands) + 'static + Send + Sync,
-        B: FnMut(&mut Commands) + 'static + Send + Sync,
+        F: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
+        B: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
     > REvent<F, B>
 {
     pub fn boxed(fore: F, back: B) -> Box<dyn ReversibleEvent> {
@@ -114,15 +125,17 @@ impl<
     }
 }
 
-impl<F: FnMut(&mut Commands) + Send + Sync, B: FnMut(&mut Commands) + Send + Sync> ReversibleEvent
-    for REvent<F, B>
+impl<
+        F: FnMut(&mut Commands, &mut Vec<Entity>) + Send + Sync,
+        B: FnMut(&mut Commands, &mut Vec<Entity>) + Send + Sync,
+    > ReversibleEvent for REvent<F, B>
 {
-    fn run_forward(&mut self, commands: &mut Commands) {
-        (self.fore)(commands)
+    fn run_forward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>) {
+        (self.fore)(commands, puppets)
     }
 
-    fn run_backward(&mut self, commands: &mut Commands) {
-        (self.back)(commands)
+    fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>) {
+        (self.back)(commands, puppets)
     }
 }
 
@@ -133,20 +146,20 @@ pub struct AnimationEvents {
 }
 
 impl AnimationEvents {
-    fn update(&mut self, commands: &mut Commands, progress: f32) {
+    fn update(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>, progress: f32) {
         if progress > self.prev_progress {
             self.events
                 .iter_mut()
                 .skip_while(|(p, _e)| *p < self.prev_progress)
                 .take_while(|(p, _e)| *p <= progress)
-                .for_each(|(_p, e)| e.run_forward(commands));
+                .for_each(|(_p, e)| e.run_forward(commands, puppets));
         } else if progress < self.prev_progress {
             self.events
                 .iter_mut()
                 .rev()
                 .skip_while(|(p, _e)| *p > self.prev_progress)
                 .take_while(|(p, _e)| *p >= progress)
-                .for_each(|(_p, e)| e.run_backward(commands));
+                .for_each(|(_p, e)| e.run_backward(commands, puppets));
         }
         self.prev_progress = progress;
     }
@@ -198,25 +211,43 @@ fn update_controllers(
 
 fn update_progress(
     time: Res<Time>,
-    mut commands: Commands,
-    mut animators: Query<(
-        &mut AnimationControl,
-        &mut AnimationProgress,
-        Option<&mut AnimationEvents>,
-    )>,
+    mut animators: Query<(&AnimationControl, &mut AnimationProgress)>,
 ) {
     let delta = time.delta_seconds();
-    animators.for_each_mut(|(mut control, mut progress, events)| {
+    animators.for_each_mut(|(control, mut progress)| {
+        if control.playback_speed == 0.0 {
+            return;
+        }
         progress.0 += delta * control.progress_per_sec * control.playback_speed;
+    })
+}
+
+fn auto_pause(
+    mut animators: Query<
+        (&mut AnimationControl, &mut AnimationProgress),
+        (With<AutoPause>, Changed<AnimationProgress>),
+    >,
+) {
+    animators.for_each_mut(|(mut control, mut progress)| {
         let clamped = progress.0.clamp(0.0, 1.0);
         if progress.0 != clamped {
             progress.0 = clamped;
             control.playback_speed = 0.0;
         }
-        if let Some(mut events) = events {
-            events.update(&mut commands, progress.0);
-        }
-    })
+    });
+}
+
+fn run_events(
+    mut commands: Commands,
+    mut animators: Query<(
+        &mut AnimationControl,
+        &AnimationProgress,
+        &mut AnimationEvents,
+    )>,
+) {
+    animators.for_each_mut(|(mut control, progress, mut events)| {
+        events.update(&mut commands, &mut control.puppets, progress.0);
+    });
 }
 
 fn track_progress(

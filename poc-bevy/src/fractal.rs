@@ -197,7 +197,17 @@ impl FragmentData {
         // let mut player = AnimationPlayer::default();
         // player.play(frag_animations.animations[SubTile::C].clone());
 
-        commands
+        // TODO: add (sprite, name) under one "center" entity for unified transforming
+        // add REvents for spawning new peripheral entities
+        // abstract spawn/despawn REvent
+        // add real animations
+
+        let center = commands
+            .spawn((SpatialBundle::default(),))
+            .push_children(&[sprite, name])
+            .id();
+
+        let fragment = commands
             .spawn((
                 Self { sprite, name },
                 Hitbox {
@@ -206,59 +216,77 @@ impl FragmentData {
                 },
                 IsHovered(false),
                 SpatialBundle::default(),
-                AnimationBundle::from_events(
-                    1.0,
-                    [
-                        (
-                            0.0,
-                            REvent::boxed(
-                                |_| println!("FORWARD ZERO FIRST"),
-                                |_| println!("BACKWARD ZERO FIRST"),
-                            ),
-                        ),
-                        (
-                            0.0,
-                            REvent::boxed(
-                                |_| println!("FORWARD ZERO LAST"),
-                                |_| println!("BACKWARD ZERO LAST"),
-                            ),
-                        ),
-                        (
-                            0.5,
-                            REvent::boxed(
-                                |_| println!("FORWARD HALF FIRST"),
-                                |_| println!("BACKWARD HALF FIRST"),
-                            ),
-                        ),
-                        (
-                            0.5,
-                            REvent::boxed(
-                                |_| println!("FORWARD HALF LAST"),
-                                |_| println!("BACKWARD HALF LAST"),
-                            ),
-                        ),
-                        (
-                            1.0,
-                            REvent::boxed(
-                                |_| println!("FORWARD ONE FIRST"),
-                                |_| println!("BACKWARD ONE FIRST"),
-                            ),
-                        ),
-                        (
-                            1.0,
-                            REvent::boxed(
-                                |_| println!("FORWARD ONE LAST"),
-                                |_| println!("BACKWARD ONE LAST"),
-                            ),
-                        ),
-                    ],
-                ),
                 // frag_animations.names[SubTile::C].clone(),
                 // player,
             ))
-            .add_child(sprite)
-            .add_child(name)
-            .id()
+            .add_child(center)
+            .id();
+        commands.entity(fragment).insert((
+            // AutoPause,
+            AnimationBundle::from_events(
+                1.0,
+                [
+                    (
+                        -1.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD NEG"),
+                            |_, _| println!("BACKWARD NEG"),
+                        ),
+                    ),
+                    (
+                        0.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD ZERO FIRST"),
+                            |_, _| println!("BACKWARD ZERO FIRST"),
+                        ),
+                    ),
+                    (
+                        0.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD ZERO LAST"),
+                            |_, _| println!("BACKWARD ZERO LAST"),
+                        ),
+                    ),
+                    (
+                        0.5,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD HALF FIRST"),
+                            |_, _| println!("BACKWARD HALF FIRST"),
+                        ),
+                    ),
+                    (
+                        0.5,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD HALF LAST"),
+                            |_, _| println!("BACKWARD HALF LAST"),
+                        ),
+                    ),
+                    (
+                        1.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD ONE FIRST"),
+                            |_, _| println!("BACKWARD ONE FIRST"),
+                        ),
+                    ),
+                    (
+                        1.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD ONE LAST"),
+                            |_, _| println!("BACKWARD ONE LAST"),
+                        ),
+                    ),
+                    (
+                        2.0,
+                        REvent::boxed(
+                            |_, _| println!("FORWARD TWO"),
+                            |_, _| println!("BACKWARD TWO"),
+                        ),
+                    ),
+                ],
+            )
+            .with_puppets([center]),
+        ));
+        fragment
     }
 }
 

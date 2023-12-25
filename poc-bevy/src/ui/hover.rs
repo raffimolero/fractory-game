@@ -74,7 +74,6 @@ fn hover(
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     camera: Query<(&GlobalTransform, &Camera), With<MainCam>>,
     mut hoverables: Query<(&GlobalTransform, &Hitbox, &mut IsHovered)>,
-    mut commands: Commands,
     // mut gizmos: Gizmos,
 ) {
     let mut window = window.single_mut();
