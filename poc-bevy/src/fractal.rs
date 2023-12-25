@@ -11,8 +11,8 @@ use fractory_common::sim::logic::{
     factory::FractoryMeta,
     path::TilePos,
     planet::{BiomeId, PlanetId},
-    presets::{XYYY, XYYY_LANDING_ZONE},
-    tile::{Quad, SubTile},
+    presets::*,
+    tile::{Quad, SubTile, Tile},
 };
 
 pub struct Plug;
@@ -136,7 +136,10 @@ impl FractoryEntity {
         planet: PlanetId,
         biome: BiomeId,
     ) -> Entity {
-        let meta = planets.new_fractory(asset_server, planet, biome);
+        let mut meta = planets.new_fractory(asset_server, planet, biome);
+
+        meta.fractory.fractal.set(TilePos::UNIT, TILES[tiles::X]);
+
         let fractory = commands
             .spawn((
                 Self { meta },
@@ -184,7 +187,7 @@ fn load(
             .cloned()
             .unwrap_or(format!("<#{id}>"));
 
-        let sprite = planet_assets.fragment_icons[id].clone();
+        let sprite = planet_assets.get_fragment_icon(id);
 
         let size = Vec2::new(1.0, TRI_HEIGHT);
         let tringle = commands
@@ -254,22 +257,40 @@ impl FragmentData {
             ))
             .id();
 
-        let center = commands
+        let face = commands
             .spawn((
                 Unloaded { root, pos },
                 SpatialBundle::default(),
                 AnimationPuppetBundle::track(fragment),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    tf.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+                    tf.scale = Vec2::splat(1.0 - ratio).extend(1.0);
+                    tf.rotation = Quat::from_rotation_z(TAU * ratio);
                 }),
             ))
             .id();
 
-        let spawn_despawn_peripherals = {
+        let spawn_despawn = {
             REvent::boxed(
-                // TODO: fix
                 move |commands, puppets| {
+                    let center = commands
+                        .spawn((
+                            SpatialBundle {
+                                transform: Transform::from_xyz(0.0, 0.0, -2.0),
+                                ..default()
+                            },
+                            AnimationPuppetBundle::track(fragment),
+                            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                                tf.scale = Vec2::splat(ratio / 2.0).extend(1.0);
+                                tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+                            }),
+                        ))
+                        .id();
+                    let child = Self::spawn(commands, root, pos + SubTile::U);
+                    commands
+                        .entity(center)
+                        .set_parent(fragment)
+                        .add_child(child);
+                    puppets.push(center);
                     // let top = Self::spawn(commands, root, pos + SubTile::U);
                     // commands
                     //     .entity(top)
@@ -277,17 +298,20 @@ impl FragmentData {
                     // puppets.push(top);
                 },
                 move |commands, puppets| {
+                    for p in puppets.drain(1..) {
+                        commands.entity(p).despawn_recursive();
+                    }
                     // despawn peripheral tiles
                 },
             )
         };
 
-        commands.entity(fragment).add_child(center).insert((
+        commands.entity(fragment).add_child(face).insert((
             AutoPause,
             AnimationControlBundle::from_events(
                 1.0,
                 [
-                    (0.0, spawn_despawn_peripherals),
+                    (0.0, spawn_despawn),
                     (
                         0.0,
                         REvent::boxed(
@@ -339,7 +363,7 @@ impl FragmentData {
                     // ),
                 ],
             )
-            .with_puppets([center]),
+            .with_puppets([face]),
         ));
         fragment
     }
