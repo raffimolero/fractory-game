@@ -2,15 +2,13 @@
 ANIMATION/UI FRAMEWORK
 
 Design concept:
-- structured (keyframes are nodes in a graph and animations are transitions between nodes)
+- two-state (there are only 2 keyframes)
   - reactive (state transitions can be set by events like mouse enter/leave, and clicks)
   - proactive (can send events and oneshots on enter/exit per node)
     * takes precedence over everything else, and is an escape hatch a.k.a. a footgun
   - not stateful (animation nodes themselves should not store data besides components)
   - centralized (transitions between nodes must be triggered from the parent)
-    - chainable (animations can be sequenced one after another by queueing transitions)
-      - reversible (an in-progress animation can be reversed by queueing the reverse transition)
-    - coordinated (animations won't play unless every child node is done with their animations)
+    - reversible (an in-progress animation can be reversed by queueing the reverse transition)
   - directionless
     * ties in to reversible
     - consistent (the state of an entity, its components, and its children depend only on where it is in the graph (at a node/somewhere between nodes), not the direction in which it is animated)
@@ -20,9 +18,6 @@ Design concept:
   - able to spawn and despawn entities
   - able to add and remove components
 - localized (registering a new animation must be done in just 2 places: a global resource and the parent entity)
-- composable? (any two animations can be combined into one, so long as they don't conflict)
-  - animation A can play during animation B
-  - possibly just implemented with parent/child hierarchy tbh
 
 =========================================================
 UPDATE PATTERN
