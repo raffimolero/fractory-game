@@ -138,7 +138,9 @@ impl FractoryEntity {
     ) -> Entity {
         let mut meta = planets.new_fractory(asset_server, planet, biome);
 
-        meta.fractory.fractal.set(TilePos::UNIT, TILES[tiles::X]);
+        meta.fractory
+            .fractal
+            .set(TilePos::UNIT, TILES[tiles::SPINNER]);
 
         let fractory = commands
             .spawn((
@@ -263,7 +265,7 @@ impl FragmentData {
                 SpatialBundle::default(),
                 AnimationPuppetBundle::track(fragment),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    tf.scale = Vec2::splat((1.0 - ratio * 2.0).clamp(0.0, 1.0)).extend(1.0);
+                    tf.scale = Vec2::splat(1.0 - ratio).extend(1.0);
                     tf.rotation = Quat::from_rotation_z(TAU * ratio);
                 }),
             ))
@@ -287,7 +289,7 @@ impl FragmentData {
                                 ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
                                     tf.scale = Vec2::splat(ratio / 2.0).extend(1.0);
                                     tf.rotation = Quat::from_rotation_z(rot + -TAU * ratio);
-                                    tf.translation = (tl * ratio).extend(-2.0);
+                                    tf.translation = (tl * ratio).extend(ratio * 2.0 - 2.0);
                                 }),
                             ))
                             .id();
