@@ -263,7 +263,7 @@ impl FragmentData {
                 SpatialBundle::default(),
                 AnimationPuppetBundle::track(fragment),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    tf.scale = Vec2::splat(1.0 - ratio).extend(1.0);
+                    tf.scale = Vec2::splat((1.0 - ratio * 2.0).clamp(0.0, 1.0)).extend(1.0);
                     tf.rotation = Quat::from_rotation_z(TAU * ratio);
                 }),
             ))
@@ -272,36 +272,34 @@ impl FragmentData {
         let spawn_despawn = {
             REvent::boxed(
                 move |commands, puppets| {
-                    let center = commands
-                        .spawn((
-                            SpatialBundle {
-                                transform: Transform::from_xyz(0.0, 0.0, -2.0),
-                                ..default()
-                            },
-                            AnimationPuppetBundle::track(fragment),
-                            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                                tf.scale = Vec2::splat(ratio / 2.0).extend(1.0);
-                                tf.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
-                            }),
-                        ))
-                        .id();
-                    let child = Self::spawn(commands, root, pos + SubTile::U);
-                    commands
-                        .entity(center)
-                        .set_parent(fragment)
-                        .add_child(child);
-                    puppets.push(center);
-                    // let top = Self::spawn(commands, root, pos + SubTile::U);
-                    // commands
-                    //     .entity(top)
-                    //     .insert(AnimationPuppetBundle::track(fragment));
-                    // puppets.push(top);
+                    for (st, tl) in SubTile::ORDER.into_iter().zip([
+                        Vec2::ZERO,
+                        TRI_VERTS[1],
+                        TRI_VERTS[2],
+                        TRI_VERTS[0],
+                    ]) {
+                        let rot = if st == SubTile::C { TAU / 2.0 } else { 0.0 };
+                        let tl = tl / 2.0;
+                        let next = commands
+                            .spawn((
+                                SpatialBundle::default(),
+                                AnimationPuppetBundle::track(fragment),
+                                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                                    tf.scale = Vec2::splat(ratio / 2.0).extend(1.0);
+                                    tf.rotation = Quat::from_rotation_z(rot + -TAU * ratio);
+                                    tf.translation = (tl * ratio).extend(-2.0);
+                                }),
+                            ))
+                            .id();
+                        let child = Self::spawn(commands, root, pos + st);
+                        commands.entity(next).set_parent(fragment).add_child(child);
+                        puppets.push(next);
+                    }
                 },
                 move |commands, puppets| {
                     for p in puppets.drain(1..) {
                         commands.entity(p).despawn_recursive();
                     }
-                    // despawn peripheral tiles
                 },
             )
         };
@@ -312,48 +310,6 @@ impl FragmentData {
                 1.0,
                 [
                     (0.0, spawn_despawn),
-                    (
-                        0.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD ZERO FIRST"),
-                            |_, _| println!("BACKWARD ZERO FIRST"),
-                        ),
-                    ),
-                    (
-                        0.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD ZERO LAST"),
-                            |_, _| println!("BACKWARD ZERO LAST"),
-                        ),
-                    ),
-                    (
-                        0.5,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD HALF FIRST"),
-                            |_, _| println!("BACKWARD HALF FIRST"),
-                        ),
-                    ),
-                    (
-                        0.5,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD HALF LAST"),
-                            |_, _| println!("BACKWARD HALF LAST"),
-                        ),
-                    ),
-                    (
-                        1.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD ONE FIRST"),
-                            |_, _| println!("BACKWARD ONE FIRST"),
-                        ),
-                    ),
-                    (
-                        1.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD ONE LAST"),
-                            |_, _| println!("BACKWARD ONE LAST"),
-                        ),
-                    ),
                     // (
                     //     1.0,
                     //     REvent::boxed(
