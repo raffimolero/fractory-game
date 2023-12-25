@@ -222,17 +222,17 @@ impl FragmentData {
             .add_child(center)
             .id();
         commands.entity(fragment).insert((
-            // AutoPause,
+            AutoPause,
             AnimationBundle::from_events(
                 1.0,
                 [
-                    (
-                        -1.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD NEG"),
-                            |_, _| println!("BACKWARD NEG"),
-                        ),
-                    ),
+                    // (
+                    //     0.0,
+                    //     REvent::boxed(
+                    //         |commands, puppets| ,
+                    //         |commands, puppets| ,
+                    //     ),
+                    // ),
                     (
                         0.0,
                         REvent::boxed(
@@ -275,13 +275,13 @@ impl FragmentData {
                             |_, _| println!("BACKWARD ONE LAST"),
                         ),
                     ),
-                    (
-                        2.0,
-                        REvent::boxed(
-                            |_, _| println!("FORWARD TWO"),
-                            |_, _| println!("BACKWARD TWO"),
-                        ),
-                    ),
+                    // (
+                    //     1.0,
+                    //     REvent::boxed(
+                    //         |_, _| {}, // TODO: add hitboxes to child nodes
+                    //         |_, _| {},
+                    //     ),
+                    // ),
                 ],
             )
             .with_puppets([center]),

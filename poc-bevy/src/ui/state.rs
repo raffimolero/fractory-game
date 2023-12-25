@@ -51,6 +51,16 @@ impl AnimationBundle {
             );
         }
         let progress_per_sec = 1.0 / duration_secs;
+        let events = second_event_pairs
+            .into_iter()
+            .map(|(time, ev)| (time / duration_secs, ev))
+            .collect::<Vec<_>>();
+        for window in events.windows(2) {
+            let &[(t1, _), (t2, _)] = window else {
+                unreachable!()
+            };
+            assert!(t1 <= t2);
+        }
         Self {
             control: AnimationControl {
                 playback_speed: 0.0,
@@ -59,10 +69,7 @@ impl AnimationBundle {
             },
             progress: AnimationProgress(0.0),
             events: AnimationEvents {
-                events: second_event_pairs
-                    .into_iter()
-                    .map(|(time, ev)| (time / duration_secs, ev))
-                    .collect(),
+                events,
                 prev_progress: 0.0,
             },
         }
