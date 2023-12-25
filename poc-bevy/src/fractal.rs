@@ -43,28 +43,15 @@ fn setup(
     );
 }
 
-// TODO: change from IsHovered to some sort of tag that the parent can add onto the children
-// traversing the parent/child hierarchy is inconvenient, so we should limit hierarchial queries
 fn fragment_hover(
-    // time: Res<Time>,
-    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentData>>,
-    // mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
+    mut fragments: Query<
+        (&IsHovered, &mut AnimationControl),
+        (Changed<IsHovered>, With<FragmentData>),
+    >,
 ) {
     fragments.for_each_mut(|(is_hovered, mut control)| {
         control.playback_speed = if is_hovered.0 { 1.0 } else { -1.0 };
     });
-    // let delta = time.delta();
-    // for (is_hovered, mut animator) in fragments.iter_mut() {
-    //     if is_hovered.0 {
-    //         animator.set_speed(1.0);
-    //     } else {
-    //         // HACK: manually reverse the animation
-    //         animator.set_speed(0.0);
-    //         let tweenable = animator.tweenable_mut();
-    //         let elapsed = tweenable.elapsed();
-    //         tweenable.set_elapsed(elapsed.saturating_sub(delta));
-    //     }
-    // }
 }
 
 // #[derive(Resource)]
@@ -145,7 +132,6 @@ impl FractoryEntity {
         commands: &mut Commands,
         asset_server: &mut AssetServer,
         planets: &mut PlanetList,
-        // frag_animations: &FragmentAnimations,
         planet: PlanetId,
         biome: BiomeId,
     ) -> Entity {
@@ -153,12 +139,7 @@ impl FractoryEntity {
             planets.get_or_load_planet(asset_server, planet.clone());
         let sprite = planet_assets.fragment_icons[0].clone();
         let meta = planets.new_fractory(asset_server, planet, biome);
-        let root_fragment = FragmentData::spawn(
-            commands,
-            // frag_animations,
-            sprite,
-            "X".into(),
-        );
+        let root_fragment = FragmentData::spawn(commands, sprite, "X".into());
         commands
             .spawn((
                 Self { meta },
@@ -231,22 +212,43 @@ impl FragmentData {
                         (
                             0.0,
                             REvent::boxed(
-                                |_| println!("FORWARD ZERO"),
-                                |_| println!("BACKWARD ZERO"),
+                                |_| println!("FORWARD ZERO FIRST"),
+                                |_| println!("BACKWARD ZERO FIRST"),
+                            ),
+                        ),
+                        (
+                            0.0,
+                            REvent::boxed(
+                                |_| println!("FORWARD ZERO LAST"),
+                                |_| println!("BACKWARD ZERO LAST"),
                             ),
                         ),
                         (
                             0.5,
                             REvent::boxed(
-                                |_| println!("FORWARD HALF"),
-                                |_| println!("BACKWARD HALF"),
+                                |_| println!("FORWARD HALF FIRST"),
+                                |_| println!("BACKWARD HALF FIRST"),
+                            ),
+                        ),
+                        (
+                            0.5,
+                            REvent::boxed(
+                                |_| println!("FORWARD HALF LAST"),
+                                |_| println!("BACKWARD HALF LAST"),
                             ),
                         ),
                         (
                             1.0,
                             REvent::boxed(
-                                |_| println!("FORWARD ONE"),
-                                |_| println!("BACKWARD ONE"),
+                                |_| println!("FORWARD ONE FIRST"),
+                                |_| println!("BACKWARD ONE FIRST"),
+                            ),
+                        ),
+                        (
+                            1.0,
+                            REvent::boxed(
+                                |_| println!("FORWARD ONE LAST"),
+                                |_| println!("BACKWARD ONE LAST"),
                             ),
                         ),
                     ],
