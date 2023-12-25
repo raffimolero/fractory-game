@@ -3,10 +3,10 @@ use std::{f32::consts::TAU, time::Duration};
 use crate::{debug::Blocc, io::PlanetList, ui::prelude::*};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
-use bevy_tweening::{
-    lens::{TransformPositionLens, TransformRotateZLens, TransformScaleLens},
-    *,
-};
+// use bevy_tweening::{
+//     lens::{TransformPositionLens, TransformRotateZLens, TransformScaleLens},
+//     *,
+// };
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
     planet::{BiomeId, PlanetId},
@@ -46,21 +46,25 @@ fn setup(
 // TODO: change from IsHovered to some sort of tag that the parent can add onto the children
 // traversing the parent/child hierarchy is inconvenient, so we should limit hierarchial queries
 fn fragment_hover(
-    time: Res<Time>,
-    mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
+    // time: Res<Time>,
+    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentData>>,
+    // mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
 ) {
-    let delta = time.delta();
-    for (is_hovered, mut animator) in fragments.iter_mut() {
-        if is_hovered.0 {
-            animator.set_speed(1.0);
-        } else {
-            // HACK: manually reverse the animation
-            animator.set_speed(0.0);
-            let tweenable = animator.tweenable_mut();
-            let elapsed = tweenable.elapsed();
-            tweenable.set_elapsed(elapsed.saturating_sub(delta));
-        }
-    }
+    fragments.for_each_mut(|(is_hovered, mut control)| {
+        control.playback_speed = if is_hovered.0 { 1.0 } else { -1.0 };
+    });
+    // let delta = time.delta();
+    // for (is_hovered, mut animator) in fragments.iter_mut() {
+    //     if is_hovered.0 {
+    //         animator.set_speed(1.0);
+    //     } else {
+    //         // HACK: manually reverse the animation
+    //         animator.set_speed(0.0);
+    //         let tweenable = animator.tweenable_mut();
+    //         let elapsed = tweenable.elapsed();
+    //         tweenable.set_elapsed(elapsed.saturating_sub(delta));
+    //     }
+    // }
 }
 
 // #[derive(Resource)]
@@ -157,7 +161,7 @@ impl FractoryEntity {
         );
         commands
             .spawn((
-                FractoryEntity { meta },
+                Self { meta },
                 SpatialBundle {
                     transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
                     ..default()
@@ -177,12 +181,12 @@ pub struct FragmentData {
 }
 
 impl FragmentData {
-    fn center_tween() -> impl Bundle {
-        let duration = Duration::from_millis(250);
-        let easing = EaseFunction::CubicInOut;
-        let shrink = Tween::new(easing, duration, TransformFractalLens);
-        Animator::new(shrink).with_speed(0.0)
-    }
+    // fn center_tween() -> impl Bundle {
+    //     let duration = Duration::from_millis(250);
+    //     let easing = EaseFunction::CubicInOut;
+    //     let shrink = Tween::new(easing, duration, TransformFractalLens);
+    //     Animator::new(shrink).with_speed(0.0)
+    // }
 
     fn spawn(
         commands: &mut Commands,
@@ -195,7 +199,7 @@ impl FragmentData {
         let sprite = commands
             .spawn((
                 // frag_animations.names[SubTile::C].clone(),
-                Self::center_tween(),
+                // Self::center_tween(),
                 SpriteBundle {
                     sprite: Sprite {
                         custom_size: Some(size),
@@ -221,6 +225,32 @@ impl FragmentData {
                 },
                 IsHovered(false),
                 SpatialBundle::default(),
+                AnimationBundle::from_events(
+                    1.0,
+                    [
+                        (
+                            0.0,
+                            REvent::boxed(
+                                |_| println!("FORWARD ZERO"),
+                                |_| println!("BACKWARD ZERO"),
+                            ),
+                        ),
+                        (
+                            0.5,
+                            REvent::boxed(
+                                |_| println!("FORWARD HALF"),
+                                |_| println!("BACKWARD HALF"),
+                            ),
+                        ),
+                        (
+                            1.0,
+                            REvent::boxed(
+                                |_| println!("FORWARD ONE"),
+                                |_| println!("BACKWARD ONE"),
+                            ),
+                        ),
+                    ],
+                ),
                 // frag_animations.names[SubTile::C].clone(),
                 // player,
             ))
@@ -255,11 +285,11 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
     }
 }
 
-struct TransformFractalLens;
+// struct TransformFractalLens;
 
-impl Lens<Transform> for TransformFractalLens {
-    fn lerp(&mut self, target: &mut Transform, ratio: f32) {
-        target.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
-        target.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
-    }
-}
+// impl Lens<Transform> for TransformFractalLens {
+//     fn lerp(&mut self, target: &mut Transform, ratio: f32) {
+//         target.scale = Vec2::splat(1.0 - ratio / 2.0).extend(1.0);
+//         target.rotation = Quat::from_rotation_z(TAU / -2.0 * ratio);
+//     }
+// }

@@ -14,6 +14,6 @@ use bevy::prelude::*;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_plugins(hover::Plug);
+        app.add_plugins((hover::Plug, state::Plug));
     }
 }

@@ -4,7 +4,10 @@
 use bevy::prelude::*;
 
 pub mod prelude {
-    // TODO
+    pub use super::{
+        AnimationControl, AnimationEvents, AnimationProgress, AnimationTracker, ComponentAnimator,
+        REvent, Tweener,
+    };
 }
 
 pub struct Plug;
@@ -20,6 +23,47 @@ impl Plugin for Plug {
             )
                 .chain(),
         );
+    }
+}
+
+#[derive(Bundle, Default)]
+pub struct AnimationBundle {
+    pub control: AnimationControl,
+    pub progress: AnimationProgress,
+    pub events: AnimationEvents,
+}
+
+impl AnimationBundle {
+    /// supports events happening before the start or after the end of the animation.
+    ///
+    /// allows tweens like back-in and back-out to work.
+    pub fn from_events(
+        duration_secs: f32,
+        second_event_pairs: impl IntoIterator<Item = (f32, Box<dyn ReversibleEvent>)>,
+    ) -> Self {
+        if duration_secs <= 0.0 {
+            panic!(
+                "Durations cannot be zero or less.\n\
+                The progress will only update if durations actually tick.\n\
+                If you need an instant event, use f32::EPSILON."
+            );
+        }
+        let progress_per_sec = 1.0 / duration_secs;
+        Self {
+            control: AnimationControl {
+                playback_speed: 0.0,
+                puppets: vec![],
+                progress_per_sec,
+            },
+            progress: AnimationProgress(0.0),
+            events: AnimationEvents {
+                events: second_event_pairs
+                    .into_iter()
+                    .map(|(time, ev)| (time / duration_secs, ev))
+                    .collect(),
+                prev_progress: 0.0,
+            },
+        }
     }
 }
 
@@ -44,15 +88,45 @@ pub trait Tweener<T> {
 #[derive(Component)]
 pub struct ComponentAnimator<T: Component>(pub Box<dyn Tweener<T> + Send + Sync>);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct AnimationProgress(f32);
 
 pub trait ReversibleEvent: Send + Sync {
-    fn forward(&mut self, commands: &mut Commands);
-    fn backward(&mut self, commands: &mut Commands);
+    fn run_forward(&mut self, commands: &mut Commands);
+    fn run_backward(&mut self, commands: &mut Commands);
 }
 
-#[derive(Component)]
+pub struct REvent<
+    F: FnMut(&mut Commands) + 'static + Send + Sync,
+    B: FnMut(&mut Commands) + 'static + Send + Sync,
+> {
+    pub fore: F,
+    pub back: B,
+}
+
+impl<
+        F: FnMut(&mut Commands) + 'static + Send + Sync,
+        B: FnMut(&mut Commands) + 'static + Send + Sync,
+    > REvent<F, B>
+{
+    pub fn boxed(fore: F, back: B) -> Box<dyn ReversibleEvent> {
+        Box::new(Self { fore, back })
+    }
+}
+
+impl<F: FnMut(&mut Commands) + Send + Sync, B: FnMut(&mut Commands) + Send + Sync> ReversibleEvent
+    for REvent<F, B>
+{
+    fn run_forward(&mut self, commands: &mut Commands) {
+        (self.fore)(commands)
+    }
+
+    fn run_backward(&mut self, commands: &mut Commands) {
+        (self.back)(commands)
+    }
+}
+
+#[derive(Component, Default)]
 pub struct AnimationEvents {
     events: Vec<(f32, Box<dyn ReversibleEvent>)>,
     prev_progress: f32,
@@ -64,16 +138,17 @@ impl AnimationEvents {
             self.events
                 .iter_mut()
                 .skip_while(|(p, _e)| *p < self.prev_progress)
-                .take_while(|(p, _e)| *p < progress)
-                .for_each(|(_p, e)| e.forward(commands));
-        } else {
+                .take_while(|(p, _e)| *p <= progress)
+                .for_each(|(_p, e)| e.run_forward(commands));
+        } else if progress < self.prev_progress {
             self.events
                 .iter_mut()
                 .rev()
-                .skip_while(|(p, _e)| *p >= self.prev_progress)
+                .skip_while(|(p, _e)| *p > self.prev_progress)
                 .take_while(|(p, _e)| *p >= progress)
-                .for_each(|(_p, e)| e.backward(commands));
+                .for_each(|(_p, e)| e.run_backward(commands));
         }
+        self.prev_progress = progress;
     }
 }
 
@@ -86,6 +161,22 @@ pub struct AnimationControl {
     pub playback_speed: f32,
     pub puppets: Vec<Entity>,
     progress_per_sec: f32,
+}
+
+impl Default for AnimationControl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AnimationControl {
+    pub fn new() -> Self {
+        Self {
+            playback_speed: 0.0,
+            puppets: vec![],
+            progress_per_sec: 0.0,
+        }
+    }
 }
 
 fn update_controllers(
