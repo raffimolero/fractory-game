@@ -1,8 +1,6 @@
 // TODO: reimplement bevy_tweening for zero fun and zero profit
 // also maybe rename this file
 
-use std::time::{Duration, Instant};
-
 use bevy::prelude::*;
 
 pub mod prelude {
@@ -108,6 +106,7 @@ fn update_controllers(
 }
 
 fn update_progress(
+    time: Res<Time>,
     mut commands: Commands,
     mut animators: Query<(
         &mut AnimationControl,
@@ -115,8 +114,9 @@ fn update_progress(
         Option<&mut AnimationEvents>,
     )>,
 ) {
+    let delta = time.delta_seconds();
     animators.for_each_mut(|(mut control, mut progress, events)| {
-        progress.0 += control.progress_per_sec * control.playback_speed;
+        progress.0 += delta * control.progress_per_sec * control.playback_speed;
         let clamped = progress.0.clamp(0.0, 1.0);
         if progress.0 != clamped {
             progress.0 = clamped;
