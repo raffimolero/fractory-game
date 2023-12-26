@@ -57,13 +57,12 @@ impl HitboxKind {
     /// - Object's GlobalTransform
     /// - Camera's GlobalTransform
     /// - Mouse's Window Position
-    pub fn contains(&self, mut p: Vec2) -> bool {
+    pub fn contains(&self, p: Vec2) -> bool {
         match self {
             HitboxKind::Rect(rect) => rect.contains(p),
             HitboxKind::Tri { r } => {
                 let top = TRI_CIRC_R * *r - p.x.abs() * TRI_SLOPE;
                 let bot = -TRI_INSC_R * *r;
-                // dbg!(top, bot);
                 (bot..top).contains(&p.y)
             }
         }

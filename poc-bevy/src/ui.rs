@@ -1,9 +1,7 @@
 //! Utility stuff for ui related stuff.
 
 pub mod prelude {
-    pub use super::hover::*;
-    pub use super::state::*;
-    pub use super::*;
+    pub use super::{hover::*, state::*, *};
 }
 
 pub mod hover;

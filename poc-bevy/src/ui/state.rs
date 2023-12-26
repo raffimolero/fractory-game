@@ -74,12 +74,6 @@ impl AnimationControlBundle {
             },
         }
     }
-
-    /// we are assuming that there are only a fixed number of starting puppets.
-    pub fn with_puppets<const N: usize>(mut self, puppets: [Entity; N]) -> Self {
-        self.control.puppets = puppets.to_vec();
-        self
-    }
 }
 
 #[derive(Bundle)]
