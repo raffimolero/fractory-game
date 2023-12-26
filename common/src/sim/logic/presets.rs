@@ -113,8 +113,8 @@ impl Planet {
     pub fn new_xyyy() -> Self {
         let xyyy = [
             ("", vec![]),
-            ("X", vec![]),
-            ("Y", vec![]),
+            ("X according to all known laws of aviation, there is no way that a bee should be able to fly. its wings are too small to et its fat little body off the ground.", vec![]),
+            ("Y according to all known laws of aviation", vec![]),
             ("Flip-Flop", flip_self_and_below_self()),
             ("Spinner", hexagon()),
             ("Rotor", rotate()),

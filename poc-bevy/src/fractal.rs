@@ -152,6 +152,7 @@ impl FractoryEntity {
             ))
             .id();
         let root_fragment = FragmentData::spawn(commands, fractory, TilePos::UNIT);
+        commands.entity(root_fragment).insert(IsHovered(false));
         commands.entity(fractory).add_child(root_fragment);
         fractory
     }
@@ -159,6 +160,7 @@ impl FractoryEntity {
 
 #[derive(Component)]
 struct Unloaded {
+    tracking: Entity,
     root: Entity,
     pos: TilePos,
 }
@@ -199,16 +201,34 @@ fn load(
                 SpriteBundle {
                     sprite: Sprite {
                         custom_size: Some(size),
+                        anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
                         ..default()
                     },
                     texture: sprite,
-                    transform: Transform::from_xyz(0.0, TRI_CENTER_OFF_Y, 0.0),
                     ..default()
                 },
+                AnimationPuppetBundle::track(unloaded.tracking),
+                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio * ratio;
+                    let scale = 1.0 - ratio;
+                    tf.scale = Vec2::splat(scale).extend(1.0);
+                    tf.rotation = Quat::from_rotation_z(TAU * ratio);
+                }),
             ))
             .id();
 
-        let tag = commands.spawn(text(name, 120.0, size)).id();
+        let text = text(name, 120.0, size);
+        let base_scale = text.transform.scale;
+        let tag = commands
+            .spawn((
+                text,
+                AnimationPuppetBundle::track(unloaded.tracking),
+                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio * ratio;
+                    tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
+                }),
+            ))
+            .id();
 
         commands
             .entity(entity)
@@ -232,20 +252,8 @@ impl FragmentData {
     //     Animator::new(shrink).with_speed(0.0)
     // }
 
-    fn spawn(
-        commands: &mut Commands,
-        root: Entity,
-        pos: TilePos,
-        // frag_animations: &FragmentAnimations,
-        // sprite: Handle<Image>,
-        // name: String,
-    ) -> Entity {
-        // let mut player = AnimationPlayer::default();
-        // player.play(frag_animations.animations[SubTile::C].clone());
-
-        // TODO: add REvents for spawning new peripheral entities
-        // abstract spawn/despawn REvent
-        // add real animations
+    fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
+        // TODO: abstract spawn/despawn REvent
 
         let fragment = commands
             .spawn((
@@ -254,20 +262,18 @@ impl FragmentData {
                     kind: HitboxKind::Tri { r: 1.0 },
                     cursor: Some(CursorIcon::Hand),
                 },
-                IsHovered(false),
                 SpatialBundle::default(),
             ))
             .id();
 
         let face = commands
             .spawn((
-                Unloaded { root, pos },
+                Unloaded {
+                    tracking: fragment,
+                    root,
+                    pos,
+                },
                 SpatialBundle::default(),
-                AnimationPuppetBundle::track(fragment),
-                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    tf.scale = Vec2::splat(1.0 - ratio).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(TAU * ratio);
-                }),
             ))
             .id();
 
@@ -280,18 +286,19 @@ impl FragmentData {
                         TRI_VERTS[2],
                         TRI_VERTS[0],
                     ]) {
-                        let rot = if st == SubTile::C { TAU / 2.0 } else { 0.0 };
-                        let tl = tl / 2.0;
+                        let is_center = st == SubTile::C;
+                        let rot = if is_center { TAU / 2.0 } else { 0.0 };
+                        let z = if is_center { -1.0 } else { -2.0 };
+                        let xy = tl / 2.0;
                         let next = commands
-                            .spawn((
-                                SpatialBundle::default(),
-                                AnimationPuppetBundle::track(fragment),
-                                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                                    tf.scale = Vec2::splat(ratio / 2.0).extend(1.0);
-                                    tf.rotation = Quat::from_rotation_z(rot + -TAU * ratio);
-                                    tf.translation = (tl * ratio).extend(ratio * 2.0 - 2.0);
-                                }),
-                            ))
+                            .spawn((SpatialBundle {
+                                transform: Transform {
+                                    rotation: Quat::from_rotation_z(rot + -TAU),
+                                    scale: Vec3::splat(0.5),
+                                    translation: xy.extend(z),
+                                },
+                                ..default()
+                            },))
                             .id();
                         let child = Self::spawn(commands, root, pos + st);
                         commands.entity(next).set_parent(fragment).add_child(child);
@@ -306,20 +313,25 @@ impl FragmentData {
             )
         };
 
+        let activate_deactivate = REvent::boxed(
+            |commands, puppets| {
+                dbg!();
+                for p in puppets.iter().copied() {
+                    commands.entity(p).insert(IsHovered(false));
+                }
+            },
+            |commands, puppets| {
+                for p in puppets.iter().copied() {
+                    commands.entity(p).remove::<IsHovered>();
+                }
+            },
+        );
+
         commands.entity(fragment).add_child(face).insert((
             AutoPause,
             AnimationControlBundle::from_events(
-                1.0,
-                [
-                    (0.0, spawn_despawn),
-                    // (
-                    //     1.0,
-                    //     REvent::boxed(
-                    //         |_, _| {}, // TODO: add hitboxes to child nodes
-                    //         |_, _| {},
-                    //     ),
-                    // ),
-                ],
+                0.5,
+                [(0.0, spawn_despawn), (0.5, activate_deactivate)],
             )
             .with_puppets([face]),
         ));
@@ -327,7 +339,9 @@ impl FragmentData {
     }
 }
 
-fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
+fn text(value: String, font_size: f32, mut bounds: Vec2) -> Text2dBundle {
+    let size = 0.5 / font_size / (value.len() as f32).sqrt();
+    bounds /= size * 2.0;
     Text2dBundle {
         text: Text {
             sections: vec![TextSection {
@@ -344,9 +358,9 @@ fn text(value: String, font_size: f32, bounds: Vec2) -> Text2dBundle {
         text_anchor: Anchor::Center,
         text_2d_bounds: Text2dBounds { size: bounds },
         transform: Transform {
-            translation: Vec3::new(0.0, 0.0, 1.0),
+            translation: Vec3::new(0.0, 0.0, 0.5),
             rotation: default(),
-            scale: Vec2::splat(0.5 / font_size).extend(1.0),
+            scale: Vec2::splat(size).extend(1.0),
         },
         ..default()
     }

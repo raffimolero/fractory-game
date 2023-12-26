@@ -107,7 +107,7 @@ fn control(
     }
 
     cam_tf.translation = *cam_tf * cursor.pos.extend(0.0);
-    cam_tf.scale *= scl;
+    cam_tf.scale *= Vec2::splat(scl).extend(1.0);
     cam_tf.rotation *= rot;
     cam_tf.translation = *cam_tf * (mov - cursor.pos).extend(0.0);
 }
