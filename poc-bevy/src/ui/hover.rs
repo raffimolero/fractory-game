@@ -1,6 +1,11 @@
-use crate::cam::MainCam;
+use crate::{cam::MainCam, debug::Blocc, io::PlanetCache};
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, window::PrimaryWindow};
+use fractory_common::sim::logic::{
+    factory::FractoryMeta,
+    planet::{BiomeId, PlanetId},
+    presets::{XYYY, XYYY_LANDING_ZONE},
+};
 
 pub const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
 pub const TRI_SLOPE: f32 = SQRT_3;
@@ -90,6 +95,14 @@ fn hover(
             .transform_point3(world_cursor_pos.extend(0.0))
             .truncate();
 
+        // let gizmo_scale = 200.0;
+        // gizmos.circle_2d(projected_cursor * gizmo_scale, 5.0, Color::RED);
+        // let verts = TRI_VERTS.map(|v| v * gizmo_scale);
+        // for i in 0..3 {
+        //     gizmos.line_2d(verts[i], verts[(i + 1) % 3], Color::ORANGE);
+        // }
+        // println!("{}", projected_cursor);
+
         if hbx.kind.contains(projected_cursor) {
             if !hovered.0 {
                 hovered.0 = true;
@@ -108,3 +121,7 @@ fn hover(
         }
     }
 }
+
+// fn on_mouse_hover(mut commands: Commands, hoverables: Query<(&IsHovered, &mut OnMouseHover), Changed<IsHovered>>) {
+//     hoverables.iter_mut()
+// }
