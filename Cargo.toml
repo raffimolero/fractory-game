@@ -6,8 +6,8 @@ members = [
   # "desktop",
   # "web",
   # "poc-linear",
-  # "poc-fractal",
-  "poc-bevy",
+  "poc-fractal",
+  # "poc-bevy",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

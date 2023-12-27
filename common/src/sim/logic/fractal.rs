@@ -134,6 +134,7 @@ impl Fractal {
         let mut out = Self::default();
         for quad in quads {
             out.register_new(*quad, true, true)?;
+            println!("{quad:?}");
         }
         out.finalize_library()
     }

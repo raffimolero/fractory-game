@@ -25,8 +25,7 @@ pub mod tiles {
     pub const SUCKER: usize = 7;
     pub const WIRE: usize = 8;
 
-    pub const LEAF_COUNT: usize = 8;
-    pub const TILE_COUNT: usize = LEAF_COUNT + 1;
+    pub const TILE_COUNT: usize = 9;
 }
 use tiles::*;
 
@@ -46,7 +45,7 @@ pub const TILES: [Tile; TILE_COUNT] = {
 
     let mut out = [Tile::SPACE; TILE_COUNT];
     let mut i = 0;
-    while i < LEAF_COUNT {
+    while i < TILE_COUNT {
         out[i] = Tile {
             id: i,
             orient: ORIENTS[i],
@@ -90,7 +89,7 @@ pub const XYYY_SPINLESS: &'static str = "Spinless";
 impl Fractal {
     pub fn new_xyyy() -> Self {
         // TODO: take fragments as argument
-        Self::new(&QUADS[1..]).unwrap()
+        Self::new(&QUADS).unwrap()
     }
 }
 
@@ -113,8 +112,8 @@ impl Planet {
     pub fn new_xyyy() -> Self {
         let xyyy = [
             ("", vec![]),
-            ("X according to all known laws of aviation, there is no way that a bee should be able to fly. its wings are too small to et its fat little body off the ground.", vec![]),
-            ("Y according to all known laws of aviation", vec![]),
+            ("X", vec![]),
+            ("Y", vec![]),
             ("Flip-Flop", flip_self_and_below_self()),
             ("Spinner", hexagon()),
             ("Rotor", rotate()),
@@ -147,7 +146,7 @@ impl Biome {
         Self {
             name: XYYY_SPINLESS.into(),
             desc: "Disables rotors and spinners.".into(),
-            fragment_filter: Filter::all(LEAF_COUNT).without(ROTOR).without(SPINNER),
+            fragment_filter: Filter::all(TILE_COUNT).without(ROTOR).without(SPINNER),
             starting_tile: TILES[Y],
         }
     }
@@ -156,7 +155,7 @@ impl Biome {
         Self {
             name: XYYY_LANDING_ZONE.into(),
             desc: "Contains every fragment.".into(),
-            fragment_filter: Filter::all(LEAF_COUNT),
+            fragment_filter: Filter::all(TILE_COUNT),
             starting_tile: TILES[X],
         }
     }

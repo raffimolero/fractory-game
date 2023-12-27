@@ -526,7 +526,9 @@ impl FractoryElement {
             Biome::new_xyyy_landing_zone(),
         );
 
-        let fractory_meta = FractoryMeta::new(planet_id, biome_id, &planet, &biome);
+        let mut fractory_meta = FractoryMeta::new(planet_id, biome_id, &planet, &biome);
+        fractory_meta.fractory = new_xyyy_fractory();
+
         let cache = FractoryCache {
             fragments: planet.fragments().to_owned(),
             biome,
@@ -747,7 +749,7 @@ impl FractalViewElement {
 
                 let pos = match pos {
                     Ok(mut pos) => {
-                        pos.push_back(subtile - orient);
+                        pos.push_inner(subtile - orient);
                         (pos.depth <= 30).then_some(pos).ok_or(pos.depth as usize)
                     }
                     Err(d) => Err(d + 1),
@@ -828,7 +830,7 @@ impl FractalViewElement {
                 depth + 1,
             );
             if let Some(mut tile_pos) = hit_pos {
-                tile_pos.push_front(subtile);
+                tile_pos.push_outer(subtile);
                 return Some(tile_pos);
             }
         }
