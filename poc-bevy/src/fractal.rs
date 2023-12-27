@@ -239,7 +239,7 @@ impl FragmentData {
             },
             move |commands, puppets| {
                 for p in puppets.drain(..) {
-                    commands.entity(p).despawn_recursive();
+                    commands.entity(p).insert(Despawn);
                 }
             },
         )

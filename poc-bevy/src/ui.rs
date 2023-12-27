@@ -12,6 +12,16 @@ use bevy::prelude::*;
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_plugins((hover::Plug, state::Plug));
+        app.add_plugins((hover::Plug, state::Plug))
+            .add_systems(PostUpdate, (despawn, apply_deferred).chain());
     }
+}
+
+#[derive(Component)]
+pub struct Despawn;
+
+fn despawn(mut commands: Commands, despawning: Query<Entity, With<Despawn>>) {
+    despawning.for_each(|e| {
+        commands.entity(e).despawn_recursive();
+    });
 }
