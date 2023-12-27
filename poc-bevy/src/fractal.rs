@@ -91,7 +91,7 @@ impl FractoryEntity {
         let root_fragment = FragmentData::spawn(commands, fractory, TilePos::UNIT);
         commands
             .entity(root_fragment)
-            .insert(IsHovered(false))
+            .try_insert(IsHovered(false))
             .set_parent(fractory);
         fractory
     }
@@ -132,7 +132,7 @@ fn load_fragments(
 
         let sprite = planet_assets.get_fragment_icon(tile.id);
 
-        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
+        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.85;
         let tringle = commands
             .spawn((
                 Hitbox {
@@ -175,7 +175,7 @@ fn load_fragments(
 
         commands
             .entity(entity)
-            .insert(transform_from_orient(tile.orient))
+            .try_insert(transform_from_orient(tile.orient))
             .push_children(&[tringle, tag])
             .remove::<Unloaded>();
     })
@@ -253,22 +253,26 @@ impl FragmentData {
             |commands, puppets| {
                 for p in puppets.iter().copied() {
                     commands.add(move |world: &mut World| {
-                        let child = world
-                            .entity(p)
-                            .get::<Children>()
-                            .expect("each puppet must have the actual fragment as a child")[0];
-                        world.entity_mut(child).insert(IsHovered(false));
+                        let Some(e) = world.get_entity(p) else {
+                            return;
+                        };
+                        let Some(children) = e.get::<Children>() else {
+                            return;
+                        };
+                        world.entity_mut(children[0]).insert(IsHovered(false));
                     });
                 }
             },
             |commands, puppets| {
                 for p in puppets.iter().copied() {
                     commands.add(move |world: &mut World| {
-                        let child = world
-                            .entity(p)
-                            .get::<Children>()
-                            .expect("each puppet must have the actual fragment as a child")[0];
-                        world.entity_mut(child).remove::<IsHovered>();
+                        let Some(e) = world.get_entity(p) else {
+                            return;
+                        };
+                        let Some(children) = e.get::<Children>() else {
+                            return;
+                        };
+                        world.entity_mut(children[0]).remove::<IsHovered>();
                     });
                 }
             },
@@ -297,7 +301,7 @@ impl FragmentData {
             ))
             .id();
 
-        commands.entity(fragment).add_child(face).insert((
+        commands.entity(fragment).add_child(face).try_insert((
             Self { root, id: 0, pos },
             AutoPause,
             AnimationControlBundle::from_events(

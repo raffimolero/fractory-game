@@ -217,7 +217,7 @@ fn update_controllers(
             }
         } else {
             for puppet in &mut control.puppets {
-                commands.entity(*puppet).insert(AnimationTracker(id));
+                commands.entity(*puppet).try_insert(AnimationTracker(id));
             }
         }
     });
