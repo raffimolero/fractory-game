@@ -14,10 +14,7 @@ use fractory_common::sim::logic::{
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, (load_fragments, fragment_hover))
-            // .add_systems(Update, load_folder.run_if(folder_is_loaded))
-        ;
+        app.add_systems(Update, (load_fragments, fragment_hover));
     }
 }
 

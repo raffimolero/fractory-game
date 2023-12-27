@@ -50,9 +50,9 @@ impl FragmentData {
     }
 }
 
+// TODO: ActivePlanet struct holding which biomes are unlocked
 #[derive(Debug)]
 pub struct Planet {
-    // icon: Icon,
     pub name: String,
     pub desc: String,
     pub fragments: FragmentData,
@@ -68,13 +68,14 @@ impl Planet {
     }
 }
 
+/// TODO: ActiveBiome struct holding which tiles are filtered
 #[derive(Debug, Clone)]
 pub struct Biome {
-    // icon: Icon,
     pub name: String,
     pub desc: String,
     pub fragment_filter: Filter,
     pub starting_tile: Tile,
+    // pub missions: Vec<Mission>,
 }
 
 impl Biome {
