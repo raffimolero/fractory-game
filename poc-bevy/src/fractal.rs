@@ -20,7 +20,6 @@ pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
         app
-            // .init_resource::<FragmentAnimations>()
             .add_systems(Startup, setup)
             .add_systems(Update, (load_fragments, fragment_hover))
             // .add_systems(Update, load_folder.run_if(folder_is_loaded));
@@ -32,8 +31,6 @@ fn setup(
     mut commands: Commands,
     mut asset_server: ResMut<AssetServer>,
     mut planets: ResMut<PlanetCache>,
-    // animations: Res<Assets<AnimationClip>>,
-    // frag_animations: Res<FragmentAnimations>,
 ) {
     FractoryEntity::spawn(
         &mut commands,
@@ -56,75 +53,9 @@ fn fragment_hover(
     let rate = delta * 8.0;
     fragments.for_each_mut(|(is_hovered, mut control, progress)| {
         control.playback_speed += rate * if is_hovered.0 { 1.0 } else { -1.0 };
-        let clamp = 0.125 + progress.0 * 7.875;
-        control.playback_speed = control.playback_speed.clamp(-clamp, clamp);
+        control.playback_speed = control.playback_speed.clamp(-1.0, 1.0);
     });
 }
-
-// #[derive(Resource)]
-// struct FragmentAnimations {
-//     names: Quad<Name>,
-//     animations: Quad<Handle<AnimationClip>>,
-// }
-
-// impl FromWorld for FragmentAnimations {
-//     fn from_world(world: &mut World) -> Self {
-//         let names = Quad([
-//             Name::new("C"),
-//             Name::new("U"),
-//             Name::new("R"),
-//             Name::new("L"),
-//         ]);
-
-//         let Some(mut animations) = world.get_resource_mut::<Assets<AnimationClip>>() else {
-//             panic!("animationclip assets not initialized yet");
-//         };
-
-//         let mut c = AnimationClip::default();
-//         c.add_curve_to_path(
-//             EntityPath {
-//                 parts: vec![names[SubTile::C].clone()],
-//             },
-//             VariableCurve {
-//                 keyframe_timestamps: vec![0.0, 1.0],
-//                 keyframes: Keyframes::Scale(vec![Vec3::ONE, Vec2::splat(0.5).extend(1.0)]),
-//             },
-//         );
-//         let c = animations.add(c);
-
-//         let mut u = AnimationClip::default();
-//         let u = animations.add(u);
-
-//         let mut r = AnimationClip::default();
-//         let r = animations.add(r);
-
-//         let mut l = AnimationClip::default();
-//         let l = animations.add(l);
-
-//         Self {
-//             names,
-//             animations: Quad([c, u, r, l]),
-//         }
-//     }
-// }
-
-// fn fragment_hover(
-//     time: Res<Time>,
-//     mut fragments: Query<(&IsHovered, &mut Animator<Transform>), With<FragmentData>>,
-// ) {
-//     let delta = time.delta();
-//     for (is_hovered, mut animator) in fragments.iter_mut() {
-//         if is_hovered.0 {
-//             animator.set_speed(1.0);
-//         } else {
-//             // HACK: manually reverse the animation
-//             animator.set_speed(0.0);
-//             let tweenable = animator.tweenable_mut();
-//             let elapsed = tweenable.elapsed();
-//             tweenable.set_elapsed(elapsed.saturating_sub(delta));
-//         }
-//     }
-// }
 
 // TODO: import fractory
 // render a tringle
@@ -220,6 +151,7 @@ fn load_fragments(
                 },
                 AnimationPuppetBundle::track(unloaded.tracking),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio;
                     let scale = 1.0 - ratio;
                     tf.scale = Vec2::splat(scale).extend(1.0);
                     tf.rotation = Quat::from_rotation_z(-TAU * ratio);
@@ -235,6 +167,7 @@ fn load_fragments(
                 text,
                 AnimationPuppetBundle::track(unloaded.tracking),
                 ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio;
                     tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
                 }),
             ))
@@ -368,7 +301,7 @@ impl FragmentData {
             Self { root, id: 0, pos },
             AutoPause,
             AnimationControlBundle::from_events(
-                0.5,
+                0.25,
                 [
                     (0.0, Self::spawn_puppet_fragments(root, pos, fragment)),
                     (0.125, Self::add_puppet_hitboxes()),
