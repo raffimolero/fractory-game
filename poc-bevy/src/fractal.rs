@@ -1,6 +1,6 @@
-use std::{f32::consts::TAU, time::Duration};
+use std::f32::consts::TAU;
 
-use crate::{debug::Blocc, io::PlanetCache, ui::prelude::*};
+use crate::{io::PlanetCache, ui::prelude::*};
 
 use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
 // use bevy_tweening::{
@@ -9,10 +9,11 @@ use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds};
 // };
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
+    orientation::{Orient, Transform as TriTf},
     path::TilePos,
     planet::{BiomeId, PlanetId},
     presets::*,
-    tile::{Quad, SubTile, Tile},
+    tile::SubTile,
 };
 
 pub struct Plug;
@@ -21,7 +22,7 @@ impl Plugin for Plug {
         app
             // .init_resource::<FragmentAnimations>()
             .add_systems(Startup, setup)
-            .add_systems(Update, (load, fragment_hover))
+            .add_systems(Update, (load_fragments, fragment_hover))
             // .add_systems(Update, load_folder.run_if(folder_is_loaded));
         ;
     }
@@ -45,13 +46,18 @@ fn setup(
 }
 
 fn fragment_hover(
+    time: Res<Time>,
     mut fragments: Query<
-        (&IsHovered, &mut AnimationControl),
-        (Changed<IsHovered>, With<FragmentData>),
+        (&IsHovered, &mut AnimationControl, &AnimationProgress),
+        With<FragmentData>,
     >,
 ) {
-    fragments.for_each_mut(|(is_hovered, mut control)| {
-        control.playback_speed = if is_hovered.0 { 1.0 } else { -1.0 };
+    let delta = time.delta_seconds();
+    let rate = delta * 8.0;
+    fragments.for_each_mut(|(is_hovered, mut control, progress)| {
+        control.playback_speed += rate * if is_hovered.0 { 1.0 } else { -1.0 };
+        let clamp = 0.125 + progress.0 * 7.875;
+        control.playback_speed = control.playback_speed.clamp(-clamp, clamp);
     });
 }
 
@@ -140,7 +146,7 @@ impl FractoryEntity {
 
         meta.fractory
             .fractal
-            .set(TilePos::UNIT, TILES[tiles::SPINNER]);
+            .set(TilePos::UNIT, TILES[tiles::SPINNER].transformed(TriTf::FR));
 
         let fractory = commands
             .spawn((
@@ -167,7 +173,7 @@ struct Unloaded {
     pos: TilePos,
 }
 
-fn load(
+fn load_fragments(
     mut commands: Commands,
     fractories: Query<&FractoryEntity>,
     planet_cache: Res<PlanetCache>,
@@ -180,7 +186,7 @@ fn load(
                 fractory root should've despawned before children."
             );
         };
-        let id = fractory.meta.fractory.fractal.get(unloaded.pos).id;
+        let tile = fractory.meta.fractory.fractal.get(unloaded.pos);
 
         let (planet_data, planet_assets) = planet_cache
             .planets
@@ -189,15 +195,20 @@ fn load(
         let name = planet_data
             .fragments()
             .names()
-            .get(id)
+            .get(tile.id)
             .cloned()
-            .unwrap_or(format!("<#{id}>"));
+            .unwrap_or(format!("<#{}>", tile.id));
 
-        let sprite = planet_assets.get_fragment_icon(id);
+        let sprite = planet_assets.get_fragment_icon(tile.id);
 
-        let size = Vec2::new(1.0, TRI_HEIGHT);
+        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
         let tringle = commands
             .spawn((
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: Some(CursorIcon::Hand),
+                },
+                IsHovered(false),
                 SpriteBundle {
                     sprite: Sprite {
                         custom_size: Some(size),
@@ -209,22 +220,21 @@ fn load(
                 },
                 AnimationPuppetBundle::track(unloaded.tracking),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
                     let scale = 1.0 - ratio;
                     tf.scale = Vec2::splat(scale).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(TAU * ratio);
+                    tf.rotation = Quat::from_rotation_z(-TAU * ratio);
                 }),
             ))
             .id();
 
         let text = text(name, 120.0, size);
+
         let base_scale = text.transform.scale;
         let tag = commands
             .spawn((
                 text,
                 AnimationPuppetBundle::track(unloaded.tracking),
                 ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
                     tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
                 }),
             ))
@@ -232,9 +242,21 @@ fn load(
 
         commands
             .entity(entity)
+            .insert(transform_from_orient(tile.orient))
             .push_children(&[tringle, tag])
             .remove::<Unloaded>();
     })
+}
+
+fn transform_from_orient(orient: Orient) -> Transform {
+    let tf = orient.to_transform();
+    let angle = tf.rotation() as u8 as f32 * TAU / 3.0;
+    let scale_x = if tf.reflected() { -1.0 } else { 1.0 };
+    Transform {
+        translation: default(),
+        rotation: Quat::from_rotation_z(angle),
+        scale: Vec3::new(scale_x, 1.0, 1.0),
+    }
 }
 
 #[derive(Component)]
@@ -245,78 +267,56 @@ pub struct FragmentData {
 }
 
 impl FragmentData {
-    // fn center_tween() -> impl Bundle {
-    //     let duration = Duration::from_millis(250);
-    //     let easing = EaseFunction::CubicInOut;
-    //     let shrink = Tween::new(easing, duration, TransformFractalLens);
-    //     Animator::new(shrink).with_speed(0.0)
-    // }
-
-    fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
+    fn spawn_puppet_fragments(
+        root: Entity,
+        pos: TilePos,
+        fragment: Entity,
+    ) -> Box<dyn ReversibleEvent> {
         // TODO: abstract spawn/despawn REvent
 
-        let fragment = commands
-            .spawn((
-                // TODO: hitbox bundle
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 0.9 },
-                    cursor: Some(CursorIcon::Hand),
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
+        REvent::boxed(
+            move |commands, puppets| {
+                for (st, tl) in SubTile::ORDER.into_iter().zip([
+                    Vec2::ZERO,
+                    TRI_VERTS[1],
+                    TRI_VERTS[2],
+                    TRI_VERTS[0],
+                ]) {
+                    let is_center = st == SubTile::C;
+                    let rot = if is_center { TAU / 2.0 } else { 0.0 };
+                    let z = if is_center { -1.0 } else { -2.0 };
+                    let xy = tl / 2.0;
+                    let puppet = commands
+                        .spawn(SpatialBundle {
+                            transform: Transform {
+                                rotation: Quat::from_rotation_z(rot + -TAU),
+                                scale: Vec3::splat(0.5),
+                                translation: xy.extend(z),
+                            },
+                            ..default()
+                        })
+                        .id();
+                    let child = Self::spawn(commands, root, pos + st);
+                    commands
+                        .entity(puppet)
+                        .set_parent(fragment)
+                        .add_child(child);
+                    puppets.push(puppet);
+                }
+            },
+            move |commands, puppets| {
+                for p in puppets.drain(..) {
+                    commands.entity(p).despawn_recursive();
+                }
+            },
+        )
+    }
 
-        let face = commands
-            .spawn((
-                Unloaded {
-                    tracking: fragment,
-                    root,
-                    pos,
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
+    fn add_puppet_hitboxes() -> Box<dyn ReversibleEvent> {
+        // TODO: abstract insert/remove REvent
+        // also abstract parent/child hierarchy traversal
 
-        let spawn_despawn = {
-            REvent::boxed(
-                move |commands, puppets| {
-                    for (st, tl) in SubTile::ORDER.into_iter().zip([
-                        Vec2::ZERO,
-                        TRI_VERTS[1],
-                        TRI_VERTS[2],
-                        TRI_VERTS[0],
-                    ]) {
-                        let is_center = st == SubTile::C;
-                        let rot = if is_center { TAU / 2.0 } else { 0.0 };
-                        let z = if is_center { -1.0 } else { -2.0 };
-                        let xy = tl / 2.0;
-                        let puppet = commands
-                            .spawn(SpatialBundle {
-                                transform: Transform {
-                                    rotation: Quat::from_rotation_z(rot + -TAU),
-                                    scale: Vec3::splat(0.5),
-                                    translation: xy.extend(z),
-                                },
-                                ..default()
-                            })
-                            .id();
-                        let child = Self::spawn(commands, root, pos + st);
-                        commands
-                            .entity(puppet)
-                            .set_parent(fragment)
-                            .add_child(child);
-                        puppets.push(puppet);
-                    }
-                },
-                move |commands, puppets| {
-                    for p in puppets.drain(..) {
-                        commands.entity(p).despawn_recursive();
-                    }
-                },
-            )
-        };
-
-        let activate_deactivate = REvent::boxed(
+        REvent::boxed(
             |commands, puppets| {
                 for p in puppets.iter().copied() {
                     commands.add(move |world: &mut World| {
@@ -339,14 +339,40 @@ impl FragmentData {
                     });
                 }
             },
-        );
+        )
+    }
+
+    fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
+        let fragment = commands
+            .spawn((
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: None,
+                },
+                SpatialBundle::default(),
+            ))
+            .id();
+
+        let face = commands
+            .spawn((
+                Unloaded {
+                    tracking: fragment,
+                    root,
+                    pos,
+                },
+                SpatialBundle::default(),
+            ))
+            .id();
 
         commands.entity(fragment).add_child(face).insert((
             Self { root, id: 0, pos },
             AutoPause,
             AnimationControlBundle::from_events(
                 0.5,
-                [(0.0, spawn_despawn), (0.25, activate_deactivate)],
+                [
+                    (0.0, Self::spawn_puppet_fragments(root, pos, fragment)),
+                    (0.125, Self::add_puppet_hitboxes()),
+                ],
             ),
         ));
         fragment

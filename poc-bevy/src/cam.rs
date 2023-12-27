@@ -86,7 +86,7 @@ fn control(
     if keys.pressed(KeyCode::Q) {
         rot -= 1.0;
     }
-    let rot = Quat::from_rotation_z(spd * delta * rot);
+    let rot = Quat::from_rotation_z(spd * delta * rot * cam_tf.scale.x.signum());
 
     let spd = 4_f32;
     let mut scl = 0.0;
@@ -106,8 +106,13 @@ fn control(
         scl *= spd.powf(-delta.y * unit);
     }
 
+    let mut scl = Vec2::splat(scl).extend(1.0);
+    if keys.just_pressed(KeyCode::F) {
+        scl.x *= -1.0;
+    }
+
     cam_tf.translation = *cam_tf * cursor.pos.extend(0.0);
-    cam_tf.scale *= Vec2::splat(scl).extend(1.0);
+    cam_tf.scale *= scl;
     cam_tf.rotation *= rot;
     cam_tf.translation = *cam_tf * (mov - cursor.pos).extend(0.0);
 }

@@ -87,7 +87,7 @@ fn hover(
     };
 
     window.cursor.icon = CursorIcon::Default;
-    let mut top = f32::MIN;
+    let mut top_with_cursor = f32::MIN;
     for (gtf, hbx, mut hovered) in hoverables.iter_mut() {
         let projected_cursor = gtf
             .affine()
@@ -108,9 +108,9 @@ fn hover(
                 hovered.0 = true;
             }
             let z = gtf.to_scale_rotation_translation().2.z;
-            if z > top {
-                top = z;
-                if let Some(cursor) = hbx.cursor {
+            if let Some(cursor) = hbx.cursor {
+                if z > top_with_cursor {
+                    top_with_cursor = z;
                     window.cursor.icon = cursor;
                 }
             }

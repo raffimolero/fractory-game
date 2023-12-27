@@ -114,7 +114,7 @@ impl<T: Component> ComponentAnimator<T> {
 }
 
 #[derive(Component, Default)]
-pub struct AnimationProgress(f32);
+pub struct AnimationProgress(pub f32);
 
 pub trait ReversibleEvent: Send + Sync {
     fn run_forward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>);
@@ -270,12 +270,14 @@ fn track_progress(
 ) {
     trackers.for_each_mut(|(tracker, mut progress)| {
         if let Ok(tracked) = tracked.get(tracker.0) {
-            progress.0 = tracked.0;
+            if progress.0 != tracked.0 {
+                progress.0 = tracked.0;
+            }
         }
     })
 }
 
-fn animate<T: Component>(
+pub fn animate<T: Component>(
     mut animators: Query<
         (&mut ComponentAnimator<T>, &mut T, &AnimationProgress),
         Changed<AnimationProgress>,
