@@ -259,7 +259,7 @@ impl FragmentData {
             .spawn((
                 // TODO: hitbox bundle
                 Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
+                    kind: HitboxKind::Tri { r: 0.9 },
                     cursor: Some(CursorIcon::Hand),
                 },
                 SpatialBundle::default(),

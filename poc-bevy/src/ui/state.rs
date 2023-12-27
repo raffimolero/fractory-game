@@ -59,7 +59,7 @@ impl AnimationControlBundle {
             let &[(t1, _), (t2, _)] = window else {
                 unreachable!()
             };
-            assert!(t1 <= t2);
+            assert!(t1 <= t2, "Animation events must be in order.");
         }
         Self {
             control: AnimationControl {
@@ -100,20 +100,6 @@ impl<T, F: FnMut(&mut T, f32)> Tweener<T> for F {
         self(target, ratio)
     }
 }
-
-// pub struct Keyframes<T> {
-//     tweens: Vec<(Progress, Box<dyn Tweener<T>>)>,
-//     prev_keyframe: usize,
-//     prev_progress: Progress,
-// }
-
-// impl<T> Tweener<T> for Keyframes<T> {
-//     fn lerp(&mut self, target: &mut T, ratio: Progress) {
-//         if self.prev_progress > ratio {
-//             self.keyframes[self.prev_keyframe + 1].0
-//         }
-//     }
-// }
 
 #[derive(Component)]
 pub struct AutoPause;
