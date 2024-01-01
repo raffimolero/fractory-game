@@ -159,12 +159,7 @@ impl FragmentElement {
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
-    fn hydrate_base(
-        commands: &mut Commands,
-        fragment: Entity,
-        face: Entity,
-        data: UnloadedFragment,
-    ) {
+    fn hydrate_base(commands: &mut Commands, base: Entity, face: Entity, data: UnloadedFragment) {
         let fragment_data = Self {
             fractory_elem: data.fractory_elem,
             pos: data.pos,
@@ -189,7 +184,7 @@ impl FragmentElement {
                         FragmentElement::spawn_puppet_fragments(
                             fragment_data.fractory_elem,
                             fragment_data.pos,
-                            fragment,
+                            base,
                         ),
                     ),
                     (0.125, FragmentElement::add_puppet_hitboxes()),
@@ -198,7 +193,7 @@ impl FragmentElement {
         );
 
         commands
-            .entity(fragment)
+            .entity(base)
             .add_child(face)
             .insert((fragment_data, hitbox, expand_animation))
             .remove::<UnloadedFragment>();
@@ -274,37 +269,29 @@ impl FragmentElement {
     fn spawn_puppet_fragments(
         fractory_elem: Entity,
         pos: TilePos,
-        fragment: Entity,
+        base: Entity,
     ) -> Box<dyn ReversibleEvent> {
         // TODO: abstract spawn/despawn REvent
 
         REvent::boxed(
             move |commands, puppets| {
-                for (st, tl) in SubTile::ORDER.into_iter().zip([
+                for (subtile, xy) in SubTile::ORDER.into_iter().zip([
                     Vec2::ZERO,
-                    TRI_VERTS[1],
-                    TRI_VERTS[2],
-                    TRI_VERTS[0],
+                    TRI_VERTS[1] / 2.0,
+                    TRI_VERTS[2] / 2.0,
+                    TRI_VERTS[0] / 2.0,
                 ]) {
-                    let is_center = st == SubTile::C;
+                    let is_center = subtile == SubTile::C;
                     let rot = if is_center { TAU / 2.0 } else { 0.0 };
                     let z = if is_center { -1.0 } else { -2.0 };
-                    let xy = tl / 2.0;
-                    let puppet = commands
-                        .spawn(SpatialBundle {
-                            transform: Transform {
-                                rotation: Quat::from_rotation_z(rot + -TAU),
-                                scale: Vec3::splat(0.5),
-                                translation: xy.extend(z),
-                            },
-                            ..default()
-                        })
-                        .id();
-                    let child = Self::spawn_unloaded(commands, fractory_elem, pos + st);
-                    commands
-                        .entity(puppet)
-                        .set_parent(fragment)
-                        .add_child(child);
+                    let puppet = Self::spawn_puppet(
+                        commands,
+                        fractory_elem,
+                        pos + subtile,
+                        xy.extend(z),
+                        rot,
+                    );
+                    commands.entity(base).add_child(puppet);
                     puppets.push(puppet);
                 }
             },
@@ -314,6 +301,28 @@ impl FragmentElement {
                 }
             },
         )
+    }
+
+    fn spawn_puppet(
+        commands: &mut Commands,
+        fractory_elem: Entity,
+        pos: TilePos,
+        translation: Vec3,
+        rotation: f32,
+    ) -> Entity {
+        let puppet = commands
+            .spawn(SpatialBundle {
+                transform: Transform {
+                    rotation: Quat::from_rotation_z(rotation),
+                    scale: Vec3::splat(0.5),
+                    translation,
+                },
+                ..default()
+            })
+            .id();
+        let child = Self::spawn_unloaded(commands, fractory_elem, pos);
+        commands.entity(puppet).add_child(child);
+        puppet
     }
 
     fn add_puppet_hitboxes() -> Box<dyn ReversibleEvent> {
