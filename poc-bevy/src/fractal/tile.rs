@@ -210,6 +210,7 @@ impl FragmentData {
         FragmentDataTemp { tile, name, sprite }
     }
 
+    /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
     fn hydrate_base(
         commands: &mut Commands,
         fragment: Entity,
@@ -221,16 +222,20 @@ impl FragmentData {
             .entity(fragment)
             .add_child(face)
             .insert((
-                FragmentData {
+                // attach fragment data
+                Self {
                     root: data.root,
                     pos: data.pos,
                     tile,
                 },
+                // attach hitboxes, *without* enabling hover until the animations let us
+                // IsHovered(false),
                 Hitbox {
                     kind: HitboxKind::Tri { r: 1.0 },
                     cursor: None,
                 },
                 SpatialBundle::default(),
+                // attach animations
                 AutoPause,
                 AnimationControlBundle::from_events(
                     0.25,
