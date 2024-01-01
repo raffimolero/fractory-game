@@ -1,6 +1,8 @@
 // TODO: reimplement bevy_tweening for zero fun and zero profit
 // also maybe rename this file
 
+use super::Despawn;
+
 use bevy::prelude::*;
 
 pub mod prelude {
@@ -150,6 +152,12 @@ impl<
 
     fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>) {
         (self.back)(commands, puppets)
+    }
+}
+
+pub fn despawn_puppets(commands: &mut Commands, puppets: &mut Vec<Entity>) {
+    for p in puppets.drain(..) {
+        commands.entity(p).insert(Despawn);
     }
 }
 

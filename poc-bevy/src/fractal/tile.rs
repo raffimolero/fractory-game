@@ -174,21 +174,17 @@ impl FragmentElement {
             SpatialBundle::default(),
         );
 
+        let spawn_puppet_fragments = FragmentElement::spawn_puppet_fragments(
+            fragment_data.fractory_elem,
+            fragment_data.pos,
+            base,
+        );
+        let add_puppet_hitboxes = FragmentElement::add_puppet_hitboxes();
         let expand_animation = (
             AutoPause,
             AnimationControlBundle::from_events(
                 0.25,
-                [
-                    (
-                        0.0,
-                        FragmentElement::spawn_puppet_fragments(
-                            fragment_data.fractory_elem,
-                            fragment_data.pos,
-                            base,
-                        ),
-                    ),
-                    (0.125, FragmentElement::add_puppet_hitboxes()),
-                ],
+                [(0.0, spawn_puppet_fragments), (0.125, add_puppet_hitboxes)],
             ),
         );
 
@@ -295,11 +291,7 @@ impl FragmentElement {
                     puppets.push(puppet);
                 }
             },
-            move |commands, puppets| {
-                for p in puppets.drain(..) {
-                    commands.entity(p).insert(Despawn);
-                }
-            },
+            despawn_puppets,
         )
     }
 
