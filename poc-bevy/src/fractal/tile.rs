@@ -210,14 +210,7 @@ impl FragmentData {
         FragmentDataTemp { tile, name, sprite }
     }
 
-    fn hydrate(
-        commands: &mut Commands,
-        fragment: Entity,
-        data: UnloadedFragment,
-        tile: Tile,
-        name: String,
-        sprite: Handle<Image>,
-    ) {
+    fn hydrate_base(commands: &mut Commands, fragment: Entity, data: UnloadedFragment, tile: Tile) {
         commands
             .entity(fragment)
             .insert((
@@ -233,6 +226,17 @@ impl FragmentData {
                 SpatialBundle::default(),
             ))
             .remove::<UnloadedFragment>();
+    }
+
+    fn hydrate(
+        commands: &mut Commands,
+        fragment: Entity,
+        data: UnloadedFragment,
+        tile: Tile,
+        name: String,
+        sprite: Handle<Image>,
+    ) {
+        Self::hydrate_base(commands, fragment, data, tile);
 
         let face = commands
             .spawn(SpatialBundle {
