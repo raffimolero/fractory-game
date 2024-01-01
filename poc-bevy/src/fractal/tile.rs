@@ -20,7 +20,7 @@ impl Plugin for Plug {
 
 fn fragment_hover(
     time: Res<Time>,
-    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentData>>,
+    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentElement>>,
 ) {
     let delta = time.delta_seconds();
     let rate = delta * 8.0;
@@ -31,12 +31,12 @@ fn fragment_hover(
 }
 
 #[derive(Component)]
-pub struct FractoryEntity {
+pub struct FractoryElement {
     meta: FractoryMeta,
     // children: HashMap<TilePos, Entity>,
 }
 
-impl FractoryEntity {
+impl FractoryElement {
     pub fn spawn(
         commands: &mut Commands,
         asset_server: &mut AssetServer,
@@ -50,7 +50,7 @@ impl FractoryEntity {
             .fractal
             .set(TilePos::UNIT, TILES[tiles::SPINNER].transformed(TriTf::FR));
 
-        let fractory = commands
+        let fractory_elem = commands
             .spawn((
                 Self { meta },
                 SpatialBundle {
@@ -59,36 +59,28 @@ impl FractoryEntity {
                 },
             ))
             .id();
-        let root_fragment = FragmentData::spawn_unloaded(commands, fractory, TilePos::UNIT);
+        let root_fragment = FragmentElement::spawn_unloaded(commands, fractory_elem, TilePos::UNIT);
         commands
             .entity(root_fragment)
             .insert(IsHovered(false))
-            .set_parent(fractory);
-        fractory
+            .set_parent(fractory_elem);
+        fractory_elem
     }
 }
 
-#[derive(Component, Clone, Copy)]
-struct UnloadedFragment {
-    root: Entity,
-    pos: TilePos,
-}
+#[derive(Component)]
+struct Unloaded;
 
 fn load_fragments(
     mut commands: Commands,
-    fractories: Query<&FractoryEntity>,
+    fractories: Query<&FractoryElement>,
     planet_cache: Res<PlanetCache>,
-    unloaded: Query<(Entity, &UnloadedFragment)>,
+    unloaded: Query<(Entity, &FragmentElement), With<Unloaded>>,
 ) {
-    unloaded.for_each(|(fragment, data)| {
-        let FragmentData {
-            root,
-            pos,
-            tile,
-            name,
-            sprite,
-        } = FragmentData::load(*data, &fractories, &planet_cache);
-        FragmentData::hydrate(&mut commands, fragment, *data, tile, name, sprite);
+    unloaded.for_each(|(entity, fragment)| {
+        let FragmentInfo { tile, name, sprite } =
+            FragmentElement::load(*fragment, &fractories, &planet_cache);
+        FragmentElement::hydrate(&mut commands, entity, *fragment, tile, name, sprite);
     });
 }
 
@@ -103,27 +95,31 @@ fn transform_from_orient(orient: Orient) -> Transform {
     }
 }
 
-#[derive(Component)]
-pub struct FragmentData {
-    pub root: Entity,
+#[derive(Component, Clone, Copy)]
+pub struct FragmentElement {
+    pub fractory_elem: Entity,
     pub pos: TilePos,
-    pub tile: Tile,
-    pub name: String,
-    pub sprite: Handle<Image>,
 }
 
-impl FragmentData {
+struct FragmentInfo {
+    tile: Tile,
+    name: String,
+    sprite: Handle<Image>,
+}
+
+impl FragmentElement {
     /// spawns an unloaded fragment entity.
-    fn spawn_unloaded(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
-        commands.spawn(UnloadedFragment { root, pos }).id()
+    fn spawn_unloaded(commands: &mut Commands, fractory_elem: Entity, pos: TilePos) -> Entity {
+        commands.spawn((Self { fractory_elem, pos }, Unloaded)).id()
     }
 
+    /// loads data needed to spawn a fragment entity.
     fn load(
-        data: UnloadedFragment,
-        fractories: &Query<&FractoryEntity>,
+        data: Self,
+        fractories: &Query<&FractoryElement>,
         planet_cache: &PlanetCache,
-    ) -> Self {
-        let Ok(fractory) = fractories.get(data.root) else {
+    ) -> FragmentInfo {
+        let Ok(fractory) = fractories.get(data.fractory_elem) else {
             panic!(
                 "attempted to access nonexistent fractory entity.\n\
                 fractory root should've despawned before children."
@@ -144,44 +140,31 @@ impl FragmentData {
 
         let sprite = planet_assets.get_fragment_icon(tile.id);
 
-        Self {
-            root: data.root,
-            pos: data.pos,
-            tile,
-            name,
-            sprite,
-        }
+        FragmentInfo { tile, name, sprite }
     }
 
     fn hydrate(
         commands: &mut Commands,
         fragment: Entity,
-        data: UnloadedFragment,
+        data: Self,
         tile: Tile,
         name: String,
         sprite: Handle<Image>,
     ) {
         let face = Self::spawn_face(commands, fragment, tile, name, sprite);
-        Self::hydrate_base(commands, fragment, face, data, tile);
+        Self::hydrate_base(commands, fragment, face, data);
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
-    fn hydrate_base(
-        commands: &mut Commands,
-        fragment: Entity,
-        face: Entity,
-        data: UnloadedFragment,
-        tile: Tile,
-    ) {
+    fn hydrate_base(commands: &mut Commands, fragment: Entity, face: Entity, data: Self) {
         commands
             .entity(fragment)
             .add_child(face)
             .insert((
                 // attach fragment data
                 Self {
-                    root: data.root,
+                    fractory_elem: data.fractory_elem,
                     pos: data.pos,
-                    tile,
                 },
                 // attach hitboxes, *without* enabling hover until the animations let us
                 // IsHovered(false),
@@ -197,13 +180,17 @@ impl FragmentData {
                     [
                         (
                             0.0,
-                            FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
+                            FragmentElement::spawn_puppet_fragments(
+                                data.fractory_elem,
+                                data.pos,
+                                fragment,
+                            ),
                         ),
-                        (0.125, FragmentData::add_puppet_hitboxes()),
+                        (0.125, FragmentElement::add_puppet_hitboxes()),
                     ],
                 ),
             ))
-            .remove::<UnloadedFragment>();
+            .remove::<Unloaded>();
     }
 
     fn spawn_face(
@@ -266,7 +253,7 @@ impl FragmentData {
     }
 
     fn spawn_puppet_fragments(
-        root: Entity,
+        fractory_elem: Entity,
         pos: TilePos,
         fragment: Entity,
     ) -> Box<dyn ReversibleEvent> {
@@ -294,7 +281,7 @@ impl FragmentData {
                             ..default()
                         })
                         .id();
-                    let child = Self::spawn_unloaded(commands, root, pos + st);
+                    let child = Self::spawn_unloaded(commands, fractory_elem, pos + st);
                     commands
                         .entity(puppet)
                         .set_parent(fragment)
