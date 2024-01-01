@@ -81,8 +81,13 @@ fn load_fragments(
     unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
     unloaded.for_each(|(fragment, data)| {
-        let FragmentDataTemp { tile, name, sprite } =
-            FragmentData::get_data(*data, &fractories, &planet_cache);
+        let FragmentData {
+            root,
+            pos,
+            tile,
+            name,
+            sprite,
+        } = FragmentData::load(*data, &fractories, &planet_cache);
         FragmentData::hydrate(&mut commands, fragment, *data, tile, name, sprite);
     });
 }
@@ -103,89 +108,21 @@ pub struct FragmentData {
     pub root: Entity,
     pub pos: TilePos,
     pub tile: Tile,
+    pub name: String,
+    pub sprite: Handle<Image>,
 }
 
 impl FragmentData {
-    fn spawn_puppet_fragments(
-        root: Entity,
-        pos: TilePos,
-        fragment: Entity,
-    ) -> Box<dyn ReversibleEvent> {
-        // TODO: abstract spawn/despawn REvent
-
-        REvent::boxed(
-            move |commands, puppets| {
-                for (st, tl) in SubTile::ORDER.into_iter().zip([
-                    Vec2::ZERO,
-                    TRI_VERTS[1],
-                    TRI_VERTS[2],
-                    TRI_VERTS[0],
-                ]) {
-                    let is_center = st == SubTile::C;
-                    let rot = if is_center { TAU / 2.0 } else { 0.0 };
-                    let z = if is_center { -1.0 } else { -2.0 };
-                    let xy = tl / 2.0;
-                    let puppet = commands
-                        .spawn(SpatialBundle {
-                            transform: Transform {
-                                rotation: Quat::from_rotation_z(rot + -TAU),
-                                scale: Vec3::splat(0.5),
-                                translation: xy.extend(z),
-                            },
-                            ..default()
-                        })
-                        .id();
-                    let child = Self::spawn_unloaded(commands, root, pos + st);
-                    commands
-                        .entity(puppet)
-                        .set_parent(fragment)
-                        .add_child(child);
-                    puppets.push(puppet);
-                }
-            },
-            move |commands, puppets| {
-                for p in puppets.drain(..) {
-                    commands.entity(p).insert(Despawn);
-                }
-            },
-        )
+    /// spawns an unloaded fragment entity.
+    fn spawn_unloaded(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
+        commands.spawn(UnloadedFragment { root, pos }).id()
     }
 
-    fn add_puppet_hitboxes() -> Box<dyn ReversibleEvent> {
-        // TODO: abstract insert/remove REvent
-        // also abstract parent/child hierarchy traversal
-
-        REvent::boxed(
-            |commands, puppets| {
-                for p in puppets.iter().copied() {
-                    commands.add(move |world: &mut World| {
-                        let child = world
-                            .entity(p)
-                            .get::<Children>()
-                            .expect("each puppet must have the actual fragment as a child")[0];
-                        world.entity_mut(child).insert(IsHovered(false));
-                    });
-                }
-            },
-            |commands, puppets| {
-                for p in puppets.iter().copied() {
-                    commands.add(move |world: &mut World| {
-                        let child = world
-                            .entity(p)
-                            .get::<Children>()
-                            .expect("each puppet must have the actual fragment as a child")[0];
-                        world.entity_mut(child).remove::<IsHovered>();
-                    });
-                }
-            },
-        )
-    }
-
-    fn get_data(
+    fn load(
         data: UnloadedFragment,
         fractories: &Query<&FractoryEntity>,
         planet_cache: &PlanetCache,
-    ) -> FragmentDataTemp {
+    ) -> Self {
         let Ok(fractory) = fractories.get(data.root) else {
             panic!(
                 "attempted to access nonexistent fractory entity.\n\
@@ -207,7 +144,25 @@ impl FragmentData {
 
         let sprite = planet_assets.get_fragment_icon(tile.id);
 
-        FragmentDataTemp { tile, name, sprite }
+        Self {
+            root: data.root,
+            pos: data.pos,
+            tile,
+            name,
+            sprite,
+        }
+    }
+
+    fn hydrate(
+        commands: &mut Commands,
+        fragment: Entity,
+        data: UnloadedFragment,
+        tile: Tile,
+        name: String,
+        sprite: Handle<Image>,
+    ) {
+        let face = Self::spawn_face(commands, fragment, tile, name, sprite);
+        Self::hydrate_base(commands, fragment, face, data, tile);
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
@@ -297,12 +252,12 @@ impl FragmentData {
         ));
     }
 
-    fn spawn_name(children: &mut ChildBuilder, fragment: Entity, size: Vec2, name: String) {
+    fn spawn_name(children: &mut ChildBuilder, base: Entity, size: Vec2, name: String) {
         let text = text(name, 120.0, size);
         let base_scale = text.transform.scale;
         children.spawn((
             text,
-            AnimationPuppetBundle::track(fragment),
+            AnimationPuppetBundle::track(base),
             ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
                 let ratio = ratio * ratio;
                 tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
@@ -310,26 +265,78 @@ impl FragmentData {
         ));
     }
 
-    fn hydrate(
-        commands: &mut Commands,
+    fn spawn_puppet_fragments(
+        root: Entity,
+        pos: TilePos,
         fragment: Entity,
-        data: UnloadedFragment,
-        tile: Tile,
-        name: String,
-        sprite: Handle<Image>,
-    ) {
-        let face = Self::spawn_face(commands, fragment, tile, name, sprite);
-        Self::hydrate_base(commands, fragment, face, data, tile);
+    ) -> Box<dyn ReversibleEvent> {
+        // TODO: abstract spawn/despawn REvent
+
+        REvent::boxed(
+            move |commands, puppets| {
+                for (st, tl) in SubTile::ORDER.into_iter().zip([
+                    Vec2::ZERO,
+                    TRI_VERTS[1],
+                    TRI_VERTS[2],
+                    TRI_VERTS[0],
+                ]) {
+                    let is_center = st == SubTile::C;
+                    let rot = if is_center { TAU / 2.0 } else { 0.0 };
+                    let z = if is_center { -1.0 } else { -2.0 };
+                    let xy = tl / 2.0;
+                    let puppet = commands
+                        .spawn(SpatialBundle {
+                            transform: Transform {
+                                rotation: Quat::from_rotation_z(rot + -TAU),
+                                scale: Vec3::splat(0.5),
+                                translation: xy.extend(z),
+                            },
+                            ..default()
+                        })
+                        .id();
+                    let child = Self::spawn_unloaded(commands, root, pos + st);
+                    commands
+                        .entity(puppet)
+                        .set_parent(fragment)
+                        .add_child(child);
+                    puppets.push(puppet);
+                }
+            },
+            move |commands, puppets| {
+                for p in puppets.drain(..) {
+                    commands.entity(p).insert(Despawn);
+                }
+            },
+        )
     }
 
-    fn spawn_unloaded(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
-        commands.spawn(UnloadedFragment { root, pos }).id()
-    }
-}
+    fn add_puppet_hitboxes() -> Box<dyn ReversibleEvent> {
+        // TODO: abstract insert/remove REvent
+        // also abstract parent/child hierarchy traversal
 
-// TODO: refactor
-struct FragmentDataTemp {
-    tile: Tile,
-    name: String,
-    sprite: Handle<Image>,
+        REvent::boxed(
+            |commands, puppets| {
+                for p in puppets.iter().copied() {
+                    commands.add(move |world: &mut World| {
+                        let child = world
+                            .entity(p)
+                            .get::<Children>()
+                            .expect("each puppet must have the actual fragment as a child")[0];
+                        world.entity_mut(child).insert(IsHovered(false));
+                    });
+                }
+            },
+            |commands, puppets| {
+                for p in puppets.iter().copied() {
+                    commands.add(move |world: &mut World| {
+                        let child = world
+                            .entity(p)
+                            .get::<Children>()
+                            .expect("each puppet must have the actual fragment as a child")[0];
+                        world.entity_mut(child).remove::<IsHovered>();
+                    });
+                }
+            },
+        )
+    }
 }
