@@ -234,53 +234,49 @@ impl FragmentData {
             ))
             .remove::<UnloadedFragment>();
 
-        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
-        let tringle = commands
-            .spawn((
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: Some(CursorIcon::Hand),
-                },
-                IsHovered(false),
-                SpriteBundle {
-                    sprite: Sprite {
-                        custom_size: Some(size),
-                        anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
-                        ..default()
-                    },
-                    texture: sprite,
-                    ..default()
-                },
-                AnimationPuppetBundle::track(fragment),
-                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    let scale = 1.0 - ratio;
-                    tf.scale = Vec2::splat(scale).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(-TAU * ratio);
-                }),
-            ))
-            .id();
-
-        let text = text(name, 120.0, size);
-
-        let base_scale = text.transform.scale;
-        let tag = commands
-            .spawn((
-                text,
-                AnimationPuppetBundle::track(fragment),
-                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
-                }),
-            ))
-            .id();
-
         let face = commands
             .spawn(SpatialBundle {
                 transform: transform_from_orient(tile.orient),
                 ..default()
             })
-            .push_children(&[tringle, tag])
+            .with_children(|children| {
+                let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
+                let _tringle = children.spawn((
+                    Hitbox {
+                        kind: HitboxKind::Tri { r: 1.0 },
+                        cursor: Some(CursorIcon::Hand),
+                    },
+                    IsHovered(false),
+                    SpriteBundle {
+                        sprite: Sprite {
+                            custom_size: Some(size),
+                            anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                            ..default()
+                        },
+                        texture: sprite,
+                        ..default()
+                    },
+                    AnimationPuppetBundle::track(fragment),
+                    ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                        let ratio = ratio * ratio;
+                        let scale = 1.0 - ratio;
+                        tf.scale = Vec2::splat(scale).extend(1.0);
+                        tf.rotation = Quat::from_rotation_z(-TAU * ratio);
+                    }),
+                ));
+
+                let text = text(name, 120.0, size);
+
+                let base_scale = text.transform.scale;
+                let _tag = children.spawn((
+                    text,
+                    AnimationPuppetBundle::track(fragment),
+                    ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                        let ratio = ratio * ratio;
+                        tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
+                    }),
+                ));
+            })
             .id();
 
         commands.entity(fragment).add_child(face).insert((
