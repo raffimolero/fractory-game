@@ -68,14 +68,17 @@ impl FractoryElement {
     }
 }
 
-#[derive(Component)]
-struct Unloaded;
+#[derive(Component, Clone, Copy)]
+struct UnloadedFragment {
+    fractory_elem: Entity,
+    pos: TilePos,
+}
 
 fn load_fragments(
     mut commands: Commands,
     fractories: Query<&FractoryElement>,
     planet_cache: Res<PlanetCache>,
-    unloaded: Query<(Entity, &FragmentElement), With<Unloaded>>,
+    unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
     unloaded.for_each(|(entity, fragment)| {
         let FragmentInfo { tile, name, sprite } =
@@ -110,12 +113,12 @@ struct FragmentInfo {
 impl FragmentElement {
     /// spawns an unloaded fragment entity.
     fn spawn_unloaded(commands: &mut Commands, fractory_elem: Entity, pos: TilePos) -> Entity {
-        commands.spawn((Self { fractory_elem, pos }, Unloaded)).id()
+        commands.spawn(UnloadedFragment { fractory_elem, pos }).id()
     }
 
     /// loads data needed to spawn a fragment entity.
     fn load(
-        data: Self,
+        data: UnloadedFragment,
         fractories: &Query<&FractoryElement>,
         planet_cache: &PlanetCache,
     ) -> FragmentInfo {
@@ -146,7 +149,7 @@ impl FragmentElement {
     fn hydrate(
         commands: &mut Commands,
         fragment: Entity,
-        data: Self,
+        data: UnloadedFragment,
         tile: Tile,
         name: String,
         sprite: Handle<Image>,
@@ -156,41 +159,49 @@ impl FragmentElement {
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
-    fn hydrate_base(commands: &mut Commands, fragment: Entity, face: Entity, data: Self) {
+    fn hydrate_base(
+        commands: &mut Commands,
+        fragment: Entity,
+        face: Entity,
+        data: UnloadedFragment,
+    ) {
+        let fragment_data = Self {
+            fractory_elem: data.fractory_elem,
+            pos: data.pos,
+        };
+
+        let hitbox = (
+            // IsHovered(false),
+            Hitbox {
+                kind: HitboxKind::Tri { r: 1.0 },
+                cursor: None,
+            },
+            SpatialBundle::default(),
+        );
+
+        let expand_animation = (
+            AutoPause,
+            AnimationControlBundle::from_events(
+                0.25,
+                [
+                    (
+                        0.0,
+                        FragmentElement::spawn_puppet_fragments(
+                            fragment_data.fractory_elem,
+                            fragment_data.pos,
+                            fragment,
+                        ),
+                    ),
+                    (0.125, FragmentElement::add_puppet_hitboxes()),
+                ],
+            ),
+        );
+
         commands
             .entity(fragment)
             .add_child(face)
-            .insert((
-                // attach fragment data
-                Self {
-                    fractory_elem: data.fractory_elem,
-                    pos: data.pos,
-                },
-                // attach hitboxes, *without* enabling hover until the animations let us
-                // IsHovered(false),
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: None,
-                },
-                SpatialBundle::default(),
-                // attach animations
-                AutoPause,
-                AnimationControlBundle::from_events(
-                    0.25,
-                    [
-                        (
-                            0.0,
-                            FragmentElement::spawn_puppet_fragments(
-                                data.fractory_elem,
-                                data.pos,
-                                fragment,
-                            ),
-                        ),
-                        (0.125, FragmentElement::add_puppet_hitboxes()),
-                    ],
-                ),
-            ))
-            .remove::<Unloaded>();
+            .insert((fragment_data, hitbox, expand_animation))
+            .remove::<UnloadedFragment>();
     }
 
     fn spawn_face(
@@ -214,21 +225,25 @@ impl FragmentElement {
     }
 
     fn spawn_tringle(children: &mut ChildBuilder, base: Entity, size: Vec2, sprite: Handle<Image>) {
-        children.spawn((
+        let hitbox = (
             Hitbox {
                 kind: HitboxKind::Tri { r: 1.0 },
                 cursor: Some(CursorIcon::Hand),
             },
             IsHovered(false),
-            SpriteBundle {
-                sprite: Sprite {
-                    custom_size: Some(size),
-                    anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
-                    ..default()
-                },
-                texture: sprite,
+        );
+
+        let sprite = SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(size),
+                anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
                 ..default()
             },
+            texture: sprite,
+            ..default()
+        };
+
+        let reveal_animation = (
             AnimationPuppetBundle::track(base),
             ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
                 let ratio = ratio * ratio;
@@ -236,20 +251,24 @@ impl FragmentElement {
                 tf.scale = Vec2::splat(scale).extend(1.0);
                 tf.rotation = Quat::from_rotation_z(-TAU * ratio);
             }),
-        ));
+        );
+
+        children.spawn((hitbox, sprite, reveal_animation));
     }
 
     fn spawn_name(children: &mut ChildBuilder, base: Entity, size: Vec2, name: String) {
         let text = text(name, 120.0, size);
+
         let base_scale = text.transform.scale;
-        children.spawn((
-            text,
+        let reveal_animation = (
             AnimationPuppetBundle::track(base),
             ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
                 let ratio = ratio * ratio;
                 tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
             }),
-        ));
+        );
+
+        children.spawn((text, reveal_animation));
     }
 
     fn spawn_puppet_fragments(

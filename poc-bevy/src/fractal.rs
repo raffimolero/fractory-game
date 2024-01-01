@@ -1,7 +1,7 @@
 mod step;
 mod tile;
 
-use self::tile::FractoryEntity;
+use self::tile::FractoryElement;
 use crate::io::PlanetCache;
 
 use bevy::prelude::*;
@@ -19,7 +19,7 @@ fn setup(
     mut asset_server: ResMut<AssetServer>,
     mut planets: ResMut<PlanetCache>,
 ) {
-    FractoryEntity::spawn(
+    FractoryElement::spawn(
         &mut commands,
         &mut asset_server,
         &mut planets,

@@ -410,4 +410,10 @@ pub struct CleanMoveList {
     inner: RawMoveList,
 }
 
+impl CleanMoveList {
+    pub fn moves(&self) -> &[(TilePos, (TilePos, Transform))] {
+        &self.inner.moves
+    }
+}
+
 // TODO: double check all pub visibilities
