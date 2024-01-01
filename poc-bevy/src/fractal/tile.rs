@@ -228,17 +228,14 @@ impl FragmentData {
             .remove::<UnloadedFragment>();
     }
 
-    fn hydrate(
+    fn hydrate_face(
         commands: &mut Commands,
         fragment: Entity,
-        data: UnloadedFragment,
         tile: Tile,
         name: String,
         sprite: Handle<Image>,
-    ) {
-        Self::hydrate_base(commands, fragment, data, tile);
-
-        let face = commands
+    ) -> Entity {
+        commands
             .spawn(SpatialBundle {
                 transform: transform_from_orient(tile.orient),
                 ..default()
@@ -281,7 +278,19 @@ impl FragmentData {
                     }),
                 ));
             })
-            .id();
+            .id()
+    }
+
+    fn hydrate(
+        commands: &mut Commands,
+        fragment: Entity,
+        data: UnloadedFragment,
+        tile: Tile,
+        name: String,
+        sprite: Handle<Image>,
+    ) {
+        Self::hydrate_base(commands, fragment, data, tile);
+        let face = Self::hydrate_face(commands, fragment, tile, name, sprite);
 
         commands.entity(fragment).add_child(face).insert((
             AutoPause,
