@@ -161,6 +161,7 @@ pub fn despawn_puppets(commands: &mut Commands, puppets: &mut Vec<Entity>) {
     }
 }
 
+// TODO: get rid of many Box<dyn ReversibleEvent> usages by using Box<dyn ReversibleEventList>
 #[derive(Component, Default)]
 pub struct AnimationEvents {
     events: Vec<(f32, Box<dyn ReversibleEvent>)>,
