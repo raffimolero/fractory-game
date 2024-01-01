@@ -251,9 +251,9 @@ impl FragmentData {
             .remove::<UnloadedFragment>();
     }
 
-    fn hydrate_face(
+    fn spawn_face(
         commands: &mut Commands,
-        fragment: Entity,
+        base: Entity,
         tile: Tile,
         name: String,
         sprite: Handle<Image>,
@@ -265,43 +265,49 @@ impl FragmentData {
             })
             .with_children(|children| {
                 let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
-                let _tringle = children.spawn((
-                    Hitbox {
-                        kind: HitboxKind::Tri { r: 1.0 },
-                        cursor: Some(CursorIcon::Hand),
-                    },
-                    IsHovered(false),
-                    SpriteBundle {
-                        sprite: Sprite {
-                            custom_size: Some(size),
-                            anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
-                            ..default()
-                        },
-                        texture: sprite,
-                        ..default()
-                    },
-                    AnimationPuppetBundle::track(fragment),
-                    ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                        let ratio = ratio * ratio;
-                        let scale = 1.0 - ratio;
-                        tf.scale = Vec2::splat(scale).extend(1.0);
-                        tf.rotation = Quat::from_rotation_z(-TAU * ratio);
-                    }),
-                ));
-
-                let text = text(name, 120.0, size);
-
-                let base_scale = text.transform.scale;
-                let _tag = children.spawn((
-                    text,
-                    AnimationPuppetBundle::track(fragment),
-                    ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                        let ratio = ratio * ratio;
-                        tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
-                    }),
-                ));
+                Self::spawn_tringle(children, base, size, sprite);
+                Self::spawn_name(children, base, size, name);
             })
             .id()
+    }
+
+    fn spawn_tringle(children: &mut ChildBuilder, base: Entity, size: Vec2, sprite: Handle<Image>) {
+        children.spawn((
+            Hitbox {
+                kind: HitboxKind::Tri { r: 1.0 },
+                cursor: Some(CursorIcon::Hand),
+            },
+            IsHovered(false),
+            SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(size),
+                    anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                    ..default()
+                },
+                texture: sprite,
+                ..default()
+            },
+            AnimationPuppetBundle::track(base),
+            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                let ratio = ratio * ratio;
+                let scale = 1.0 - ratio;
+                tf.scale = Vec2::splat(scale).extend(1.0);
+                tf.rotation = Quat::from_rotation_z(-TAU * ratio);
+            }),
+        ));
+    }
+
+    fn spawn_name(children: &mut ChildBuilder, fragment: Entity, size: Vec2, name: String) {
+        let text = text(name, 120.0, size);
+        let base_scale = text.transform.scale;
+        children.spawn((
+            text,
+            AnimationPuppetBundle::track(fragment),
+            ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                let ratio = ratio * ratio;
+                tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
+            }),
+        ));
     }
 
     fn hydrate(
@@ -312,7 +318,7 @@ impl FragmentData {
         name: String,
         sprite: Handle<Image>,
     ) {
-        let face = Self::hydrate_face(commands, fragment, tile, name, sprite);
+        let face = Self::spawn_face(commands, fragment, tile, name, sprite);
         Self::hydrate_base(commands, fragment, face, data, tile);
     }
 
