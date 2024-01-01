@@ -33,6 +33,7 @@ fn fragment_hover(
 #[derive(Component)]
 pub struct FractoryEntity {
     meta: FractoryMeta,
+    // children: HashMap<TilePos, Entity>,
 }
 
 impl FractoryEntity {
@@ -68,8 +69,7 @@ impl FractoryEntity {
 }
 
 #[derive(Component)]
-struct Unloaded {
-    tracking: Entity,
+struct UnloadedFragment {
     root: Entity,
     pos: TilePos,
 }
@@ -78,16 +78,16 @@ fn load_fragments(
     mut commands: Commands,
     fractories: Query<&FractoryEntity>,
     planet_cache: Res<PlanetCache>,
-    unloaded: Query<(Entity, &Unloaded)>,
+    unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
-    unloaded.for_each(|(entity, unloaded)| {
-        let Ok(fractory) = fractories.get(unloaded.root) else {
+    unloaded.for_each(|(fragment, data)| {
+        let Ok(fractory) = fractories.get(data.root) else {
             panic!(
                 "attempted to access nonexistent fractory entity.\n\
                 fractory root should've despawned before children."
             );
         };
-        let tile = fractory.meta.fractory.fractal.get(unloaded.pos);
+        let tile = fractory.meta.fractory.fractal.get(data.pos);
 
         let (planet_data, planet_assets) = planet_cache
             .planets
@@ -101,6 +101,22 @@ fn load_fragments(
             .unwrap_or(format!("<#{}>", tile.id));
 
         let sprite = planet_assets.get_fragment_icon(tile.id);
+
+        commands
+            .entity(fragment)
+            .insert((
+                FragmentData {
+                    root: data.root,
+                    id: tile.id,
+                    pos: data.pos,
+                },
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: None,
+                },
+                SpatialBundle::default(),
+            ))
+            .remove::<UnloadedFragment>();
 
         let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
         let tringle = commands
@@ -119,7 +135,7 @@ fn load_fragments(
                     texture: sprite,
                     ..default()
                 },
-                AnimationPuppetBundle::track(unloaded.tracking),
+                AnimationPuppetBundle::track(fragment),
                 ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
                     let ratio = ratio * ratio;
                     let scale = 1.0 - ratio;
@@ -135,7 +151,7 @@ fn load_fragments(
         let tag = commands
             .spawn((
                 text,
-                AnimationPuppetBundle::track(unloaded.tracking),
+                AnimationPuppetBundle::track(fragment),
                 ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
                     let ratio = ratio * ratio;
                     tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
@@ -143,12 +159,28 @@ fn load_fragments(
             ))
             .id();
 
-        commands
-            .entity(entity)
-            .insert(transform_from_orient(tile.orient))
+        let face = commands
+            .spawn(SpatialBundle {
+                transform: transform_from_orient(tile.orient),
+                ..default()
+            })
             .push_children(&[tringle, tag])
-            .remove::<Unloaded>();
-    })
+            .id();
+
+        commands.entity(fragment).add_child(face).insert((
+            AutoPause,
+            AnimationControlBundle::from_events(
+                0.25,
+                [
+                    (
+                        0.0,
+                        FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
+                    ),
+                    (0.125, FragmentData::add_puppet_hitboxes()),
+                ],
+            ),
+        ));
+    });
 }
 
 fn transform_from_orient(orient: Orient) -> Transform {
@@ -246,38 +278,6 @@ impl FragmentData {
     }
 
     fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
-        let fragment = commands
-            .spawn((
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: None,
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
-
-        let face = commands
-            .spawn((
-                Unloaded {
-                    tracking: fragment,
-                    root,
-                    pos,
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
-
-        commands.entity(fragment).add_child(face).insert((
-            Self { root, id: 0, pos },
-            AutoPause,
-            AnimationControlBundle::from_events(
-                0.25,
-                [
-                    (0.0, Self::spawn_puppet_fragments(root, pos, fragment)),
-                    (0.125, Self::add_puppet_hitboxes()),
-                ],
-            ),
-        ));
-        fragment
+        commands.spawn(UnloadedFragment { root, pos }).id()
     }
 }

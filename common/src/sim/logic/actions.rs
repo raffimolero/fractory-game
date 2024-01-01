@@ -162,7 +162,7 @@ pub(crate) use tree;
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RawMoveList {
-    moves: Vec<(TilePos, (TilePos, Transform))>,
+    pub moves: Vec<(TilePos, (TilePos, Transform))>,
 }
 
 // TODO: figure out how to make the coupling with the fractal quadtree clearer,

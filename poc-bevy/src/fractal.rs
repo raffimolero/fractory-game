@@ -1,3 +1,4 @@
+mod step;
 mod tile;
 
 use self::tile::FractoryEntity;
