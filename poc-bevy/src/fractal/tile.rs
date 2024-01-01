@@ -59,7 +59,7 @@ impl FractoryEntity {
                 },
             ))
             .id();
-        let root_fragment = FragmentData::spawn(commands, fractory, TilePos::UNIT);
+        let root_fragment = FragmentData::spawn_unloaded(commands, fractory, TilePos::UNIT);
         commands
             .entity(root_fragment)
             .insert(IsHovered(false))
@@ -102,7 +102,7 @@ fn transform_from_orient(orient: Orient) -> Transform {
 pub struct FragmentData {
     pub root: Entity,
     pub pos: TilePos,
-    pub id: usize,
+    pub tile: Tile,
 }
 
 impl FragmentData {
@@ -135,7 +135,7 @@ impl FragmentData {
                             ..default()
                         })
                         .id();
-                    let child = Self::spawn(commands, root, pos + st);
+                    let child = Self::spawn_unloaded(commands, root, pos + st);
                     commands
                         .entity(puppet)
                         .set_parent(fragment)
@@ -224,7 +224,7 @@ impl FragmentData {
                 FragmentData {
                     root: data.root,
                     pos: data.pos,
-                    id: tile.id,
+                    tile,
                 },
                 Hitbox {
                     kind: HitboxKind::Tri { r: 1.0 },
@@ -294,7 +294,7 @@ impl FragmentData {
         ));
     }
 
-    fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
+    fn spawn_unloaded(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
         commands.spawn(UnloadedFragment { root, pos }).id()
     }
 }
