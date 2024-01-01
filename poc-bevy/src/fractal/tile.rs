@@ -8,7 +8,7 @@ use fractory_common::sim::logic::{
     path::TilePos,
     planet::{BiomeId, PlanetId},
     presets::*,
-    tile::SubTile,
+    tile::{SubTile, Tile},
 };
 
 pub struct Plug;
@@ -68,7 +68,7 @@ impl FractoryEntity {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct UnloadedFragment {
     root: Entity,
     pos: TilePos,
@@ -81,34 +81,15 @@ fn load_fragments(
     unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
     unloaded.for_each(|(fragment, data)| {
-        let Ok(fractory) = fractories.get(data.root) else {
-            panic!(
-                "attempted to access nonexistent fractory entity.\n\
-                fractory root should've despawned before children."
-            );
-        };
-        let tile = fractory.meta.fractory.fractal.get(data.pos);
-
-        let (planet_data, planet_assets) = planet_cache
-            .planets
-            .get(&fractory.meta.planet)
-            .expect("Planets should be loaded by now.");
-        let name = planet_data
-            .fragments()
-            .names()
-            .get(tile.id)
-            .cloned()
-            .unwrap_or(format!("<#{}>", tile.id));
-
-        let sprite = planet_assets.get_fragment_icon(tile.id);
-
+        let FragmentDataTemp { tile, name, sprite } =
+            FragmentData::get_data(*data, &fractories, &planet_cache);
         commands
             .entity(fragment)
             .insert((
                 FragmentData {
                     root: data.root,
-                    id: tile.id,
                     pos: data.pos,
+                    id: tile.id,
                 },
                 Hitbox {
                     kind: HitboxKind::Tri { r: 1.0 },
@@ -197,8 +178,8 @@ fn transform_from_orient(orient: Orient) -> Transform {
 #[derive(Component)]
 pub struct FragmentData {
     pub root: Entity,
-    pub id: usize,
     pub pos: TilePos,
+    pub id: usize,
 }
 
 impl FragmentData {
@@ -277,7 +258,43 @@ impl FragmentData {
         )
     }
 
+    fn get_data(
+        data: UnloadedFragment,
+        fractories: &Query<&FractoryEntity>,
+        planet_cache: &PlanetCache,
+    ) -> FragmentDataTemp {
+        let Ok(fractory) = fractories.get(data.root) else {
+            panic!(
+                "attempted to access nonexistent fractory entity.\n\
+                fractory root should've despawned before children."
+            );
+        };
+        let tile = fractory.meta.fractory.fractal.get(data.pos);
+
+        let (planet_data, planet_assets) = planet_cache
+            .planets
+            .get(&fractory.meta.planet)
+            .expect("Planets should be loaded by now.");
+        let name = planet_data
+            .fragments()
+            .names()
+            .get(tile.id)
+            .cloned()
+            .unwrap_or(format!("<#{}>", tile.id));
+
+        let sprite = planet_assets.get_fragment_icon(tile.id);
+
+        FragmentDataTemp { tile, name, sprite }
+    }
+
     fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
         commands.spawn(UnloadedFragment { root, pos }).id()
     }
+}
+
+// TODO: refactor
+struct FragmentDataTemp {
+    tile: Tile,
+    name: String,
+    sprite: Handle<Image>,
 }
