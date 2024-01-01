@@ -210,9 +210,16 @@ impl FragmentData {
         FragmentDataTemp { tile, name, sprite }
     }
 
-    fn hydrate_base(commands: &mut Commands, fragment: Entity, data: UnloadedFragment, tile: Tile) {
+    fn hydrate_base(
+        commands: &mut Commands,
+        fragment: Entity,
+        face: Entity,
+        data: UnloadedFragment,
+        tile: Tile,
+    ) {
         commands
             .entity(fragment)
+            .add_child(face)
             .insert((
                 FragmentData {
                     root: data.root,
@@ -224,6 +231,17 @@ impl FragmentData {
                     cursor: None,
                 },
                 SpatialBundle::default(),
+                AutoPause,
+                AnimationControlBundle::from_events(
+                    0.25,
+                    [
+                        (
+                            0.0,
+                            FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
+                        ),
+                        (0.125, FragmentData::add_puppet_hitboxes()),
+                    ],
+                ),
             ))
             .remove::<UnloadedFragment>();
     }
@@ -289,22 +307,8 @@ impl FragmentData {
         name: String,
         sprite: Handle<Image>,
     ) {
-        Self::hydrate_base(commands, fragment, data, tile);
         let face = Self::hydrate_face(commands, fragment, tile, name, sprite);
-
-        commands.entity(fragment).add_child(face).insert((
-            AutoPause,
-            AnimationControlBundle::from_events(
-                0.25,
-                [
-                    (
-                        0.0,
-                        FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
-                    ),
-                    (0.125, FragmentData::add_puppet_hitboxes()),
-                ],
-            ),
-        ));
+        Self::hydrate_base(commands, fragment, face, data, tile);
     }
 
     fn spawn_unloaded(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
