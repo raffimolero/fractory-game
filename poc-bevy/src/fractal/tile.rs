@@ -83,84 +83,7 @@ fn load_fragments(
     unloaded.for_each(|(fragment, data)| {
         let FragmentDataTemp { tile, name, sprite } =
             FragmentData::get_data(*data, &fractories, &planet_cache);
-        commands
-            .entity(fragment)
-            .insert((
-                FragmentData {
-                    root: data.root,
-                    pos: data.pos,
-                    id: tile.id,
-                },
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: None,
-                },
-                SpatialBundle::default(),
-            ))
-            .remove::<UnloadedFragment>();
-
-        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
-        let tringle = commands
-            .spawn((
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: Some(CursorIcon::Hand),
-                },
-                IsHovered(false),
-                SpriteBundle {
-                    sprite: Sprite {
-                        custom_size: Some(size),
-                        anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
-                        ..default()
-                    },
-                    texture: sprite,
-                    ..default()
-                },
-                AnimationPuppetBundle::track(fragment),
-                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    let scale = 1.0 - ratio;
-                    tf.scale = Vec2::splat(scale).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(-TAU * ratio);
-                }),
-            ))
-            .id();
-
-        let text = text(name, 120.0, size);
-
-        let base_scale = text.transform.scale;
-        let tag = commands
-            .spawn((
-                text,
-                AnimationPuppetBundle::track(fragment),
-                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
-                }),
-            ))
-            .id();
-
-        let face = commands
-            .spawn(SpatialBundle {
-                transform: transform_from_orient(tile.orient),
-                ..default()
-            })
-            .push_children(&[tringle, tag])
-            .id();
-
-        commands.entity(fragment).add_child(face).insert((
-            AutoPause,
-            AnimationControlBundle::from_events(
-                0.25,
-                [
-                    (
-                        0.0,
-                        FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
-                    ),
-                    (0.125, FragmentData::add_puppet_hitboxes()),
-                ],
-            ),
-        ));
+        FragmentData::hydrate(&mut commands, fragment, *data, tile, name, sprite);
     });
 }
 
@@ -285,6 +208,94 @@ impl FragmentData {
         let sprite = planet_assets.get_fragment_icon(tile.id);
 
         FragmentDataTemp { tile, name, sprite }
+    }
+
+    fn hydrate(
+        commands: &mut Commands,
+        fragment: Entity,
+        data: UnloadedFragment,
+        tile: Tile,
+        name: String,
+        sprite: Handle<Image>,
+    ) {
+        commands
+            .entity(fragment)
+            .insert((
+                FragmentData {
+                    root: data.root,
+                    pos: data.pos,
+                    id: tile.id,
+                },
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: None,
+                },
+                SpatialBundle::default(),
+            ))
+            .remove::<UnloadedFragment>();
+
+        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
+        let tringle = commands
+            .spawn((
+                Hitbox {
+                    kind: HitboxKind::Tri { r: 1.0 },
+                    cursor: Some(CursorIcon::Hand),
+                },
+                IsHovered(false),
+                SpriteBundle {
+                    sprite: Sprite {
+                        custom_size: Some(size),
+                        anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                        ..default()
+                    },
+                    texture: sprite,
+                    ..default()
+                },
+                AnimationPuppetBundle::track(fragment),
+                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio;
+                    let scale = 1.0 - ratio;
+                    tf.scale = Vec2::splat(scale).extend(1.0);
+                    tf.rotation = Quat::from_rotation_z(-TAU * ratio);
+                }),
+            ))
+            .id();
+
+        let text = text(name, 120.0, size);
+
+        let base_scale = text.transform.scale;
+        let tag = commands
+            .spawn((
+                text,
+                AnimationPuppetBundle::track(fragment),
+                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+                    let ratio = ratio * ratio;
+                    tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
+                }),
+            ))
+            .id();
+
+        let face = commands
+            .spawn(SpatialBundle {
+                transform: transform_from_orient(tile.orient),
+                ..default()
+            })
+            .push_children(&[tringle, tag])
+            .id();
+
+        commands.entity(fragment).add_child(face).insert((
+            AutoPause,
+            AnimationControlBundle::from_events(
+                0.25,
+                [
+                    (
+                        0.0,
+                        FragmentData::spawn_puppet_fragments(data.root, data.pos, fragment),
+                    ),
+                    (0.125, FragmentData::add_puppet_hitboxes()),
+                ],
+            ),
+        ));
     }
 
     fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
