@@ -9,7 +9,7 @@ use bevy::{prelude::*, sprite::Anchor};
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
     fractal::TileFill,
-    orientation::{Orient, Transform as TriTf},
+    orientation::Orient,
     path::TilePos,
     planet::{BiomeId, PlanetId},
     presets::*,
@@ -145,25 +145,28 @@ fn check_fragment_expansion(
         &FragmentElement,
         &IsHovered,
         &GlobalTransform,
+        &ViewVisibility,
         &mut AnimationDestination,
     )>,
 ) {
     let (cam_gtf, frac_cam) = camera.single();
     let cam_scale = cam_gtf.to_scale_rotation_translation().0.y;
 
-    fragments.for_each_mut(|(fragment, is_hovered, gtf, mut destination)| {
-        let frag_scale = gtf.to_scale_rotation_translation().0.y;
-        let relative_depth = (cam_scale / frag_scale).log2() + 10.0;
+    fragments.for_each_mut(|(fragment, is_hovered, gtf, visibility, mut destination)| {
+        let should_expand = visibility.get() && {
+            let frag_scale = gtf.to_scale_rotation_translation().0.y;
+            let relative_depth = (cam_scale / frag_scale).log2() + 10.0;
 
-        let threshold = if is_hovered.0 {
-            frac_cam.mouse_depth
-        } else if fragment.fill.is_leaf() {
-            frac_cam.min_bg_depth
-        } else {
-            frac_cam.max_bg_depth
+            let threshold = if is_hovered.0 {
+                frac_cam.mouse_depth
+            } else if fragment.fill.is_leaf() {
+                frac_cam.min_bg_depth
+            } else {
+                frac_cam.max_bg_depth
+            };
+
+            relative_depth < threshold
         };
-
-        let should_expand = relative_depth < threshold;
 
         *destination = if should_expand {
             AnimationDestination::End
