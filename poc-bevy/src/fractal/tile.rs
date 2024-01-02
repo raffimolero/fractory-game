@@ -39,10 +39,7 @@ impl FractoryElement {
     ) -> Entity {
         let mut meta = planets.new_fractory(asset_server, planet, biome);
 
-        meta.fractory.fractal.set(
-            TilePos::UNIT + SubTile::U,
-            TILES[tiles::SPINNER].transformed(TriTf::FR),
-        );
+        init_xyyy_fractory(&mut meta.fractory, Config::TestGrowFarm);
 
         let fractory_elem = commands
             .spawn((

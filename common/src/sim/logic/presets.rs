@@ -100,8 +100,10 @@ impl FractoryMeta {
         // let biome_id = BiomeId::from(XYYY_SPINLESS);
         let biome_id = BiomeId::from(XYYY_LANDING_ZONE);
         planets.register(planet_id.clone(), xyyy);
+        let mut fractory = Fractory::new(&Planet::new_xyyy(), &Biome::new_xyyy_landing_zone());
+        init_xyyy_fractory(&mut fractory, Config::TestGrowFarm);
         Self {
-            fractory: new_xyyy_fractory(),
+            fractory,
             planet: planet_id,
             biome: biome_id,
         }
@@ -323,28 +325,23 @@ impl FromStr for Preset {
     }
 }
 
-pub fn new_xyyy_fractory() -> Fractory {
-    let mut out = Fractory {
-        fractal: Fractal::new_xyyy(),
-        activated: ActiveTiles::new(),
-        inventory: BTreeMap::new(),
-    };
+pub enum Config {
+    Empty,
+    TestZ,
+    TestW,
+    TestRotor,
+    TestGrowFarm,
+    TestGrowBug,
+    TestActiveBug,
+}
 
-    enum Config {
-        Empty,
-        TestZ,
-        TestW,
-        TestRotor,
-        TestGrowFarm,
-        TestGrowBug,
-        TestActiveBug,
-    }
-    let config = Config::TestGrowFarm;
-
+pub fn init_xyyy_fractory(fractory: &mut Fractory, config: Config) {
+    fractory.fractal.set(TilePos::UNIT, TILES[SPACE]);
+    fractory.activated = ActiveTiles::new();
     match config {
         Config::Empty => {}
         Config::TestZ => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 1,
                     pos: (0, 0).into(),
@@ -353,7 +350,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[FLIP_FLOP],
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 1,
                     pos: (0, 0).into(),
@@ -361,13 +358,13 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[FLIP_FLOP] + KR,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 1,
                 pos: (0, 0).into(),
                 flop: true,
             });
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 1,
                     pos: (0, 1).into(),
@@ -375,7 +372,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[FLIP_FLOP],
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 2,
                     pos: (0, 3).into(),
@@ -384,7 +381,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[X],
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 1,
                     pos: (1, 1).into(),
@@ -392,7 +389,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[FLIP_FLOP],
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 2,
                     pos: (2, 3).into(),
@@ -402,7 +399,7 @@ pub fn new_xyyy_fractory() -> Fractory {
             );
         }
         Config::TestW => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (3, 5).into(),
@@ -410,7 +407,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER],
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (3, 5).into(),
@@ -418,13 +415,13 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPACE],
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (3, 5).into(),
                 flop: false,
             });
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -432,14 +429,14 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER],
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (1, 2).into(),
                 flop: false,
             });
         }
         Config::TestRotor => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -448,7 +445,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[ROTOR],
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -456,14 +453,14 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER] + KR,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (1, 2).into(),
                 flop: true,
             });
         }
         Config::TestGrowFarm => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (0, 1).into(),
@@ -471,7 +468,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER],
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (0, 1).into(),
@@ -479,12 +476,12 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[WIRE] + KL,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (0, 1).into(),
                 flop: true,
             });
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -492,7 +489,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[GROWER],
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -501,7 +498,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[X],
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (2, 6).into(),
@@ -509,7 +506,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SUCKER] + KL,
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (3, 7).into(),
@@ -517,7 +514,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SUCKER] + KL,
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (2, 7).into(),
@@ -525,12 +522,12 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[WIRE],
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 4,
                 pos: (2, 7).into(),
                 flop: false,
             });
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (1, 6).into(),
@@ -538,7 +535,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER] + KR,
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (2, 6).into(),
@@ -547,7 +544,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[WIRE] + KL,
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (4, 6).into(),
@@ -555,7 +552,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SUCKER] + KR,
             );
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (4, 7).into(),
@@ -563,12 +560,12 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER] + KL,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 4,
                 pos: (4, 7).into(),
                 flop: false,
             });
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (4, 6).into(),
@@ -578,7 +575,7 @@ pub fn new_xyyy_fractory() -> Fractory {
             );
         }
         Config::TestGrowBug => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (1, 2).into(),
@@ -586,12 +583,12 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[GROWER] + KR,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (1, 2).into(),
                 flop: false,
             });
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (1, 4).into(),
@@ -600,7 +597,7 @@ pub fn new_xyyy_fractory() -> Fractory {
                 TILES[X],
             );
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 3,
                     pos: (2, 2).into(),
@@ -608,12 +605,12 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[GROWER],
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 3,
                 pos: (2, 2).into(),
                 flop: false,
             });
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (5, 6).into(),
@@ -623,7 +620,7 @@ pub fn new_xyyy_fractory() -> Fractory {
             );
         }
         Config::TestActiveBug => {
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (2, 5).into(),
@@ -631,13 +628,13 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER],
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 4,
                 pos: (2, 5).into(),
                 flop: true,
             });
 
-            out.fractal.set(
+            fractory.fractal.set(
                 TilePos {
                     depth: 4,
                     pos: (3, 5).into(),
@@ -645,13 +642,11 @@ pub fn new_xyyy_fractory() -> Fractory {
                 },
                 TILES[SPINNER] + FU,
             );
-            out.activate(TilePos {
+            fractory.activate(TilePos {
                 depth: 4,
                 pos: (3, 5).into(),
                 flop: true,
             });
         }
     }
-
-    out
 }
