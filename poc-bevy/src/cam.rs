@@ -125,23 +125,22 @@ fn control_cam(
     let rot = Quat::from_rotation_z(spd * delta * rot * cam_tf.scale.x.signum());
 
     // keyboard zoom
-    let spd = 4_f32;
+    let spd = 2_f32;
     let mut scl = 0.0;
     if keys.pressed(KeyCode::ShiftLeft) {
-        scl += 1.0;
+        scl += delta * spd;
     }
     if keys.pressed(KeyCode::Space) {
-        scl -= 1.0;
+        scl -= delta * spd;
     }
-    scl = spd.powf(delta * scl);
 
     // scroll zoom
     for delta in scroll.read() {
         let unit = match delta.unit {
-            MouseScrollUnit::Line => 0.5,
-            MouseScrollUnit::Pixel => 0.01,
+            MouseScrollUnit::Line => 1.0,
+            MouseScrollUnit::Pixel => 1.0 / 64.0,
         };
-        scl *= spd.powf(-delta.y * unit);
+        scl -= delta.y * unit;
     }
 
     // apply transforms
@@ -160,6 +159,7 @@ fn control_cam(
     } else {
         // zoom camera
         frac_cam.mouse_depth -= scl;
+        let scl = 2_f32.powf(scl);
         cam_tf.scale *= Vec2::splat(scl).extend(1.0);
     }
     frac_cam.clamp_depth();
