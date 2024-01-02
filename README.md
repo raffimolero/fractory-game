@@ -2,44 +2,33 @@ Fractory. A game you have never seen before...
 
 ...mostly because it hasn't been made yet.
 
-**Most activity is in `common/` and `poc-fractal/` and a lot of pretty pictures are under `assets/concepts/`**
-The main branch is updated for major milestones, while the dev branch is updated constantly and is not guaranteed to compile.
+**Most activity is in `common/` and `poc-bevy/` and a lot of pretty pictures are under `assets/concepts/`**
+The `main` branch is updated for major milestones, the `dev` branch is for prototyping mechanics, and the `bevy` branch is for the real game.
+
+There is no way to simulate the game in this branch. That would be in the `dev` branch.
 
 Demo:
 
-https://github.com/raffimolero/fractory-game/assets/49224759/66e0ced8-5bea-44e6-9324-d808690949c0
+https://github.com/raffimolero/fractory-game/assets/49224759/9f3a2161-c727-44c8-9fd1-822502fe8e3c
 
-- Esc to quit
-- mouse over the fractal to explore the subdivisions
-- WASD/right mouse drag to move the camera around
-- Scroll to zoom, automatically expanding the fractal as you go (going too far crashes the program)
-- Shift+Scroll to change recursion depth without zooming (clamped between depth -3 and +6)
-- Ctrl+Scroll to zoom without changing recursion depth
-- Q/E to rotate the camera around mouse (no setting to reverse or snap directions yet)
-- Space to zoom in on mouse
-- Shift+Space to zoom out on mouse
-- F to flip the camera horizontally around mouse
-- Tab to switch modes (Edit/Act/View)
-  * `Edit` mode: Clicking a tile cycles it between 0, 1, 2, 3. specifically, `tile.id = if tile.id < 3 { tile.id + 1 } else { 0 }`
-  * `Act` mode: Activates a clicked tile, priming it for action in the next tick
-  * `View` mode: does nothing, just lets you explore the fractal in its solid arrangement.
-- Enter to simulate one tick of the simulation
-  * Orange and Yellow tiles will do nothing at the moment
-  * Green tiles will try to flip whatever tile is below them, but only when the tile below them is full:
+- Esc: quit
+- WASD or Right Click + Drag: move
+- Q/E: rotate
+- F: flip
+- Space or Scroll up: zoom in
+- LShift or Scroll down: zoom out
+- LCtrl + Zoom: change cursor expansion depth
+- LAlt + Zoom: change background expansion depth
+
 ```
-    *something like this.
-       /\          /\
-      /3 \        /3 \
-     /____\  =>  /____\
-     \XXY /  =>  \ YXX/
-      \X /        \ X/
-       \/          \/
-
+    tile behavior rules:
 *orientation matters. upside-down tiles will of course do their thing from their perspective.
 *if a tile tries to move to 2 different positions, both moves are cancelled and nothing happens.
 *if 2 tiles try to move to the same position, both moves are cancelled and nothing happens.
 *if a tile tries to move into an occupied position, the move is cancelled and nothing happens.
 ```
+
+**[ Further information may be outdated ]**
 
 TODO:
 - test the fractal triangle rendering in poc-fractal (done)
