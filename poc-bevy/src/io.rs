@@ -28,9 +28,10 @@ fn setup(
     // planets.add_planet(PlanetId::from(XYYY));
 }
 
+// TODO: animated icons?
 pub struct PlanetAssets {
     pub icon: Handle<Image>,
-    pub unknown_frag_icons: Vec<Handle<Image>>,
+    pub fragment_placeholders: Vec<Handle<Image>>,
     pub fragment_icons: Vec<Handle<Image>>,
 }
 
@@ -38,7 +39,7 @@ impl PlanetAssets {
     fn new_xyyy(asset_server: &mut AssetServer) -> Self {
         Self {
             icon: asset_server.load("content/planets/xyyy/sprites/icon.png"),
-            unknown_frag_icons: vec![
+            fragment_placeholders: vec![
                 asset_server.load("content/planets/xyyy/sprites/unknown_red.png"),
                 asset_server.load("content/planets/xyyy/sprites/unknown_green.png"),
                 asset_server.load("content/planets/xyyy/sprites/unknown_blue.png"),
@@ -48,10 +49,9 @@ impl PlanetAssets {
     }
 
     pub fn get_fragment_icon(&self, id: usize) -> Handle<Image> {
-        self.fragment_icons
-            .get(id)
-            .cloned()
-            .unwrap_or_else(|| self.unknown_frag_icons[id % self.unknown_frag_icons.len()].clone())
+        self.fragment_icons.get(id).cloned().unwrap_or_else(|| {
+            self.fragment_placeholders[id % self.fragment_placeholders.len()].clone()
+        })
     }
 }
 

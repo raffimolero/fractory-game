@@ -18,6 +18,7 @@ impl Plugin for Plug {
     }
 }
 
+// TODO: factor out into an AutoExpand { rate: f32 } component
 fn fragment_hover(
     time: Res<Time>,
     mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentElement>>,
@@ -46,9 +47,10 @@ impl FractoryElement {
     ) -> Entity {
         let mut meta = planets.new_fractory(asset_server, planet, biome);
 
-        meta.fractory
-            .fractal
-            .set(TilePos::UNIT, TILES[tiles::SPINNER].transformed(TriTf::FR));
+        meta.fractory.fractal.set(
+            TilePos::UNIT + SubTile::U,
+            TILES[tiles::SPINNER].transformed(TriTf::FR),
+        );
 
         let fractory_elem = commands
             .spawn((
@@ -159,7 +161,12 @@ impl FragmentElement {
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
-    fn hydrate_base(commands: &mut Commands, base: Entity, face: Entity, data: UnloadedFragment) {
+    fn hydrate_base(
+        commands: &mut Commands,
+        base: Entity,
+        face: Option<Entity>,
+        data: UnloadedFragment,
+    ) {
         let fragment_data = Self {
             fractory_elem: data.fractory_elem,
             pos: data.pos,
@@ -190,9 +197,12 @@ impl FragmentElement {
 
         commands
             .entity(base)
-            .add_child(face)
             .insert((fragment_data, hitbox, expand_animation))
             .remove::<UnloadedFragment>();
+
+        if let Some(face) = face {
+            commands.entity(base).add_child(face);
+        }
     }
 
     fn spawn_face(
@@ -201,18 +211,20 @@ impl FragmentElement {
         tile: Tile,
         name: String,
         sprite: Handle<Image>,
-    ) -> Entity {
-        commands
-            .spawn(SpatialBundle {
-                transform: transform_from_orient(tile.orient),
-                ..default()
-            })
-            .with_children(|children| {
-                let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
-                Self::spawn_tringle(children, base, size, sprite);
-                Self::spawn_name(children, base, size, name);
-            })
-            .id()
+    ) -> Option<Entity> {
+        (tile != Tile::SPACE).then(|| {
+            commands
+                .spawn(SpatialBundle {
+                    transform: transform_from_orient(tile.orient),
+                    ..default()
+                })
+                .with_children(|children| {
+                    let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
+                    Self::spawn_tringle(children, base, size, sprite);
+                    Self::spawn_name(children, base, size, name);
+                })
+                .id()
+        })
     }
 
     fn spawn_tringle(children: &mut ChildBuilder, base: Entity, size: Vec2, sprite: Handle<Image>) {
@@ -234,6 +246,8 @@ impl FragmentElement {
             ..default()
         };
 
+        // TODO: make this snappier so we can play a juicy sound effect
+        // maybe add particles too
         let reveal_animation = (
             AnimationPuppetBundle::track(base),
             ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
