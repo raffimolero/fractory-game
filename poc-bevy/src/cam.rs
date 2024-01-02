@@ -128,10 +128,10 @@ fn control_cam(
     let spd = 2_f32;
     let mut scl = 0.0;
     if keys.pressed(KeyCode::ShiftLeft) {
-        scl += delta * spd;
+        scl -= delta * spd;
     }
     if keys.pressed(KeyCode::Space) {
-        scl -= delta * spd;
+        scl += delta * spd;
     }
 
     // scroll zoom
@@ -140,7 +140,7 @@ fn control_cam(
             MouseScrollUnit::Line => 1.0,
             MouseScrollUnit::Pixel => 1.0 / 64.0,
         };
-        scl -= delta.y * unit;
+        scl += delta.y * unit;
     }
 
     // apply transforms
@@ -159,8 +159,7 @@ fn control_cam(
     } else {
         // zoom camera
         frac_cam.mouse_depth -= scl;
-        let scl = 2_f32.powf(scl);
-        cam_tf.scale *= Vec2::splat(scl).extend(1.0);
+        cam_tf.scale /= Vec2::splat(2_f32.powf(scl)).extend(1.0);
     }
     frac_cam.clamp_depth();
 

@@ -124,7 +124,7 @@ impl FragmentInfo {
             .names()
             .get(tile.id)
             .cloned()
-            .unwrap_or(format!("+"));
+            .unwrap_or(format!("..."));
 
         let face_sprite = planet_assets.get_fragment_icon(tile.id);
         let slot_sprite = planet_assets.get_fragment_icon(0);
@@ -149,18 +149,21 @@ fn check_fragment_expansion(
     )>,
 ) {
     let (cam_gtf, frac_cam) = camera.single();
-    let cam_scale = cam_gtf.to_scale_rotation_translation().0.x;
+    let cam_scale = cam_gtf.to_scale_rotation_translation().0.y;
 
     fragments.for_each_mut(|(fragment, is_hovered, gtf, mut destination)| {
-        let frag_scale = gtf.to_scale_rotation_translation().0.x;
-        let depth = frag_scale.log2() - 5.0;
+        let frag_scale = gtf.to_scale_rotation_translation().0.y;
+        let relative_depth = (cam_scale / frag_scale).log2() + 10.0;
 
-        let should_expand = if is_hovered.0 {
-            depth > cam_scale.log2() + frac_cam.mouse_depth
+        let threshold = if is_hovered.0 {
+            frac_cam.mouse_depth
+        } else if fragment.fill.is_leaf() {
+            frac_cam.min_bg_depth
         } else {
-            depth > cam_scale.log2() + frac_cam.max_bg_depth
-                && (fragment.fill.is_leaf() || depth > cam_scale.log2() + frac_cam.min_bg_depth)
+            frac_cam.max_bg_depth
         };
+
+        let should_expand = relative_depth < threshold;
 
         *destination = if should_expand {
             AnimationDestination::End
