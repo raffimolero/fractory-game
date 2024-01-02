@@ -1,9 +1,14 @@
-use crate::{io::PlanetCache, ui::prelude::*};
+use crate::{
+    cam::{FractalCam, MainCam},
+    io::PlanetCache,
+    ui::prelude::*,
+};
 use std::f32::consts::TAU;
 
 use bevy::{prelude::*, sprite::Anchor};
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
+    fractal::TileFill,
     orientation::{Orient, Transform as TriTf},
     path::TilePos,
     planet::{BiomeId, PlanetId},
@@ -14,7 +19,7 @@ use fractory_common::sim::logic::{
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (load_fragments, fragment_hover));
+        app.add_systems(Update, (load_fragments, check_fragment_expansion));
     }
 }
 
@@ -88,6 +93,7 @@ fn transform_from_orient(orient: Orient) -> Transform {
 
 struct FragmentInfo {
     tile: Tile,
+    fill: TileFill,
     name: String,
     face_sprite: Handle<Image>,
     slot_sprite: Handle<Image>,
@@ -106,7 +112,10 @@ impl FragmentInfo {
                 fractory root should've despawned before children."
             );
         };
-        let tile = fractory.meta.fractory.fractal.get(data.pos);
+
+        let fractal = &fractory.meta.fractory.fractal;
+        let tile = fractal.get(data.pos);
+        let fill = fractal.get_info(tile.id).fill;
 
         let (planet_data, planet_assets) = planet_cache
             .planets
@@ -125,6 +134,7 @@ impl FragmentInfo {
 
         FragmentInfo {
             tile,
+            fill,
             name,
             face_sprite,
             slot_sprite,
@@ -132,11 +142,30 @@ impl FragmentInfo {
     }
 }
 
-fn fragment_hover(
-    mut fragments: Query<(&IsHovered, &mut AnimationDestination), With<FragmentElement>>,
+fn check_fragment_expansion(
+    camera: Query<(&GlobalTransform, &FractalCam), With<MainCam>>,
+    mut fragments: Query<(
+        &FragmentElement,
+        &IsHovered,
+        &GlobalTransform,
+        &mut AnimationDestination,
+    )>,
 ) {
-    fragments.for_each_mut(|(is_hovered, mut destination)| {
-        *destination = if is_hovered.0 {
+    let (cam_gtf, frac_cam) = camera.single();
+    let cam_scale = cam_gtf.to_scale_rotation_translation().0.x;
+
+    fragments.for_each_mut(|(fragment, is_hovered, gtf, mut destination)| {
+        let frag_scale = gtf.to_scale_rotation_translation().0.x;
+        let depth = frag_scale.log2() - 5.0;
+
+        let should_expand = if is_hovered.0 {
+            depth > cam_scale.log2() + frac_cam.mouse_depth
+        } else {
+            depth > cam_scale.log2() + frac_cam.max_bg_depth
+                && (fragment.fill.is_leaf() || depth > cam_scale.log2() + frac_cam.min_bg_depth)
+        };
+
+        *destination = if should_expand {
             AnimationDestination::End
         } else {
             AnimationDestination::Start
@@ -148,6 +177,7 @@ fn fragment_hover(
 pub struct FragmentElement {
     pub fractory_elem: Entity,
     pub pos: TilePos,
+    pub fill: TileFill,
 }
 
 impl FragmentElement {
@@ -164,12 +194,13 @@ impl FragmentElement {
     ) {
         let FragmentInfo {
             tile,
+            fill,
             name,
             face_sprite,
             slot_sprite,
         } = info;
         let face = Self::spawn_face(commands, fragment, tile, name, face_sprite);
-        Self::hydrate_base(commands, fragment, face, data, slot_sprite);
+        Self::hydrate_base(commands, fragment, face, data, slot_sprite, fill);
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
@@ -179,10 +210,12 @@ impl FragmentElement {
         face: Option<Entity>,
         data: UnloadedFragment,
         slot_sprite: Handle<Image>,
+        fill: TileFill,
     ) {
         let fragment_data = Self {
             fractory_elem: data.fractory_elem,
             pos: data.pos,
+            fill,
         };
 
         let size = Vec2::new(1.0, TRI_HEIGHT);

@@ -49,11 +49,11 @@ pub struct MainCam;
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct FractalCam {
-    min_depth: f32,
-    min_bg_depth: f32,
-    mouse_depth: f32,
-    max_bg_depth: f32,
-    max_mouse_depth: f32,
+    pub min_depth: f32,
+    pub min_bg_depth: f32,
+    pub mouse_depth: f32,
+    pub max_bg_depth: f32,
+    pub max_mouse_depth: f32,
 }
 
 impl Default for FractalCam {
