@@ -1,5 +1,3 @@
-// TODO: make this not broken
-
 use std::hash::BuildHasherDefault;
 
 use bevy::{asset::AssetServer, prelude::*, utils::AHasher};
@@ -20,12 +18,12 @@ impl Plugin for Plug {
     }
 }
 
-// TODO: load assets
 fn setup(
     mut commands: Commands,
     mut planets: ResMut<PlanetCache>,
     mut assets: ResMut<AssetServer>,
 ) {
+    // load planets folder
     // planets.add_planet(planet, new_xyyy_planet());
     // planets.add_planet(PlanetId::from(XYYY));
 }

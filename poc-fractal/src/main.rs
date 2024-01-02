@@ -5,8 +5,6 @@ pub mod ui;
 
 const DRAW_BRANCHES: bool = false;
 
-// TODO: use Affine2 instead of Mat4
-
 use self::ctx::{Click, Context};
 use ctx::TextToolId;
 use fractory_common::sim::logic::{
@@ -261,7 +259,6 @@ fn window_conf() -> Conf {
     }
 }
 
-// TODO: -> impl Fn(Size, std::fmt::Alignment, &str) {}
 fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
     move |text| {
         let params = TextParams {
@@ -386,9 +383,6 @@ fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
         symmetries: _,
     } = fractory.fractal.library[tile_id];
 
-    // TODO: fragment coloring should first try to use the fragment sprite,
-    // otherwise use a hash color
-    // these should be specified by the fractal itself
     let color_mode = match fill {
         TileFill::Empty => Greyscale,
         TileFill::Partial => Id,
@@ -401,7 +395,6 @@ fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
             average(BLACK, PALETTE[tile_id % PALETTE.len()])
         }
         Fragment => {
-            // TODO: have a tile palette based on fragments
             const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
             PALETTE[tile_id % PALETTE.len()]
         }
@@ -487,15 +480,15 @@ impl SmoothOrient {
     }
 
     fn to_orient(self, flop: bool, camera: Mat4) -> Orient {
-        // TODO: calculate size and orientation of target tile (hit_pos needed)
+        // UNIMPLEMENTED: calculate size and orientation of target tile (hit_pos needed)
         // and find the closest orientation (rotation+reflection)
         Orient::Iso
     }
 
     fn to_transform(self, ctx: &Context, camera: Mat4) -> Mat4 {
-        // TODO: calculate size and orientation of target tile (hit_pos needed)
+        // UNIMPLEMENTED: calculate size and orientation of target tile (hit_pos needed)
         // and resize held tile to match
-        let scale = 1.0; // todo
+        let scale = 1.0; // unimplemented
         Mat4::from_scale_rotation_translation(
             (Vec2::new(self.0.signum(), 1.0) * scale).extend(1.0),
             Quat::from_rotation_z(self.0),
@@ -572,7 +565,7 @@ impl FractoryElement {
             CursorState::Holding { tile_id, orient } => {
                 let color = tile_color(&self.fractory_meta.fractory, tile_id);
                 let name = tile_name(self.cache.fragments.names(), tile_id);
-                // TODO: get hit position to draw
+                // UNIMPLEMENTED: get hit position to draw
                 let matrix = orient.to_transform(ctx, self.fractal_view.frac_cam.camera);
                 ctx.apply(matrix, |ctx| {
                     draw_tile(

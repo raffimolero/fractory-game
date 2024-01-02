@@ -74,9 +74,6 @@ fn tile_color(fractal: &Fractal, tile_id: usize) -> Color {
         symmetries: _,
     } = fractal.library[tile_id];
 
-    // TODO: fragment coloring should first try to use the fragment sprite,
-    // otherwise use a hash color
-    // these should be specified by the fractal itself
     let color_mode = match fill {
         TileFill::Empty => Greyscale,
         TileFill::Partial => Id,
@@ -89,7 +86,6 @@ fn tile_color(fractal: &Fractal, tile_id: usize) -> Color {
             average(BLACK, PALETTE[tile_id % PALETTE.len()])
         }
         Fragment => {
-            // TODO: have a tile palette based on fragments
             const PALETTE: &[Color] = &[RED, ORANGE, GOLD, GREEN, BLUE, PURPLE];
             PALETTE[tile_id % PALETTE.len()]
         }
