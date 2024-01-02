@@ -18,19 +18,6 @@ impl Plugin for Plug {
     }
 }
 
-// TODO: factor out into an AutoExpand { rate: f32 } component
-fn fragment_hover(
-    time: Res<Time>,
-    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentElement>>,
-) {
-    let delta = time.delta_seconds();
-    let rate = delta * 8.0;
-    fragments.for_each_mut(|(is_hovered, mut control)| {
-        control.playback_speed += rate * if is_hovered.0 { 1.0 } else { -1.0 };
-        control.playback_speed = control.playback_speed.clamp(-1.0, 1.0);
-    });
-}
-
 #[derive(Component)]
 pub struct FractoryElement {
     meta: FractoryMeta,
@@ -145,6 +132,18 @@ impl FragmentInfo {
     }
 }
 
+fn fragment_hover(
+    mut fragments: Query<(&IsHovered, &mut AnimationDestination), With<FragmentElement>>,
+) {
+    fragments.for_each_mut(|(is_hovered, mut destination)| {
+        *destination = if is_hovered.0 {
+            AnimationDestination::End
+        } else {
+            AnimationDestination::Start
+        }
+    });
+}
+
 #[derive(Component, Clone, Copy)]
 pub struct FragmentElement {
     pub fractory_elem: Entity,
@@ -222,6 +221,7 @@ impl FragmentElement {
                 0.25,
                 [(0.0, spawn_puppet_fragments), (0.125, add_puppet_hitboxes)],
             ),
+            AnimationDestination::Start,
         );
 
         commands

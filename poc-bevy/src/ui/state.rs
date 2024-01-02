@@ -18,6 +18,7 @@ impl Plugin for Plug {
         app.add_systems(
             Update,
             (
+                smooth_reversible_playback,
                 update_controllers,
                 update_progress,
                 auto_pause,
@@ -28,6 +29,34 @@ impl Plugin for Plug {
                 .chain(),
         );
     }
+}
+
+#[derive(Component, Default, Clone, Copy, PartialEq, Eq)]
+pub enum AnimationDestination {
+    #[default]
+    Start,
+    End,
+}
+
+impl AnimationDestination {
+    fn direction(self) -> f32 {
+        match self {
+            AnimationDestination::Start => -1.0,
+            AnimationDestination::End => 1.0,
+        }
+    }
+}
+
+fn smooth_reversible_playback(
+    time: Res<Time>,
+    mut fragments: Query<(&AnimationDestination, &mut AnimationControl)>,
+) {
+    let delta = time.delta_seconds();
+    let rate = delta * 8.0;
+    fragments.for_each_mut(|(destination, mut control)| {
+        control.playback_speed += rate * destination.direction();
+        control.playback_speed = control.playback_speed.clamp(-1.0, 1.0);
+    });
 }
 
 #[derive(Bundle, Default)]
