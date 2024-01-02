@@ -23,7 +23,7 @@ impl Plugin for Plug {
                 auto_pause,
                 run_events,
                 track_progress,
-                (animate::<Transform>),
+                (animate::<Transform>, animate::<Sprite>),
             )
                 .chain(),
         );

@@ -83,9 +83,8 @@ fn load_fragments(
     unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
     unloaded.for_each(|(entity, fragment)| {
-        let FragmentInfo { tile, name, sprite } =
-            FragmentElement::load(*fragment, &fractories, &planet_cache);
-        FragmentElement::hydrate(&mut commands, entity, *fragment, tile, name, sprite);
+        let info = FragmentInfo::load(*fragment, &fractories, &planet_cache);
+        FragmentElement::hydrate(&mut commands, entity, *fragment, info);
     });
 }
 
@@ -100,24 +99,14 @@ fn transform_from_orient(orient: Orient) -> Transform {
     }
 }
 
-#[derive(Component, Clone, Copy)]
-pub struct FragmentElement {
-    pub fractory_elem: Entity,
-    pub pos: TilePos,
-}
-
 struct FragmentInfo {
     tile: Tile,
     name: String,
-    sprite: Handle<Image>,
+    face_sprite: Handle<Image>,
+    slot_sprite: Handle<Image>,
 }
 
-impl FragmentElement {
-    /// spawns an unloaded fragment entity.
-    fn spawn_unloaded(commands: &mut Commands, fractory_elem: Entity, pos: TilePos) -> Entity {
-        commands.spawn(UnloadedFragment { fractory_elem, pos }).id()
-    }
-
+impl FragmentInfo {
     /// loads data needed to spawn a fragment entity.
     fn load(
         data: UnloadedFragment,
@@ -136,28 +125,52 @@ impl FragmentElement {
             .planets
             .get(&fractory.meta.planet)
             .expect("Planets should be loaded by now.");
+
         let name = planet_data
             .fragments()
             .names()
             .get(tile.id)
             .cloned()
-            .unwrap_or(format!("<#{}>", tile.id));
+            .unwrap_or(format!("+"));
 
-        let sprite = planet_assets.get_fragment_icon(tile.id);
+        let face_sprite = planet_assets.get_fragment_icon(tile.id);
+        let slot_sprite = planet_assets.get_fragment_icon(0);
 
-        FragmentInfo { tile, name, sprite }
+        FragmentInfo {
+            tile,
+            name,
+            face_sprite,
+            slot_sprite,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct FragmentElement {
+    pub fractory_elem: Entity,
+    pub pos: TilePos,
+}
+
+impl FragmentElement {
+    /// spawns an unloaded fragment entity.
+    fn spawn_unloaded(commands: &mut Commands, fractory_elem: Entity, pos: TilePos) -> Entity {
+        commands.spawn(UnloadedFragment { fractory_elem, pos }).id()
     }
 
     fn hydrate(
         commands: &mut Commands,
         fragment: Entity,
         data: UnloadedFragment,
-        tile: Tile,
-        name: String,
-        sprite: Handle<Image>,
+        info: FragmentInfo,
     ) {
-        let face = Self::spawn_face(commands, fragment, tile, name, sprite);
-        Self::hydrate_base(commands, fragment, face, data);
+        let FragmentInfo {
+            tile,
+            name,
+            face_sprite,
+            slot_sprite,
+        } = info;
+        let face = Self::spawn_face(commands, fragment, tile, name, face_sprite);
+        Self::hydrate_base(commands, fragment, face, data, slot_sprite);
     }
 
     /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
@@ -166,10 +179,22 @@ impl FragmentElement {
         base: Entity,
         face: Option<Entity>,
         data: UnloadedFragment,
+        slot_sprite: Handle<Image>,
     ) {
         let fragment_data = Self {
             fractory_elem: data.fractory_elem,
             pos: data.pos,
+        };
+
+        let size = Vec2::new(1.0, TRI_HEIGHT);
+        let slot_sprite = SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(size),
+                anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                ..default()
+            },
+            texture: slot_sprite,
+            ..default()
         };
 
         let hitbox = (
@@ -178,8 +203,12 @@ impl FragmentElement {
                 kind: HitboxKind::Tri { r: 1.0 },
                 cursor: None,
             },
-            SpatialBundle::default(),
         );
+
+        let reveal_animation = ComponentAnimator::boxed(|sprite: &mut Sprite, ratio: f32| {
+            let ratio = ratio * ratio;
+            sprite.color = sprite.color.with_a(1.0 - ratio);
+        });
 
         let spawn_puppet_fragments = FragmentElement::spawn_puppet_fragments(
             fragment_data.fractory_elem,
@@ -197,7 +226,13 @@ impl FragmentElement {
 
         commands
             .entity(base)
-            .insert((fragment_data, hitbox, expand_animation))
+            .insert((
+                fragment_data,
+                slot_sprite,
+                hitbox,
+                reveal_animation,
+                expand_animation,
+            ))
             .remove::<UnloadedFragment>();
 
         if let Some(face) = face {
@@ -215,7 +250,7 @@ impl FragmentElement {
         (tile != Tile::SPACE).then(|| {
             commands
                 .spawn(SpatialBundle {
-                    transform: transform_from_orient(tile.orient),
+                    transform: transform_from_orient(tile.orient).with_translation(Vec3::Z),
                     ..default()
                 })
                 .with_children(|children| {
