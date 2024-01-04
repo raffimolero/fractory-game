@@ -5,7 +5,7 @@ use crate::{
 };
 use std::f32::consts::TAU;
 
-use bevy::{prelude::*, sprite::Anchor};
+use bevy::{prelude::*, sprite::Anchor, utils::HashMap};
 use fractory_common::sim::logic::{
     factory::FractoryMeta,
     fractal::TileFill,
@@ -26,7 +26,7 @@ impl Plugin for Plug {
 #[derive(Component)]
 pub struct FractoryElement {
     meta: FractoryMeta,
-    // children: HashMap<TilePos, Entity>,
+    tiles: HashMap<TilePos, Entity>,
 }
 
 impl FractoryElement {
@@ -42,15 +42,17 @@ impl FractoryElement {
         init_xyyy_fractory(&mut meta.fractory, Config::TestGrowFarm);
 
         let fractory_elem = commands
-            .spawn((
-                Self { meta },
-                SpatialBundle {
-                    transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
-                    ..default()
-                },
-            ))
+            .spawn(SpatialBundle {
+                transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
+                ..default()
+            })
             .id();
         let root_fragment = FragmentElement::spawn_unloaded(commands, fractory_elem, TilePos::UNIT);
+
+        commands.entity(fractory_elem).insert(Self {
+            meta,
+            tiles: HashMap::from([(TilePos::UNIT, root_fragment)]),
+        });
         commands
             .entity(root_fragment)
             .insert(IsHovered(false))
@@ -67,13 +69,20 @@ struct UnloadedFragment {
 
 fn load_fragments(
     mut commands: Commands,
-    fractories: Query<&FractoryElement>,
+    mut fractories: Query<&mut FractoryElement>,
     planet_cache: Res<PlanetCache>,
     unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
     unloaded.for_each(|(entity, fragment)| {
-        let info = FragmentInfo::load(*fragment, &fractories, &planet_cache);
-        FragmentElement::hydrate(&mut commands, entity, *fragment, info);
+        let Ok(mut fractory) = fractories.get_mut(fragment.fractory_elem) else {
+            panic!(
+                "attempted to access nonexistent fractory entity.\n\
+                fractory root should've despawned before children."
+            );
+        };
+
+        let info = FragmentInfo::load(*fragment, &fractory, &planet_cache);
+        FragmentElement::hydrate(&mut commands, fractory.as_mut(), entity, *fragment, info);
     });
 }
 
@@ -100,16 +109,9 @@ impl FragmentInfo {
     /// loads data needed to spawn a fragment entity.
     fn load(
         data: UnloadedFragment,
-        fractories: &Query<&FractoryElement>,
+        fractory: &FractoryElement,
         planet_cache: &PlanetCache,
     ) -> FragmentInfo {
-        let Ok(fractory) = fractories.get(data.fractory_elem) else {
-            panic!(
-                "attempted to access nonexistent fractory entity.\n\
-                fractory root should've despawned before children."
-            );
-        };
-
         let fractal = &fractory.meta.fractory.fractal;
         let tile = fractal.get(data.pos);
         let fill = fractal.get_info(tile.id).fill;
@@ -155,7 +157,7 @@ fn check_fragment_expansion(
     fragments.for_each_mut(|(fragment, is_hovered, gtf, visibility, mut destination)| {
         let should_expand = visibility.get() && {
             let frag_scale = gtf.to_scale_rotation_translation().0.y;
-            let relative_depth = (cam_scale / frag_scale).log2() + 10.0;
+            let relative_depth = cam_scale / frag_scale;
 
             let threshold = if is_hovered.0 {
                 frac_cam.mouse_depth
@@ -165,7 +167,7 @@ fn check_fragment_expansion(
                 frac_cam.max_bg_depth
             };
 
-            relative_depth < threshold
+            relative_depth * 1024.0 < 2_f32.powf(threshold)
         };
 
         *destination = if should_expand {
@@ -191,10 +193,14 @@ impl FragmentElement {
 
     fn hydrate(
         commands: &mut Commands,
+        fractory: &mut FractoryElement,
         fragment: Entity,
         data: UnloadedFragment,
         info: FragmentInfo,
     ) {
+        // TODO: remove from hashmap when dropped
+        fractory.tiles.insert(data.pos, fragment);
+
         let FragmentInfo {
             tile,
             fill,
@@ -203,6 +209,7 @@ impl FragmentElement {
             slot_sprite,
         } = info;
         let face = Self::spawn_face(commands, fragment, tile, name, face_sprite);
+
         Self::hydrate_base(commands, fragment, face, data, slot_sprite, fill);
     }
 
