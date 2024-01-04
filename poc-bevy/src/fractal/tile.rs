@@ -124,7 +124,7 @@ impl FragmentInfo {
             .names()
             .get(tile.id)
             .cloned()
-            .unwrap_or(format!("..."));
+            .unwrap_or(format!("Tile at {}", data.pos));
 
         let face_sprite = planet_assets.get_fragment_icon(tile.id);
         let slot_sprite = planet_assets.get_fragment_icon(0);

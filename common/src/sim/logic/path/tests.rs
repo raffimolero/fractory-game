@@ -16,7 +16,7 @@ fn test_subtiles() {
         if depth == 0 {
             return;
         }
-        for subtile in SubTile::QUAD {
+        for subtile in SubTile::QUAD.0 {
             let save = *pos;
             pos.push_outer(subtile);
             assert!(pos.is_valid());
@@ -33,12 +33,12 @@ fn test_subtiles() {
 
     let mut pos = TilePos::UNIT;
     assert_eq!(pos.pop_outer(), None);
-    assert_eq!(pos.pop_back(), None);
+    assert_eq!(pos.pop_inner(), None);
     let mut set_front = HashSet::new();
     let mut set_back = HashSet::new();
     inner(&mut pos, &mut set_front, &mut set_back, 5);
     assert_eq!(pos.pop_outer(), None);
-    assert_eq!(pos.pop_back(), None);
+    assert_eq!(pos.pop_inner(), None);
 }
 
 #[test]
