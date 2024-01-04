@@ -134,7 +134,7 @@ impl Debug for Node {
 }
 
 /// builds a quadtree from braces, values, and dots
-/// ```
+/// ```ignore
 /// let tree = tree! ({
 ///     { .  () () .  }
 ///     { () () .  () }
@@ -276,8 +276,6 @@ impl RawMoveList {
         */
 
         // this is an in-place algo btw
-
-        // hypothetical algorithm
 
         #[derive(Debug, Default)]
         enum Tree<T> {

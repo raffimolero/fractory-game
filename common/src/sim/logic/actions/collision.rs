@@ -107,32 +107,6 @@ impl Debug for Node {
     }
 }
 
-/// builds a quadtree from braces, values, and dots
-/// ```
-/// let tree = tree! ({
-///     { .  () () .  }
-///     { () () .  () }
-///     { }
-///     .
-/// });
-/// println!("{tree:?}");
-/// ```
-macro_rules! tree {
-    (.) => {
-        Node::Free
-    };
-    (X) => {
-        Node::Bad
-    };
-    ({ $a:tt $b:tt $c:tt $d:tt }) => {
-        Node::Branch(Box::new(Quad([tree!($a), tree!($b), tree!($c), tree!($d)])))
-    };
-    ($t:expr) => {
-        Node::Leaf($t)
-    };
-}
-pub(crate) use tree;
-
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RawMoveList {

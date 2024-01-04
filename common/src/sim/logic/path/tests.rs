@@ -2,6 +2,48 @@ use std::collections::HashSet;
 
 use super::*;
 
+#[test]
+fn test_parse_tilepos() {
+    for (i, s) in [
+        "d0x0y0",
+        "d1x0y0f",
+        "d1x0y0",
+        "d30x1073741823y1073741823",
+        "d30x1073741822y1073741822f",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        dbg!(i);
+        assert_eq!(s, s.parse::<TilePos>().unwrap().to_string());
+    }
+
+    for (i, (s, e)) in [
+        ("", TilePosErr::UnexpectedEndOfString),
+        ("d", TilePosErr::UnexpectedEndOfString),
+        ("a", TilePosErr::UnexpectedToken),
+        ("d0x0y0h", TilePosErr::UnexpectedToken),
+        ("d1x0y0fh", TilePosErr::UnexpectedToken),
+        ("d0x0y0f", TilePosErr::OutOfBounds),
+        ("d0x1y0", TilePosErr::OutOfBounds),
+        ("d0x0y1", TilePosErr::OutOfBounds),
+        ("d1x1y0", TilePosErr::OutOfBounds),
+        ("d1x1y0f", TilePosErr::OutOfBounds),
+        ("d2x2y1", TilePosErr::OutOfBounds),
+        ("d31x0y0", TilePosErr::OutOfBounds),
+        ("d30x1073741824y0", TilePosErr::OutOfBounds),
+        ("d30x0y1073741824", TilePosErr::OutOfBounds),
+        ("d30x0y1073741823f", TilePosErr::OutOfBounds),
+        ("d30x1073741823y1073741822f", TilePosErr::OutOfBounds),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        dbg!(i);
+        assert_eq!(s.parse::<TilePos>().unwrap_err(), e);
+    }
+}
+
 /// enumerates all possible permutations of subtiles,
 /// checks if all positions are unique,
 /// and verifies that every (push/pop)_(front/back) operation works
