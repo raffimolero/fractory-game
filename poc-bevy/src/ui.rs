@@ -22,6 +22,7 @@ impl Plugin for Plug {
 pub struct Despawn;
 
 fn despawn(mut commands: Commands, despawning: Query<Entity, With<Despawn>>) {
+    // TODO: sort them all into a vec based on their depth in the hierarchy
     despawning.for_each(|e| {
         commands.entity(e).despawn_recursive();
     });

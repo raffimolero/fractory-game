@@ -132,15 +132,62 @@ impl<T, F: FnMut(&mut T, f32)> Tweener<T> for F {
     }
 }
 
+pub struct ShouldDelete(pub bool);
+
+pub trait OptionTweener<T>: 'static + Send + Sync {
+    fn maybe_init(&mut self, ratio: f32) -> Option<T>;
+    fn lerp_maybe_delete(&mut self, target: &mut T, ratio: f32) -> ShouldDelete;
+}
+
 #[derive(Component)]
 pub struct AutoPause;
 
+/// only exists because writing out a whole impl every animation is inconvenient
 #[derive(Component)]
-pub struct ComponentAnimator<T: Component>(pub Box<dyn Tweener<T> + Send + Sync>);
+pub struct InitTweener<
+    T: Component,
+    Init: FnMut(f32) -> Option<T> + 'static + Send + Sync,
+    Tween: Tweener<T> + 'static + Send + Sync,
+> {
+    pub init: Init,
+    pub tweener: Tween,
+}
+
+impl<
+        T: Component,
+        Init: FnMut(f32) -> Option<T> + 'static + Send + Sync,
+        Tween: Tweener<T> + 'static + Send + Sync,
+    > OptionTweener<T> for InitTweener<T, Init, Tween>
+{
+    fn maybe_init(&mut self, ratio: f32) -> Option<T> {
+        (self.init)(ratio)
+    }
+
+    fn lerp_maybe_delete(&mut self, target: &mut T, ratio: f32) -> ShouldDelete {
+        self.tweener.lerp(target, ratio);
+        ShouldDelete(false)
+    }
+}
+
+#[derive(Component)]
+pub struct ComponentAnimator<T: Component>(pub Box<dyn OptionTweener<T> + Send + Sync>);
 
 impl<T: Component> ComponentAnimator<T> {
-    pub fn boxed(tweener: impl Tweener<T> + 'static + Send + Sync) -> Self {
-        Self(Box::new(tweener))
+    pub fn without_init(tweener: impl Tweener<T> + 'static + Send + Sync) -> Self {
+        Self(Box::new(InitTweener {
+            init: |_| panic!("Attempted to tween nonexistent component."),
+            tweener,
+        }))
+    }
+
+    pub fn with_init(
+        mut init: impl FnMut(f32) -> T + 'static + Send + Sync,
+        tweener: impl Tweener<T> + 'static + Send + Sync,
+    ) -> Self {
+        Self(Box::new(InitTweener {
+            init: move |ratio| Some(init(ratio)),
+            tweener,
+        }))
     }
 }
 
@@ -152,6 +199,7 @@ pub trait ReversibleEvent: Send + Sync {
     fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>);
 }
 
+/// only exists because writing out a whole impl every animation is inconvenient
 pub struct REvent<
     F: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
     B: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
@@ -315,13 +363,28 @@ fn track_progress(
 }
 
 pub fn animate<T: Component>(
+    mut commands: Commands,
     mut animators: Query<
-        (&mut ComponentAnimator<T>, &mut T, &AnimationProgress),
+        (
+            Entity,
+            &mut ComponentAnimator<T>,
+            Option<&mut T>,
+            &AnimationProgress,
+        ),
         Changed<AnimationProgress>,
     >,
 ) {
-    animators.for_each_mut(|(mut animator, mut target, progress)| {
-        animator.0.lerp(&mut target, progress.0);
+    animators.for_each_mut(|(entity, mut animator, target, progress)| match target {
+        Some(mut target) => {
+            if animator.0.lerp_maybe_delete(&mut target, progress.0).0 {
+                commands.entity(entity).remove::<T>();
+            }
+        }
+        None => {
+            if let Some(target) = animator.0.maybe_init(progress.0) {
+                commands.entity(entity).insert(target);
+            }
+        }
     })
 }
 

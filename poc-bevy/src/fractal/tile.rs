@@ -247,10 +247,11 @@ impl FragmentElement {
             },
         );
 
-        let reveal_animation = ComponentAnimator::boxed(|sprite: &mut Sprite, ratio: f32| {
-            let ratio = ratio * ratio;
-            sprite.color = sprite.color.with_a(1.0 - ratio);
-        });
+        let reveal_animation =
+            ComponentAnimator::without_init(|sprite: &mut Sprite, ratio: f32| {
+                let ratio = ratio * ratio;
+                sprite.color = sprite.color.with_a(1.0 - ratio);
+            });
 
         let spawn_puppet_fragments = FragmentElement::spawn_puppet_fragments(
             fragment_data.fractory_elem,
@@ -328,7 +329,7 @@ impl FragmentElement {
         // maybe add particles too
         let reveal_animation = (
             AnimationPuppetBundle::track(base),
-            ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
+            ComponentAnimator::without_init(|tf: &mut Transform, ratio: f32| {
                 let ratio = ratio * ratio;
                 let scale = 1.0 - ratio;
                 tf.scale = Vec2::splat(scale).extend(1.0);
@@ -345,7 +346,7 @@ impl FragmentElement {
         let base_scale = text.transform.scale;
         let reveal_animation = (
             AnimationPuppetBundle::track(base),
-            ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
+            ComponentAnimator::without_init(move |tf: &mut Transform, ratio: f32| {
                 let ratio = ratio * ratio;
                 tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
             }),
