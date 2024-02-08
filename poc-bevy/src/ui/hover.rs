@@ -1,11 +1,8 @@
-use crate::{cam::MainCam, debug::Blocc, io::PlanetCache};
+use crate::prelude::*;
 
-use bevy::{prelude::*, sprite::Anchor, text::Text2dBounds, window::PrimaryWindow};
-use fractory_common::sim::logic::{
-    factory::FractoryMeta,
-    planet::{BiomeId, PlanetId},
-    presets::{XYYY, XYYY_LANDING_ZONE},
-};
+pub mod prelude {
+    pub use super::*;
+}
 
 pub const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
 pub const TRI_SLOPE: f32 = SQRT_3;

@@ -7,8 +7,9 @@ use bevy::prelude::*;
 
 pub mod prelude {
     pub use super::{
-        AnimationControl, AnimationEvents, AnimationProgress, AnimationTracker, AutoPause,
-        ComponentAnimator, REvent, Tweener,
+        AnimationControl, AnimationControlBundle, AnimationDestination, AnimationEvents,
+        AnimationProgress, AnimationPuppetBundle, AnimationTracker, AutoPause, ComponentAnimator,
+        REvent, ReversibleEvent, Tweener,
     };
 }
 

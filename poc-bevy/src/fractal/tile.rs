@@ -1,20 +1,4 @@
-use crate::{
-    cam::{FractalCam, MainCam},
-    io::PlanetCache,
-    ui::prelude::*,
-};
-use std::f32::consts::TAU;
-
-use bevy::{prelude::*, sprite::Anchor, utils::HashMap};
-use fractory_common::sim::logic::{
-    factory::FractoryMeta,
-    fractal::TileFill,
-    orientation::Orient,
-    path::TilePos,
-    planet::{BiomeId, PlanetId},
-    presets::*,
-    tile::{SubTile, Tile},
-};
+use crate::prelude::{presets::*, *};
 
 pub struct Plug;
 impl Plugin for Plug {

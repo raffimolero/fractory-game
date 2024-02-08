@@ -2,10 +2,7 @@ mod step;
 mod tile;
 
 use self::tile::FractoryElement;
-use crate::io::PlanetCache;
-
-use bevy::prelude::*;
-use fractory_common::sim::logic::presets::*;
+use crate::prelude::{presets::*, *};
 
 pub struct Plug;
 impl Plugin for Plug {
