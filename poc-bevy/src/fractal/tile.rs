@@ -10,7 +10,7 @@ impl Plugin for Plug {
 #[derive(Component)]
 pub struct FractoryElement {
     meta: FractoryMeta,
-    tiles: HashMap<TilePos, Entity>,
+    // tiles: HashMap<TilePos, Entity>,
 }
 
 impl FractoryElement {
@@ -35,7 +35,7 @@ impl FractoryElement {
 
         commands.entity(fractory_elem).insert(Self {
             meta,
-            tiles: HashMap::from([(TilePos::UNIT, root_fragment)]),
+            // tiles: HashMap::from([(TilePos::UNIT, root_fragment)]),
         });
         commands
             .entity(root_fragment)
@@ -66,7 +66,13 @@ fn load_fragments(
         };
 
         let info = FragmentInfo::load(*fragment, &fractory, &planet_cache);
-        FragmentElement::hydrate(&mut commands, fractory.as_mut(), entity, *fragment, info);
+        FragmentElement::hydrate(
+            &mut commands,
+            // fractory.as_mut(),
+            entity,
+            *fragment,
+            info,
+        );
     });
 }
 
@@ -177,13 +183,13 @@ impl FragmentElement {
 
     fn hydrate(
         commands: &mut Commands,
-        fractory: &mut FractoryElement,
+        // fractory: &mut FractoryElement,
         fragment: Entity,
         data: UnloadedFragment,
         info: FragmentInfo,
     ) {
         // TODO: remove from hashmap when dropped
-        fractory.tiles.insert(data.pos, fragment);
+        // fractory.tiles.insert(data.pos, fragment);
 
         let FragmentInfo {
             tile,
@@ -368,7 +374,11 @@ impl FragmentElement {
                     puppets.push(puppet);
                 }
             },
-            despawn_puppets,
+            move |commands, puppets| {
+                for puppet in puppets.drain(..) {
+                    commands.entity(puppet).insert(Despawn);
+                }
+            },
         )
     }
 

@@ -520,7 +520,7 @@ impl FractoryElement {
         );
 
         let mut fractory_meta = FractoryMeta::new(planet_id, biome_id, &planet, &biome);
-        fractory_meta.fractory = new_xyyy_fractory();
+        init_xyyy_fractory(&mut fractory_meta.fractory, Config::TestGrowFarm);
 
         let cache = FractoryCache {
             fragments: planet.fragments().to_owned(),

@@ -1,10 +1,10 @@
 //! Utility stuff for ui related stuff.
 
 pub mod prelude {
-    pub use super::{elements::*, hover::prelude::*, state::prelude::*};
+    pub use super::{elements::*, hover::prelude::*, state::prelude::*, Despawn};
 }
 
-pub mod despawn;
+// pub mod despawn;
 pub mod elements;
 pub mod hover;
 pub mod state;
@@ -19,11 +19,14 @@ impl Plugin for Plug {
     }
 }
 
-#[derive(Event)]
-pub struct Despawn(pub Entity);
+#[derive(Component)]
+pub struct Despawn;
 
-fn despawn(mut commands: Commands, objects: Query<(Entity, Parent, Children)>) {
-    let mut xd;
+fn despawn(
+    mut commands: Commands,
+    despawning: Query<Entity, With<Despawn>>,
+    // objects: Query<(Entity, Parent, Children)>,
+) {
     // TODO: sort them all into a vec based on their depth in the hierarchy
     despawning.for_each(|e| {
         commands.entity(e).despawn_recursive();
