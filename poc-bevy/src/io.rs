@@ -9,7 +9,7 @@ pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlanetCache>()
-            .add_systems(Startup, setup);
+            .add_systems(Startup, setup.in_set(StartupSet::Load));
         // .add_systems(Update, load_folder.run_if(folder_is_loaded));
     }
 }

@@ -4,8 +4,11 @@ pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
         app.init_resource::<MousePos>()
-            .add_systems(Startup, setup)
-            .add_systems(Update, (update_mouse, control_cam).chain());
+            .add_systems(Startup, setup.in_set(StartupSet::Cameras))
+            .add_systems(
+                Update,
+                (update_mouse, control_cam).chain().in_set(UpdateSet::Input),
+            );
     }
 }
 

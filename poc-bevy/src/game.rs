@@ -12,7 +12,7 @@ pub struct Factory {
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup);
+        app.add_systems(Startup, setup.in_set(StartupSet::Load));
     }
 }
 

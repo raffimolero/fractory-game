@@ -7,7 +7,8 @@ use crate::prelude::{presets::*, *};
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_plugins(tile::Plug).add_systems(Startup, setup);
+        app.add_plugins(tile::Plug)
+            .add_systems(Startup, setup.in_set(StartupSet::Layout));
     }
 }
 

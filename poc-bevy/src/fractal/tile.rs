@@ -3,7 +3,10 @@ use crate::prelude::{presets::*, *};
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (load_fragments, check_fragment_expansion));
+        app.add_systems(
+            Update,
+            (load_fragments, check_fragment_expansion).in_set(UpdateSet::Gui),
+        );
     }
 }
 
@@ -375,8 +378,8 @@ impl FragmentElement {
                 }
             },
             move |commands, puppets| {
-                for puppet in puppets.drain(..) {
-                    commands.entity(puppet).insert(Despawn);
+                for puppet in puppets {
+                    commands.entity(*puppet).insert(Despawn);
                 }
             },
         )

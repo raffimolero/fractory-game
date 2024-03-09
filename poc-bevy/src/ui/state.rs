@@ -3,7 +3,7 @@
 
 use super::Despawn;
 
-use bevy::prelude::*;
+use crate::prelude::*;
 
 pub mod prelude {
     pub use super::{
@@ -19,6 +19,7 @@ impl Plugin for Plug {
         app.add_systems(
             Update,
             (
+                check_puppets,
                 smooth_reversible_playback,
                 update_controllers,
                 update_progress,
@@ -27,7 +28,8 @@ impl Plugin for Plug {
                 track_progress,
                 (animate::<Transform>, animate::<Sprite>),
             )
-                .chain(),
+                .chain()
+                .in_set(UpdateSet::Gui),
         );
     }
 }
@@ -290,6 +292,14 @@ impl AnimationControl {
             progress_per_sec: 0.0,
         }
     }
+}
+
+fn check_puppets(entities: Query<Entity>, mut animators: Query<&mut AnimationControl>) {
+    animators.for_each_mut(|mut control| {
+        control
+            .puppets
+            .retain(|puppet| entities.get(*puppet).is_ok());
+    });
 }
 
 fn update_controllers(

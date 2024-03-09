@@ -19,7 +19,7 @@ pub const TRI_VERTS: [Vec2; 3] = [
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, hover);
+        app.add_systems(Update, hover.in_set(UpdateSet::Gui));
     }
 }
 
