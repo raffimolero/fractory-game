@@ -8,9 +8,11 @@ The main branch is updated for major milestones, while the dev branch is updated
 Demos (don't mind the black screens at the start):
 
 Spinner flying into a Rotor:
+
 https://github.com/user-attachments/assets/5629b8d6-8a79-42aa-b4ff-b828901bd522
 
 Me building a circuit:
+
 https://github.com/user-attachments/assets/dcec4a9e-3fbd-411f-848b-1215ce7a1291
 
 - Esc to quit
