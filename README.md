@@ -5,9 +5,13 @@ Fractory. A game you have never seen before...
 **Most activity is in `common/` and `poc-fractal/` and a lot of pretty pictures are under `assets/concepts/`**
 The main branch is updated for major milestones, while the dev branch is updated constantly and is not guaranteed to compile.
 
-Demo:
+Demos (don't mind the black screens at the start):
 
-https://github.com/raffimolero/fractory-game/assets/49224759/66e0ced8-5bea-44e6-9324-d808690949c0
+Spinner flying into a Rotor:
+https://github.com/user-attachments/assets/5629b8d6-8a79-42aa-b4ff-b828901bd522
+
+Me building a circuit:
+https://github.com/user-attachments/assets/dcec4a9e-3fbd-411f-848b-1215ce7a1291
 
 - Esc to quit
 - mouse over the fractal to explore the subdivisions
