@@ -106,7 +106,7 @@ fn control_cam(
     mov = spd * delta * mov.normalize_or_zero();
 
     // mouse pan
-    if mouse.pressed(MouseButton::Right) {
+    if mouse.pressed(MouseButton::Middle) {
         mov -= cursor.delta();
     }
 
@@ -125,10 +125,10 @@ fn control_cam(
     let spd = 2_f32;
     let mut scl = 0.0;
     if keys.pressed(KeyCode::ShiftLeft) {
-        scl -= delta * spd;
+        scl += delta * spd;
     }
     if keys.pressed(KeyCode::Space) {
-        scl += delta * spd;
+        scl -= delta * spd;
     }
 
     // scroll zoom
