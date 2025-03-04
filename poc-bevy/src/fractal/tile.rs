@@ -1,4 +1,7 @@
-use crate::prelude::{presets::*, *};
+use crate::{
+    prelude::{presets::*, *},
+    ui::state::tween::interpolate,
+};
 
 pub struct Plug;
 impl Plugin for Plug {
@@ -277,6 +280,11 @@ impl FragmentElement {
         }
     }
 
+    const HIDE_TIME: f32 = 0.3;
+    const HIDE_RADIUS: f32 = 0.7;
+    const SNAP_TIME: f32 = 0.6;
+    const SNAP_RADIUS: f32 = 1.2;
+
     fn spawn_face(
         commands: &mut Commands,
         base: Entity,
@@ -323,11 +331,19 @@ impl FragmentElement {
         let reveal_animation = (
             AnimationPuppetBundle::track(base),
             ComponentAnimator::without_init(|tf: &mut Transform, ratio: f32| {
-                let ratio = ratio * ratio;
-                let scale = 1.0 - ratio;
+                let scale = interpolate(
+                    0.0..Self::HIDE_TIME,
+                    0.0,
+                    1.0..Self::HIDE_RADIUS,
+                    0.0,
+                    ratio,
+                );
                 tf.scale = Vec2::splat(scale).extend(1.0);
-                tf.rotation = Quat::from_rotation_z(-TAU * ratio);
             }),
+            // ComponentAnimator::without_init(|sprite: &mut Sprite, ratio: f32| {
+            //     let alpha = if ratio < 0.2 { 1.0 } else { 0.0 };
+            //     sprite.color = sprite.color.with_a(alpha);
+            // }),
         );
 
         children.spawn((hitbox, sprite, reveal_animation));
@@ -367,6 +383,7 @@ impl FragmentElement {
                     let rot = if is_center { TAU / 2.0 } else { 0.0 };
                     let z = if is_center { -1.0 } else { -2.0 };
                     let puppet = Self::spawn_puppet(
+                        base,
                         commands,
                         fractory_elem,
                         pos + subtile,
@@ -386,21 +403,50 @@ impl FragmentElement {
     }
 
     fn spawn_puppet(
+        base: Entity,
         commands: &mut Commands,
         fractory_elem: Entity,
         pos: TilePos,
         translation: Vec3,
         rotation: f32,
     ) -> Entity {
+        let spawn_animation = (
+            AnimationPuppetBundle::track(base),
+            ComponentAnimator::without_init(move |tf: &mut Transform, ratio: f32| {
+                let scale_ratio = interpolate(
+                    Self::HIDE_TIME..Self::SNAP_TIME,
+                    0.0,
+                    Self::HIDE_RADIUS..1.0,
+                    1.0,
+                    ratio,
+                );
+
+                let translate_ratio = interpolate(
+                    Self::HIDE_TIME..Self::SNAP_TIME,
+                    0.0,
+                    Self::HIDE_RADIUS..Self::SNAP_RADIUS,
+                    interpolate(
+                        Self::SNAP_TIME..1.0,
+                        Self::SNAP_RADIUS,
+                        Self::SNAP_RADIUS..1.0,
+                        1.0,
+                        ratio,
+                    ),
+                    ratio,
+                );
+                tf.scale = Vec2::splat(scale_ratio * 0.5).extend(1.0);
+                tf.translation = translation * translate_ratio;
+                tf.rotation = Quat::from_rotation_z(rotation * translate_ratio);
+            }),
+        );
         let puppet = commands
-            .spawn(SpatialBundle {
-                transform: Transform {
-                    rotation: Quat::from_rotation_z(rotation),
-                    scale: Vec3::splat(0.5),
-                    translation,
+            .spawn((
+                SpatialBundle {
+                    transform: Transform { ..default() },
+                    ..default()
                 },
-                ..default()
-            })
+                spawn_animation,
+            ))
             .id();
         let child = Self::spawn_unloaded(commands, fractory_elem, pos);
         commands.entity(puppet).add_child(child);

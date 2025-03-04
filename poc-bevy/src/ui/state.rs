@@ -400,7 +400,27 @@ pub fn animate<T: Component>(
 }
 
 pub mod tween {
+    use std::ops::Range;
+
     use super::Tweener;
+
+    // TODO: keyframes
+    pub fn interpolate(
+        time_range: Range<f32>,
+        less: f32,
+        output_range: Range<f32>,
+        more: f32,
+        ratio: f32,
+    ) -> f32 {
+        if ratio < time_range.start {
+            less
+        } else if ratio < time_range.end {
+            let ratio = (ratio - time_range.start) / (time_range.end - time_range.start);
+            ratio * (output_range.end - output_range.start) + output_range.start
+        } else {
+            more
+        }
+    }
 
     pub struct Linear;
     impl Tweener<f32> for Linear {
