@@ -788,7 +788,7 @@ impl FractalViewElement {
                     Zoom: 2^{:.2}",
                     mouse_depth,
                     min_bg_depth,
-                    self.frac_cam.scale(),
+                    self.frac_cam.scale().log2(),
                 ),
             );
         });
