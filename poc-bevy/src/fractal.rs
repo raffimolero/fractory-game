@@ -1,15 +1,14 @@
+mod step;
 mod tile;
 
-use self::tile::FractoryEntity;
-use crate::io::PlanetCache;
-
-use bevy::prelude::*;
-use fractory_common::sim::logic::presets::*;
+use self::tile::FractoryElement;
+use crate::prelude::{presets::*, *};
 
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_plugins(tile::Plug).add_systems(Startup, setup);
+        app.add_plugins(tile::Plug)
+            .add_systems(Startup, setup.in_set(StartupSet::Layout));
     }
 }
 
@@ -18,7 +17,7 @@ fn setup(
     mut asset_server: ResMut<AssetServer>,
     mut planets: ResMut<PlanetCache>,
 ) {
-    FractoryEntity::spawn(
+    FractoryElement::spawn(
         &mut commands,
         &mut asset_server,
         &mut planets,

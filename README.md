@@ -15,47 +15,35 @@ Me building a circuit:
 
 https://github.com/user-attachments/assets/dcec4a9e-3fbd-411f-848b-1215ce7a1291
 
-- Esc to quit
-- mouse over the fractal to explore the subdivisions
-- WASD/right mouse drag to move the camera around
-- Scroll to zoom, automatically expanding the fractal as you go (going too far crashes the program)
-- Shift+Scroll to change recursion depth without zooming (clamped between depth -3 and +6)
-- Ctrl+Scroll to zoom without changing recursion depth
-- Q/E to rotate the camera around mouse (no setting to reverse or snap directions yet)
-- Space to zoom in on mouse
-- Shift+Space to zoom out on mouse
-- F to flip the camera horizontally around mouse
-- Tab to switch modes (Edit/Act/View)
-  * `Edit` mode: Clicking a tile cycles it between 0, 1, 2, 3. specifically, `tile.id = if tile.id < 3 { tile.id + 1 } else { 0 }`
-  * `Act` mode: Activates a clicked tile, priming it for action in the next tick
-  * `View` mode: does nothing, just lets you explore the fractal in its solid arrangement.
-- Enter to simulate one tick of the simulation
-  * Orange and Yellow tiles will do nothing at the moment
-  * Green tiles will try to flip whatever tile is below them, but only when the tile below them is full:
-```
-    *something like this.
-       /\          /\
-      /3 \        /3 \
-     /____\  =>  /____\
-     \XXY /  =>  \ YXX/
-      \X /        \ X/
-       \/          \/
+-   Esc: quit
+-   WASD or Right Click + Drag: move
+-   Q/E: rotate
+-   F: flip
+-   Space or Scroll up: zoom in
+-   LShift or Scroll down: zoom out
+-   LCtrl + Zoom: change cursor expansion depth
+-   LAlt + Zoom: change background expansion depth
 
+```
+    tile behavior rules:
 *orientation matters. upside-down tiles will of course do their thing from their perspective.
 *if a tile tries to move to 2 different positions, both moves are cancelled and nothing happens.
 *if 2 tiles try to move to the same position, both moves are cancelled and nothing happens.
 *if a tile tries to move into an occupied position, the move is cancelled and nothing happens.
 ```
 
+**[ Further information may be outdated ]**
+
 TODO:
-- test the fractal triangle rendering in poc-fractal (done)
-- add interactivity, so you can.. (done)
-- ..test the algorithms for the fractal manipulation (done)
-- common::sim::logic::factory::Fractory (done)
-    * should contain all the activated tiles (done)
-    * should know how to simulate (done)
-    * should be able to hook into a UI to send transition info (what animations should play per tile)
-- Fragment
+
+-   test the fractal triangle rendering in poc-fractal (done)
+-   add interactivity, so you can.. (done)
+-   ..test the algorithms for the fractal manipulation (done)
+-   common::sim::logic::factory::Fractory (done)
+    -   should contain all the activated tiles (done)
+    -   should know how to simulate (done)
+    -   should be able to hook into a UI to send transition info (what animations should play per tile)
+-   Fragment
 
 ```
 create fractal version
@@ -96,4 +84,5 @@ File structure:
       <poc-linear/src/*>
   .git          large scale t&e
 ```
+
 =======

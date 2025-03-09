@@ -5,7 +5,11 @@ use super::{
     orientation::{Rotation, Transform},
     tile::SubTile,
 };
-use std::ops::{Add, AddAssign, Mul};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Mul},
+    str::FromStr,
+};
 
 use glam::IVec2;
 
@@ -297,6 +301,91 @@ pub struct TilePos {
     pub flop: bool,
 }
 
+impl Display for TilePos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "d{}x{}y{}{}",
+            self.depth,
+            self.pos.x,
+            self.pos.y,
+            if self.flop { "f" } else { "" }
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TilePosErr {
+    UnexpectedToken,
+    UnexpectedEndOfString,
+    OutOfBounds,
+}
+
+impl FromStr for TilePos {
+    type Err = TilePosErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut chars = s.chars();
+        match chars.next() {
+            Some('d') => {}
+            Some(_) => return Err(TilePosErr::UnexpectedToken),
+            None => return Err(TilePosErr::UnexpectedEndOfString),
+        };
+
+        let mut depth: u8 = 0;
+        loop {
+            let Some(c) = chars.next() else {
+                return Err(TilePosErr::UnexpectedEndOfString);
+            };
+            if c == 'x' {
+                break;
+            }
+            depth = depth.checked_mul(10).ok_or(TilePosErr::OutOfBounds)?;
+            let d = c.to_digit(10).ok_or(TilePosErr::UnexpectedToken)? as u8;
+            depth = depth.checked_add(d).ok_or(TilePosErr::OutOfBounds)?;
+        }
+
+        let mut x: i32 = 0;
+        loop {
+            let Some(c) = chars.next() else {
+                return Err(TilePosErr::UnexpectedEndOfString);
+            };
+            if c == 'y' {
+                break;
+            }
+            x = x.checked_mul(10).ok_or(TilePosErr::OutOfBounds)?;
+            let d = c.to_digit(10).ok_or(TilePosErr::UnexpectedToken)? as i32;
+            x = x.checked_add(d).ok_or(TilePosErr::OutOfBounds)?;
+        }
+
+        let mut y: i32 = 0;
+        let flop = loop {
+            let Some(c) = chars.next() else {
+                break false;
+            };
+            if c == 'f' {
+                if chars.next().is_some() {
+                    return Err(TilePosErr::UnexpectedToken);
+                }
+                break true;
+            }
+            y = y.checked_mul(10).ok_or(TilePosErr::OutOfBounds)?;
+            let d = c.to_digit(10).ok_or(TilePosErr::UnexpectedToken)? as i32;
+            y = y.checked_add(d).ok_or(TilePosErr::OutOfBounds)?;
+        };
+
+        let out = Self {
+            depth,
+            pos: IVec2 { x, y },
+            flop,
+        };
+        if !out.is_valid() {
+            return Err(TilePosErr::OutOfBounds);
+        }
+        Ok(out)
+    }
+}
+
 impl TilePos {
     pub const UNIT: Self = Self {
         depth: 0,
@@ -328,13 +417,15 @@ impl TilePos {
         1 << self.depth
     }
 
-    fn row(self) -> i32 {
+    pub fn row(self) -> i32 {
         self.pos.y + self.flop as i32
     }
 
     pub fn is_valid(self) -> bool {
-        // x must not be negative
-        self.pos.x >= 0
+        // depth must be reasonable
+        self.depth <= 30
+            // x must not be negative
+            && self.pos.x >= 0
             // x must fit within the row
             && self.pos.x <= self.pos.y
             // y must not go beneath its height

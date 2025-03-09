@@ -1,41 +1,25 @@
-use crate::{io::PlanetCache, ui::prelude::*};
-use std::f32::consts::TAU;
-
-use bevy::{prelude::*, sprite::Anchor};
-use fractory_common::sim::logic::{
-    factory::FractoryMeta,
-    orientation::{Orient, Transform as TriTf},
-    path::TilePos,
-    planet::{BiomeId, PlanetId},
-    presets::*,
-    tile::SubTile,
+use crate::{
+    prelude::{presets::*, *},
+    ui::state::tween::interpolate,
 };
 
 pub struct Plug;
 impl Plugin for Plug {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (load_fragments, fragment_hover));
+        app.add_systems(
+            Update,
+            (load_fragments, check_fragment_expansion).in_set(UpdateSet::Gui),
+        );
     }
 }
 
-fn fragment_hover(
-    time: Res<Time>,
-    mut fragments: Query<(&IsHovered, &mut AnimationControl), With<FragmentData>>,
-) {
-    let delta = time.delta_seconds();
-    let rate = delta * 8.0;
-    fragments.for_each_mut(|(is_hovered, mut control)| {
-        control.playback_speed += rate * if is_hovered.0 { 1.0 } else { -1.0 };
-        control.playback_speed = control.playback_speed.clamp(-1.0, 1.0);
-    });
-}
-
 #[derive(Component)]
-pub struct FractoryEntity {
+pub struct FractoryElement {
     meta: FractoryMeta,
+    // tiles: HashMap<TilePos, Entity>,
 }
 
-impl FractoryEntity {
+impl FractoryElement {
     pub fn spawn(
         commands: &mut Commands,
         asset_server: &mut AssetServer,
@@ -45,110 +29,57 @@ impl FractoryEntity {
     ) -> Entity {
         let mut meta = planets.new_fractory(asset_server, planet, biome);
 
-        meta.fractory
-            .fractal
-            .set(TilePos::UNIT, TILES[tiles::SPINNER].transformed(TriTf::FR));
+        init_xyyy_fractory(&mut meta.fractory, Config::TestGrowFarm);
 
-        let fractory = commands
-            .spawn((
-                Self { meta },
-                SpatialBundle {
-                    transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
-                    ..default()
-                },
-            ))
+        let fractory_elem = commands
+            .spawn(SpatialBundle {
+                transform: Transform::from_scale(Vec2::splat(500.0).extend(1.0)),
+                ..default()
+            })
             .id();
-        let root_fragment = FragmentData::spawn(commands, fractory, TilePos::UNIT);
+        let root_fragment = FragmentElement::spawn_unloaded(commands, fractory_elem, TilePos::UNIT);
+
+        commands.entity(fractory_elem).insert(Self {
+            meta,
+            // tiles: HashMap::from([(TilePos::UNIT, root_fragment)]),
+        });
         commands
             .entity(root_fragment)
             .insert(IsHovered(false))
-            .set_parent(fractory);
-        fractory
+            .set_parent(fractory_elem);
+        fractory_elem
     }
 }
 
-#[derive(Component)]
-struct Unloaded {
-    tracking: Entity,
-    root: Entity,
+#[derive(Component, Clone, Copy)]
+struct UnloadedFragment {
+    fractory_elem: Entity,
     pos: TilePos,
 }
 
 fn load_fragments(
     mut commands: Commands,
-    fractories: Query<&FractoryEntity>,
+    mut fractories: Query<&mut FractoryElement>,
     planet_cache: Res<PlanetCache>,
-    unloaded: Query<(Entity, &Unloaded)>,
+    unloaded: Query<(Entity, &UnloadedFragment)>,
 ) {
-    unloaded.for_each(|(entity, unloaded)| {
-        let Ok(fractory) = fractories.get(unloaded.root) else {
+    unloaded.for_each(|(entity, fragment)| {
+        let Ok(mut fractory) = fractories.get_mut(fragment.fractory_elem) else {
             panic!(
                 "attempted to access nonexistent fractory entity.\n\
                 fractory root should've despawned before children."
             );
         };
-        let tile = fractory.meta.fractory.fractal.get(unloaded.pos);
 
-        let (planet_data, planet_assets) = planet_cache
-            .planets
-            .get(&fractory.meta.planet)
-            .expect("Planets should be loaded by now.");
-        let name = planet_data
-            .fragments()
-            .names()
-            .get(tile.id)
-            .cloned()
-            .unwrap_or(format!("<#{}>", tile.id));
-
-        let sprite = planet_assets.get_fragment_icon(tile.id);
-
-        let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
-        let tringle = commands
-            .spawn((
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: Some(CursorIcon::Hand),
-                },
-                IsHovered(false),
-                SpriteBundle {
-                    sprite: Sprite {
-                        custom_size: Some(size),
-                        anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
-                        ..default()
-                    },
-                    texture: sprite,
-                    ..default()
-                },
-                AnimationPuppetBundle::track(unloaded.tracking),
-                ComponentAnimator::boxed(|tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    let scale = 1.0 - ratio;
-                    tf.scale = Vec2::splat(scale).extend(1.0);
-                    tf.rotation = Quat::from_rotation_z(-TAU * ratio);
-                }),
-            ))
-            .id();
-
-        let text = text(name, 120.0, size);
-
-        let base_scale = text.transform.scale;
-        let tag = commands
-            .spawn((
-                text,
-                AnimationPuppetBundle::track(unloaded.tracking),
-                ComponentAnimator::boxed(move |tf: &mut Transform, ratio: f32| {
-                    let ratio = ratio * ratio;
-                    tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
-                }),
-            ))
-            .id();
-
-        commands
-            .entity(entity)
-            .insert(transform_from_orient(tile.orient))
-            .push_children(&[tringle, tag])
-            .remove::<Unloaded>();
-    })
+        let info = FragmentInfo::load(*fragment, &fractory, &planet_cache);
+        FragmentElement::hydrate(
+            &mut commands,
+            // fractory.as_mut(),
+            entity,
+            *fragment,
+            info,
+        );
+    });
 }
 
 fn transform_from_orient(orient: Orient) -> Transform {
@@ -162,57 +93,360 @@ fn transform_from_orient(orient: Orient) -> Transform {
     }
 }
 
-#[derive(Component)]
-pub struct FragmentData {
-    pub root: Entity,
-    pub id: usize,
-    pub pos: TilePos,
+struct FragmentInfo {
+    tile: Tile,
+    fill: TileFill,
+    name: String,
+    face_sprite: Handle<Image>,
+    slot_sprite: Handle<Image>,
 }
 
-impl FragmentData {
-    fn spawn_puppet_fragments(
-        root: Entity,
-        pos: TilePos,
+impl FragmentInfo {
+    /// loads data needed to spawn a fragment entity.
+    fn load(
+        data: UnloadedFragment,
+        fractory: &FractoryElement,
+        planet_cache: &PlanetCache,
+    ) -> FragmentInfo {
+        let fractal = &fractory.meta.fractory.fractal;
+        let tile = fractal.get(data.pos);
+        let fill = fractal.get_info(tile.id).fill;
+
+        let (planet_data, planet_assets) = planet_cache
+            .planets
+            .get(&fractory.meta.planet)
+            .expect("Planets should be loaded by now.");
+
+        let name = planet_data
+            .fragments()
+            .names()
+            .get(tile.id)
+            .cloned()
+            .unwrap_or(format!("Tile at {}", data.pos));
+
+        let face_sprite = planet_assets.get_fragment_icon(tile.id);
+        let slot_sprite = planet_assets.get_fragment_icon(0);
+
+        FragmentInfo {
+            tile,
+            fill,
+            name,
+            face_sprite,
+            slot_sprite,
+        }
+    }
+}
+
+fn check_fragment_expansion(
+    camera: Query<(&GlobalTransform, &FractalCam), With<MainCam>>,
+    mut fragments: Query<(
+        &FragmentElement,
+        &IsHovered,
+        &GlobalTransform,
+        &ViewVisibility,
+        &mut AnimationDestination,
+    )>,
+) {
+    let (cam_gtf, frac_cam) = camera.single();
+    let cam_scale = cam_gtf.to_scale_rotation_translation().0.y;
+
+    fragments.for_each_mut(|(fragment, is_hovered, gtf, visibility, mut destination)| {
+        let should_expand = visibility.get() && {
+            let frag_scale = gtf.to_scale_rotation_translation().0.y;
+            let relative_depth = cam_scale / frag_scale;
+
+            let threshold = if is_hovered.0 {
+                frac_cam.mouse_depth
+            } else if fragment.fill.is_leaf() {
+                frac_cam.min_bg_depth
+            } else {
+                frac_cam.max_bg_depth
+            };
+
+            relative_depth * 1024.0 < 2_f32.powf(threshold)
+        };
+
+        *destination = if should_expand {
+            AnimationDestination::End
+        } else {
+            AnimationDestination::Start
+        }
+    });
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct FragmentElement {
+    pub fractory_elem: Entity,
+    pub pos: TilePos,
+    pub fill: TileFill,
+}
+
+impl FragmentElement {
+    /// spawns an unloaded fragment entity.
+    fn spawn_unloaded(commands: &mut Commands, fractory_elem: Entity, pos: TilePos) -> Entity {
+        commands.spawn(UnloadedFragment { fractory_elem, pos }).id()
+    }
+
+    fn hydrate(
+        commands: &mut Commands,
+        // fractory: &mut FractoryElement,
         fragment: Entity,
+        data: UnloadedFragment,
+        info: FragmentInfo,
+    ) {
+        // TODO: remove from hashmap when dropped
+        // fractory.tiles.insert(data.pos, fragment);
+
+        let FragmentInfo {
+            tile,
+            fill,
+            name,
+            face_sprite,
+            slot_sprite,
+        } = info;
+        let face = Self::spawn_face(commands, fragment, tile, name, face_sprite);
+
+        Self::hydrate_base(commands, fragment, face, data, slot_sprite, fill);
+    }
+
+    /// takes an unloaded fragment's base entity and attaches the necessary pieces to it
+    fn hydrate_base(
+        commands: &mut Commands,
+        base: Entity,
+        face: Option<Entity>,
+        data: UnloadedFragment,
+        slot_sprite: Handle<Image>,
+        fill: TileFill,
+    ) {
+        let fragment_data = Self {
+            fractory_elem: data.fractory_elem,
+            pos: data.pos,
+            fill,
+        };
+
+        let size = Vec2::new(1.0, TRI_HEIGHT);
+        let slot_sprite = SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(size),
+                anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                ..default()
+            },
+            texture: slot_sprite,
+            ..default()
+        };
+
+        let hitbox = (
+            // IsHovered(false),
+            Hitbox {
+                kind: HitboxKind::Tri { r: 1.0 },
+                cursor: None,
+            },
+        );
+
+        let reveal_animation =
+            ComponentAnimator::without_init(|sprite: &mut Sprite, ratio: f32| {
+                let ratio = ratio * ratio;
+                sprite.color = sprite.color.with_a(1.0 - ratio);
+            });
+
+        let spawn_puppet_fragments = FragmentElement::spawn_puppet_fragments(
+            fragment_data.fractory_elem,
+            fragment_data.pos,
+            base,
+        );
+        let add_puppet_hitboxes = FragmentElement::add_puppet_hitboxes();
+        let expand_animation = (
+            AutoPause,
+            AnimationControlBundle::from_events(
+                0.25,
+                [(0.0, spawn_puppet_fragments), (0.125, add_puppet_hitboxes)],
+            ),
+            AnimationDestination::Start,
+        );
+
+        commands
+            .entity(base)
+            .insert((
+                fragment_data,
+                slot_sprite,
+                hitbox,
+                reveal_animation,
+                expand_animation,
+            ))
+            .remove::<UnloadedFragment>();
+
+        if let Some(face) = face {
+            commands.entity(base).add_child(face);
+        }
+    }
+
+    const HIDE_TIME: f32 = 0.3;
+    const HIDE_RADIUS: f32 = 0.7;
+    const SNAP_TIME: f32 = 0.6;
+    const SNAP_RADIUS: f32 = 1.2;
+
+    fn spawn_face(
+        commands: &mut Commands,
+        base: Entity,
+        tile: Tile,
+        name: String,
+        sprite: Handle<Image>,
+    ) -> Option<Entity> {
+        (tile != Tile::SPACE).then(|| {
+            commands
+                .spawn(SpatialBundle {
+                    transform: transform_from_orient(tile.orient).with_translation(Vec3::Z),
+                    ..default()
+                })
+                .with_children(|children| {
+                    let size = Vec2::new(1.0, TRI_HEIGHT) * 0.875;
+                    Self::spawn_tringle(children, base, size, sprite);
+                    Self::spawn_name(children, base, size, name);
+                })
+                .id()
+        })
+    }
+
+    fn spawn_tringle(children: &mut ChildBuilder, base: Entity, size: Vec2, sprite: Handle<Image>) {
+        let hitbox = (
+            Hitbox {
+                kind: HitboxKind::Tri { r: 1.0 },
+                cursor: Some(CursorIcon::Hand),
+            },
+            IsHovered(false),
+        );
+
+        let sprite = SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(size),
+                anchor: Anchor::Custom(Vec2::new(0.0, -TRI_CENTER_OFF_Y)),
+                ..default()
+            },
+            texture: sprite,
+            ..default()
+        };
+
+        // TODO: make this snappier so we can play a juicy sound effect
+        // maybe add particles too
+        let reveal_animation = (
+            AnimationPuppetBundle::track(base),
+            ComponentAnimator::without_init(|tf: &mut Transform, ratio: f32| {
+                let scale = interpolate(
+                    0.0..Self::HIDE_TIME,
+                    1.0,
+                    1.0..Self::HIDE_RADIUS,
+                    0.0,
+                    ratio,
+                );
+                tf.scale = Vec2::splat(scale).extend(1.0);
+            }),
+            // ComponentAnimator::without_init(|sprite: &mut Sprite, ratio: f32| {
+            //     let alpha = if ratio < 0.2 { 1.0 } else { 0.0 };
+            //     sprite.color = sprite.color.with_a(alpha);
+            // }),
+        );
+
+        children.spawn((hitbox, sprite, reveal_animation));
+    }
+
+    fn spawn_name(children: &mut ChildBuilder, base: Entity, size: Vec2, name: String) {
+        let text = text(name, 120.0, size);
+
+        let base_scale = text.transform.scale;
+        let reveal_animation = (
+            AnimationPuppetBundle::track(base),
+            ComponentAnimator::without_init(move |tf: &mut Transform, ratio: f32| {
+                let ratio = ratio * ratio;
+                tf.scale = base_scale * Vec2::splat(1.0 - ratio).extend(1.0);
+            }),
+        );
+
+        children.spawn((text, reveal_animation));
+    }
+
+    fn spawn_puppet_fragments(
+        fractory_elem: Entity,
+        pos: TilePos,
+        base: Entity,
     ) -> Box<dyn ReversibleEvent> {
         // TODO: abstract spawn/despawn REvent
 
         REvent::boxed(
             move |commands, puppets| {
-                for (st, tl) in SubTile::ORDER.into_iter().zip([
+                for (subtile, xy) in SubTile::ORDER.into_iter().zip([
                     Vec2::ZERO,
-                    TRI_VERTS[1],
-                    TRI_VERTS[2],
-                    TRI_VERTS[0],
+                    TRI_VERTS[1] / 2.0,
+                    TRI_VERTS[2] / 2.0,
+                    TRI_VERTS[0] / 2.0,
                 ]) {
-                    let is_center = st == SubTile::C;
+                    let is_center = subtile == SubTile::C;
                     let rot = if is_center { TAU / 2.0 } else { 0.0 };
                     let z = if is_center { -1.0 } else { -2.0 };
-                    let xy = tl / 2.0;
-                    let puppet = commands
-                        .spawn(SpatialBundle {
-                            transform: Transform {
-                                rotation: Quat::from_rotation_z(rot + -TAU),
-                                scale: Vec3::splat(0.5),
-                                translation: xy.extend(z),
-                            },
-                            ..default()
-                        })
-                        .id();
-                    let child = Self::spawn(commands, root, pos + st);
-                    commands
-                        .entity(puppet)
-                        .set_parent(fragment)
-                        .add_child(child);
+                    let puppet = Self::spawn_puppet(
+                        base,
+                        commands,
+                        fractory_elem,
+                        pos + subtile,
+                        xy.extend(z),
+                        rot,
+                    );
+                    commands.entity(base).add_child(puppet);
                     puppets.push(puppet);
                 }
             },
-            move |commands, puppets| {
-                for p in puppets.drain(..) {
-                    commands.entity(p).insert(Despawn);
-                }
-            },
+            despawn_puppets,
         )
+    }
+
+    fn spawn_puppet(
+        base: Entity,
+        commands: &mut Commands,
+        fractory_elem: Entity,
+        pos: TilePos,
+        translation: Vec3,
+        rotation: f32,
+    ) -> Entity {
+        let spawn_animation = (
+            AnimationPuppetBundle::track(base),
+            ComponentAnimator::without_init(move |tf: &mut Transform, ratio: f32| {
+                let scale_ratio = interpolate(
+                    Self::HIDE_TIME..Self::SNAP_TIME,
+                    0.0,
+                    Self::HIDE_RADIUS..1.0,
+                    1.0,
+                    ratio,
+                );
+
+                let translate_ratio = interpolate(
+                    Self::HIDE_TIME..Self::SNAP_TIME,
+                    0.0,
+                    Self::HIDE_RADIUS..Self::SNAP_RADIUS,
+                    interpolate(
+                        Self::SNAP_TIME..1.0,
+                        Self::SNAP_RADIUS,
+                        Self::SNAP_RADIUS..1.0,
+                        1.0,
+                        ratio,
+                    ),
+                    ratio,
+                );
+                tf.scale = Vec2::splat(scale_ratio * 0.5).extend(1.0);
+                tf.translation = translation * translate_ratio;
+                tf.rotation = Quat::from_rotation_z(rotation * translate_ratio);
+            }),
+        );
+        let puppet = commands
+            .spawn((
+                SpatialBundle {
+                    transform: Transform { ..default() },
+                    ..default()
+                },
+                spawn_animation,
+            ))
+            .id();
+        let child = Self::spawn_unloaded(commands, fractory_elem, pos);
+        commands.entity(puppet).add_child(child);
+        puppet
     }
 
     fn add_puppet_hitboxes() -> Box<dyn ReversibleEvent> {
@@ -243,41 +477,5 @@ impl FragmentData {
                 }
             },
         )
-    }
-
-    fn spawn(commands: &mut Commands, root: Entity, pos: TilePos) -> Entity {
-        let fragment = commands
-            .spawn((
-                Hitbox {
-                    kind: HitboxKind::Tri { r: 1.0 },
-                    cursor: None,
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
-
-        let face = commands
-            .spawn((
-                Unloaded {
-                    tracking: fragment,
-                    root,
-                    pos,
-                },
-                SpatialBundle::default(),
-            ))
-            .id();
-
-        commands.entity(fragment).add_child(face).insert((
-            Self { root, id: 0, pos },
-            AutoPause,
-            AnimationControlBundle::from_events(
-                0.25,
-                [
-                    (0.0, Self::spawn_puppet_fragments(root, pos, fragment)),
-                    (0.125, Self::add_puppet_hitboxes()),
-                ],
-            ),
-        ));
-        fragment
     }
 }

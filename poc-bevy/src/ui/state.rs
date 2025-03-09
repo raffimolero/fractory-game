@@ -1,12 +1,10 @@
-// TODO: reimplement bevy_tweening for zero fun and zero profit
-// also maybe rename this file
-
-use bevy::prelude::*;
+use crate::prelude::*;
 
 pub mod prelude {
     pub use super::{
-        AnimationControl, AnimationEvents, AnimationProgress, AnimationTracker, AutoPause,
-        ComponentAnimator, REvent, Tweener,
+        despawn_puppets, AnimationControl, AnimationControlBundle, AnimationDestination,
+        AnimationEvents, AnimationProgress, AnimationPuppetBundle, AnimationTracker, AutoPause,
+        ComponentAnimator, Despawn, REvent, ReversibleEvent, Tweener,
     };
 }
 
@@ -16,16 +14,92 @@ impl Plugin for Plug {
         app.add_systems(
             Update,
             (
-                update_controllers,
-                update_progress,
-                auto_pause,
-                run_events,
-                track_progress,
-                (animate::<Transform>),
-            )
-                .chain(),
+                (
+                    smooth_reversible_playback,
+                    update_controllers,
+                    update_progress,
+                    track_progress,
+                    auto_pause,
+                    run_events,
+                )
+                    .chain()
+                    .in_set(UpdateSet::AnimationProgress),
+                (
+                    set_despawning_progress_to_zero,
+                    mark_despawning_children,
+                    apply_deferred,
+                )
+                    .chain()
+                    .in_set(UpdateSet::OverrideProgress),
+                (animate::<Transform>, animate::<Sprite>).in_set(UpdateSet::Animate),
+                (
+                    apply_deferred,
+                    despawn_entities,
+                    apply_deferred,
+                    check_puppets,
+                    apply_deferred,
+                )
+                    .chain()
+                    .in_set(UpdateSet::Despawn),
+            ),
         );
     }
+}
+
+#[derive(Component)]
+pub struct Despawn;
+
+#[derive(Component, Default, Clone, Copy, PartialEq, Eq)]
+pub enum AnimationDestination {
+    #[default]
+    Start,
+    End,
+}
+
+impl AnimationDestination {
+    fn direction(self) -> f32 {
+        match self {
+            AnimationDestination::Start => -1.0,
+            AnimationDestination::End => 1.0,
+        }
+    }
+}
+
+fn check_puppets(
+    entities: Query<Entity>,
+    mut animators: Query<&mut AnimationControl>,
+    mut prev_len: Local<usize>,
+) {
+    // DEBUG:
+    let mut entity_count = 0;
+    entities.for_each(|_| entity_count += 1);
+    if entity_count != *prev_len {
+        dbg!(entity_count);
+        *prev_len = entity_count;
+    }
+
+    animators.for_each_mut(|mut control| {
+        let len = control.puppets.len();
+        control
+            .puppets
+            .retain(|puppet| entities.get(*puppet).is_ok());
+        let removed = len - control.puppets.len();
+        if removed != 0 {
+            dbg!(removed);
+        }
+    });
+}
+
+fn smooth_reversible_playback(
+    time: Res<Time>,
+    mut fragments: Query<(&AnimationDestination, &mut AnimationControl)>,
+) {
+    let delta = time.delta_seconds();
+    let rate = delta * 8.0;
+    fragments.for_each_mut(|(destination, mut control)| {
+        control.playback_speed += rate * destination.direction();
+        control.playback_speed = control.playback_speed.clamp(-1.0, 1.0);
+    });
 }
 
 #[derive(Bundle, Default)]
@@ -55,12 +129,10 @@ impl AnimationControlBundle {
             .into_iter()
             .map(|(time, ev)| (time / duration_secs, ev))
             .collect::<Vec<_>>();
-        for window in events.windows(2) {
-            let &[(t1, _), (t2, _)] = window else {
-                unreachable!()
-            };
-            assert!(t1 <= t2, "Animation events must be in order.");
-        }
+        debug_assert!(
+            events.is_sorted_by_key(|(time, _ev)| time),
+            "Animation events must be in order."
+        );
         Self {
             control: AnimationControl {
                 playback_speed: 0.0,
@@ -76,6 +148,7 @@ impl AnimationControlBundle {
     }
 }
 
+/// A bundle you add to an entity that is a puppet of another entity.
 #[derive(Bundle)]
 pub struct AnimationPuppetBundle {
     pub progress: AnimationProgress,
@@ -101,15 +174,62 @@ impl<T, F: FnMut(&mut T, f32)> Tweener<T> for F {
     }
 }
 
+pub struct ShouldDelete(pub bool);
+
+pub trait OptionTweener<T>: 'static + Send + Sync {
+    fn maybe_init(&mut self, ratio: f32) -> Option<T>;
+    fn lerp_maybe_delete(&mut self, target: &mut T, ratio: f32) -> ShouldDelete;
+}
+
 #[derive(Component)]
 pub struct AutoPause;
 
+/// only exists because writing out a whole impl every animation is inconvenient
 #[derive(Component)]
-pub struct ComponentAnimator<T: Component>(pub Box<dyn Tweener<T> + Send + Sync>);
+pub struct InitTweener<
+    T: Component,
+    Init: FnMut(f32) -> Option<T> + 'static + Send + Sync,
+    Tween: Tweener<T> + 'static + Send + Sync,
+> {
+    pub init: Init,
+    pub tweener: Tween,
+}
+
+impl<
+        T: Component,
+        Init: FnMut(f32) -> Option<T> + 'static + Send + Sync,
+        Tween: Tweener<T> + 'static + Send + Sync,
+    > OptionTweener<T> for InitTweener<T, Init, Tween>
+{
+    fn maybe_init(&mut self, ratio: f32) -> Option<T> {
+        (self.init)(ratio)
+    }
+
+    fn lerp_maybe_delete(&mut self, target: &mut T, ratio: f32) -> ShouldDelete {
+        self.tweener.lerp(target, ratio);
+        ShouldDelete(false)
+    }
+}
+
+#[derive(Component)]
+pub struct ComponentAnimator<T: Component>(pub Box<dyn OptionTweener<T> + Send + Sync>);
 
 impl<T: Component> ComponentAnimator<T> {
-    pub fn boxed(tweener: impl Tweener<T> + 'static + Send + Sync) -> Self {
-        Self(Box::new(tweener))
+    pub fn without_init(tweener: impl Tweener<T> + 'static + Send + Sync) -> Self {
+        Self(Box::new(InitTweener {
+            init: |_| panic!("Attempted to tween nonexistent component."),
+            tweener,
+        }))
+    }
+
+    pub fn with_init(
+        mut init: impl FnMut(f32) -> T + 'static + Send + Sync,
+        tweener: impl Tweener<T> + 'static + Send + Sync,
+    ) -> Self {
+        Self(Box::new(InitTweener {
+            init: move |ratio| Some(init(ratio)),
+            tweener,
+        }))
     }
 }
 
@@ -121,6 +241,7 @@ pub trait ReversibleEvent: Send + Sync {
     fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>);
 }
 
+/// only exists because writing out a whole impl every animation is inconvenient
 pub struct REvent<
     F: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
     B: FnMut(&mut Commands, &mut Vec<Entity>) + 'static + Send + Sync,
@@ -150,6 +271,12 @@ impl<
 
     fn run_backward(&mut self, commands: &mut Commands, puppets: &mut Vec<Entity>) {
         (self.back)(commands, puppets)
+    }
+}
+
+pub fn despawn_puppets(commands: &mut Commands, puppets: &mut Vec<Entity>) {
+    for puppet in puppets {
+        commands.entity(*puppet).insert(Despawn);
     }
 }
 
@@ -183,6 +310,7 @@ impl AnimationEvents {
 pub struct AnimationTracker(pub Entity);
 
 /// puppets must be spawned by AnimationEvents
+// TODO: do we really need playback speed in the same component as puppets?
 #[derive(Component)]
 pub struct AnimationControl {
     pub playback_speed: f32,
@@ -277,19 +405,77 @@ fn track_progress(
     })
 }
 
+fn set_despawning_progress_to_zero(mut despawns: Query<&mut AnimationProgress, With<Despawn>>) {
+    despawns.for_each_mut(|mut progress| progress.0 = 0.0);
+}
+
+fn mark_despawning_children(mut commands: Commands, despawns: Query<&Children, With<Despawn>>) {
+    despawns.for_each(|children| {
+        for child in children {
+            commands.entity(*child).insert(Despawn);
+        }
+    });
+}
+
 pub fn animate<T: Component>(
+    mut commands: Commands,
     mut animators: Query<
-        (&mut ComponentAnimator<T>, &mut T, &AnimationProgress),
+        (
+            Entity,
+            &mut ComponentAnimator<T>,
+            Option<&mut T>,
+            &AnimationProgress,
+        ),
         Changed<AnimationProgress>,
     >,
 ) {
-    animators.for_each_mut(|(mut animator, mut target, progress)| {
-        animator.0.lerp(&mut target, progress.0);
+    animators.for_each_mut(|(entity, mut animator, target, progress)| match target {
+        Some(mut target) => {
+            if animator.0.lerp_maybe_delete(&mut target, progress.0).0 {
+                commands.entity(entity).remove::<T>();
+            }
+        }
+        None => {
+            if let Some(target) = animator.0.maybe_init(progress.0) {
+                commands.entity(entity).insert(target);
+            }
+        }
     })
 }
 
+fn despawn_entities(
+    mut commands: Commands,
+    despawning: Query<(Entity, Option<&Children>), With<Despawn>>,
+) {
+    despawning.for_each(|(e, children)| {
+        if children.is_none_or(|children| children.is_empty()) {
+            commands.entity(e).despawn_recursive();
+        }
+    });
+}
+
 pub mod tween {
+    use std::ops::Range;
+
     use super::Tweener;
+
+    // TODO: keyframes
+    pub fn interpolate(
+        time_range: Range<f32>,
+        less: f32,
+        output_range: Range<f32>,
+        more: f32,
+        ratio: f32,
+    ) -> f32 {
+        if ratio < time_range.start {
+            less
+        } else if ratio < time_range.end {
+            let ratio = (ratio - time_range.start) / (time_range.end - time_range.start);
+            ratio * (output_range.end - output_range.start) + output_range.start
+        } else {
+            more
+        }
+    }
 
     pub struct Linear;
     impl Tweener<f32> for Linear {

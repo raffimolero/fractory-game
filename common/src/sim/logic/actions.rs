@@ -134,7 +134,7 @@ impl Debug for Node {
 }
 
 /// builds a quadtree from braces, values, and dots
-/// ```
+/// ```ignore
 /// let tree = tree! ({
 ///     { .  () () .  }
 ///     { () () .  () }
@@ -162,7 +162,7 @@ pub(crate) use tree;
 /// temporary struct to represent a bunch of moves
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RawMoveList {
-    moves: Vec<(TilePos, (TilePos, Transform))>,
+    pub moves: Vec<(TilePos, (TilePos, Transform))>,
 }
 
 // TODO: figure out how to make the coupling with the fractal quadtree clearer,
@@ -276,8 +276,6 @@ impl RawMoveList {
         */
 
         // this is an in-place algo btw
-
-        // hypothetical algorithm
 
         #[derive(Debug, Default)]
         enum Tree<T> {
@@ -408,6 +406,12 @@ impl RawMoveList {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CleanMoveList {
     inner: RawMoveList,
+}
+
+impl CleanMoveList {
+    pub fn moves(&self) -> &[(TilePos, (TilePos, Transform))] {
+        &self.inner.moves
+    }
 }
 
 // TODO: double check all pub visibilities

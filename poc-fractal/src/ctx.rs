@@ -162,7 +162,7 @@ impl Context {
     }
 
     pub fn draw_canvas(&mut self, matrix: Mat4, paint: impl FnOnce(&mut Self)) {
-        todo!("reset model matrix, make canvas with computed size");
+        unimplemented!("reset model matrix, make canvas with computed size");
     }
 
     pub fn queue_polygon(&mut self, points: &[Vec2], color: Color) {
