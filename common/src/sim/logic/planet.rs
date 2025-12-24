@@ -33,6 +33,7 @@ impl Filter {
     }
 }
 
+/// holds all the information about which tiles exist, their names, and behaviors
 #[derive(Debug, Clone)]
 pub struct FragmentData {
     pub quads: Vec<Quad<Tile>>,

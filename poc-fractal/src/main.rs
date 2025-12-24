@@ -18,6 +18,7 @@ const DRAW_BRANCHES: bool = false;
 #[allow(dead_code)]
 fn apply(_youre_using_the_wrong_function: ()) {}
 
+/// global singleton variables
 struct Resources {
     planets: PlanetCache,
     biomes: BiomeCache,
@@ -41,6 +42,8 @@ fn window_conf() -> Conf {
     }
 }
 
+/// creates a new text tool, a function that draws text given a string
+/// must be transformed and scaled into the appropriate position
 fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
     move |text| {
         let params = TextParams {
@@ -130,61 +133,17 @@ impl UiElement {
     }
 }
 
+/// holds the currently active biome data;
+/// all the "base" fragments that exist in this instance
 struct FractoryCache {
     fragments: FragmentData,
     biome: Biome,
 }
 
+/// NOTE: currently inside FractoryElement for whatever reason
 enum CursorState {
     Free,
-    Holding {
-        tile_id: usize,
-        orient: SmoothOrient,
-    },
-}
-
-/// rotation of a tile. flop if negative.
-#[derive(Debug, Clone, Copy)]
-struct SmoothOrient(f32);
-
-impl SmoothOrient {
-    fn from_orient(orient: Orient, flop: bool, camera: Mat4) -> Self {
-        let mut rot = camera
-            .to_scale_rotation_translation()
-            .1
-            .to_euler(EulerRot::ZYX)
-            .0;
-
-        let transform = orient.to_transform();
-        rot += transform.rotation() as u8 as f32 * TAU / 3.0;
-        if flop {
-            rot += TAU / 2.0; // no i will not use pi
-        }
-
-        rot = rot.rem_euclid(TAU);
-        if transform.reflected() {
-            rot -= TAU;
-        }
-
-        Self(rot)
-    }
-
-    fn to_orient(self, flop: bool, camera: Mat4) -> Orient {
-        // UNIMPLEMENTED: calculate size and orientation of target tile (hit_pos needed)
-        // and find the closest orientation (rotation+reflection)
-        Orient::Iso
-    }
-
-    fn to_transform(self, ctx: &Context, camera: Mat4) -> Mat4 {
-        // UNIMPLEMENTED: calculate size and orientation of target tile (hit_pos needed)
-        // and resize held tile to match
-        let scale = 1.0; // unimplemented
-        Mat4::from_scale_rotation_translation(
-            (Vec2::new(self.0.signum(), 1.0) * scale).extend(1.0),
-            Quat::from_rotation_z(self.0),
-            Vec3::ZERO,
-        )
-    }
+    Holding(Tile),
 }
 
 #[macroquad::main(window_conf)]

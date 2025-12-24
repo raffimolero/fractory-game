@@ -64,10 +64,7 @@ impl FractalViewElement {
         if tile == Tile::SPACE {
             return;
         }
-        *cursor = CursorState::Holding {
-            tile_id: tile.id,
-            orient: SmoothOrient::from_orient(tile.orient, hit_pos.flop, self.frac_cam.camera),
-        }
+        *cursor = CursorState::Holding(tile);
     }
 
     pub(crate) fn input_drop(
@@ -76,23 +73,13 @@ impl FractalViewElement {
         fractal: &mut Fractal,
         cursor: &mut CursorState,
     ) {
-        let CursorState::Holding {
-            tile_id,
-            orient: rotation,
-        } = cursor
-        else {
+        let CursorState::Holding(tile) = *cursor else {
             return;
         };
         if fractal.get(hit_pos) != Tile::SPACE {
             return;
         }
-        fractal.set(
-            hit_pos,
-            Tile {
-                id: *tile_id,
-                orient: rotation.to_orient(hit_pos.flop, self.frac_cam.camera),
-            },
-        );
+        fractal.set(hit_pos, tile);
         *cursor = CursorState::Free;
     }
 

@@ -44,9 +44,9 @@ impl FractoryElement {
             .draw(ctx, res, text_tool, &self.fractory_meta, &self.cache);
 
         ctx.apply(shift(0.0, 0.6) * downscale(10.0), |ctx| {
-        ctx.queue_text(
-            text_tool,
-            "Esc: quit\n\
+            ctx.queue_text(
+                text_tool,
+                "Esc: quit\n\
                 Tab: toggle shattered view\n\
                 Enter: tick\n\
                 Camera:\n\
@@ -57,23 +57,23 @@ impl FractoryElement {
                 Ctrl+Shift+LMB/RMB: Cycle tile\n\
                 *Some edits may change other tiles' rotations. This is normal."
                 .into(),
-        );
-    });
+            );
+        });
         self.draw_cursor(ctx, text_tool);
     }
 
     pub fn draw_cursor(&mut self, ctx: &mut Context, text_tool: TextToolId) {
         match self.cursor {
             CursorState::Free => {}
-            CursorState::Holding { tile_id, orient } => {
-                let color = tile_color(&self.fractory_meta.fractory, tile_id);
-                let name = tile_name(self.cache.fragments.names(), tile_id);
+            CursorState::Holding(tile) => {
+                let color = tile_color(&self.fractory_meta.fractory, tile.id);
+                let name = tile_name(self.cache.fragments.names(), tile.id);
                 // UNIMPLEMENTED: get hit position to draw
                 let hit_pos = ctx
                     .mouse_pos()
                     .and_then(|pos| self.fractal_view.tree_click_pos(ctx, pos));
 
-                let mut matrix = orient.to_transform(ctx, self.fractal_view.frac_cam.camera);
+                let mut matrix = transform_to_mat4(tile.orient.to_transform());
                 // this ridiculous cols array conversion is due to there being
                 // 2 versions of glam, which i am not going to fix at the moment
                 if let Some(tile_pos) = hit_pos {
