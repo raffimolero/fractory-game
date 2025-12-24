@@ -24,8 +24,8 @@ impl Default for FractalCam {
 }
 
 impl FractalCam {
-    /// returns a Mat4 corresponding to how much the map needs to be moved
-    pub fn input(ctx: &Context) -> Self {
+    /// transforms this camera based on user input
+    pub fn input(&mut self, ctx: &Context) {
         use KeyCode::*;
 
         let [mut x, mut y, mut rot] = [0.0; 3];
@@ -67,7 +67,7 @@ impl FractalCam {
         };
 
         // check keypresses
-        let keyboard_zoom = {
+        let keyboard_zoom = if is_key_down(LeftShift) {
             let speed = 4.0;
             // WASD movement, y goes down
             if is_key_down(W) {
@@ -91,19 +91,29 @@ impl FractalCam {
             if is_key_down(E) {
                 rot += delta * sensitivity;
             }
-
             if is_key_pressed(F) {
                 flipped ^= true;
             }
-            // zoom
-            if is_key_down(Space) {
-                let zoom_sens = 4.0;
-                let zoom_sign = if is_key_down(LeftShift) { -1.0 } else { 1.0 };
-                let zoom_amount = delta * zoom_sens * zoom_sign;
-                zoom_amount
-            } else {
-                0.0
+            if is_key_pressed(X) {
+                let (_scale, rotation, _translation) = self.camera.to_scale_rotation_translation();
+                let (_x, _y, z) = rotation.to_euler(EulerRot::XYZ);
+                let snap = TAU / 6.0;
+                let offset = snap / 2.0;
+                rot -= (z + offset) % snap - offset;
             }
+
+            // zoom
+            let zoom_sens = 4.0;
+            let mut zoom = 0.0;
+            if is_key_down(Z) {
+                zoom -= delta * zoom_sens;
+            }
+            if is_key_down(C) {
+                zoom += delta * zoom_sens;
+            }
+            zoom
+        } else {
+            0.0
         };
 
         let zoom_amount = mouse_zoom + keyboard_zoom;
@@ -129,14 +139,15 @@ impl FractalCam {
 
         // center the transform at the mouse
         let camera = shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y);
-        FractalCam {
+        let relative_cam = FractalCam {
             camera,
             min_depth: 0.0,
             min_bg_depth,
             mouse_depth,
             max_bg_depth: 0.0,
             max_mouse_depth: 0.0,
-        }
+        };
+        *self = (relative_cam * *self).clamp_depth();
     }
 
     pub fn scale(&self) -> f32 {

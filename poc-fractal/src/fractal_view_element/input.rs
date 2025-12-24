@@ -91,7 +91,7 @@ impl FractalViewElement {
         fractory: &mut Fractory,
         cache: &FractoryCache,
     ) {
-        self.frac_cam = (fractal_cam::FractalCam::input(ctx) * self.frac_cam).clamp_depth();
+        self.frac_cam.input(ctx);
 
         // if is_key_pressed(KeyCode::Apostrophe) {
         //     dbg!(&fractory.fractal.library);

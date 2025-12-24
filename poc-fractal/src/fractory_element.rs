@@ -110,6 +110,18 @@ impl FractoryElement {
     }
 
     pub fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
+        use KeyCode::*;
+        if let (CursorState::Holding(tile), false) = (&mut self.cursor, is_key_down(LeftShift)) {
+            if is_key_pressed(Q) {
+                tile.orient += Transform::KL;
+            }
+            if is_key_pressed(E) {
+                tile.orient += Transform::KR;
+            }
+            if is_key_pressed(F) {
+                tile.orient += Transform::FU;
+            }
+        }
         self.fractal_view.input(
             ctx,
             res,
