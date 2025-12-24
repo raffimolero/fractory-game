@@ -73,7 +73,7 @@ fn new_text_tool(font: Font, color: Color) -> impl Fn(&str) {
 
 fn transform_to_mat4(transform: Transform) -> Mat4 {
     let mut matrix = Mat4::IDENTITY;
-    if transform.reflected() {
+    if transform.is_reflected() {
         matrix = flip_x() * matrix;
     }
     let rot = transform.rotation() as u8 as f32 * TAU / 3.0;
