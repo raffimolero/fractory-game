@@ -43,7 +43,7 @@ impl FractoryElement {
         self.fractal_view
             .draw(ctx, res, text_tool, &self.fractory_meta, &self.cache);
 
-        ctx.apply(shift(0.0, 0.6) * downscale(10.0), |ctx| {
+        ctx.apply(shift(0.0, 0.5) * downscale(10.0), |ctx| {
             ctx.queue_text(
                 text_tool,
                 "Esc: quit\n\
@@ -51,11 +51,13 @@ impl FractoryElement {
                 Enter: tick\n\
                 Camera:\n\
                 -> WASD: move | Q/E: rotate | F: flip | Z/C: zoom out/in\n\
-                -> Middle Click+Drag: pan camera | Scroll: zoom | (Shift/Ctrl)+Scroll: change cursor/background depth\n\
-                Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
-                Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
-                Ctrl+Shift+LMB/RMB: Cycle tile\n\
-                *Some edits may change other tiles' rotations. This is normal."
+                -> Middle Click+Drag: pan camera | Scroll: zoom\n\
+                -> (Shift/Ctrl)+Scroll: change cursor/background depth\n\
+                Editing:\n\
+                -> Ctrl+Shift+LMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
+                -> Ctrl+Shift+RMB: Flip tile (no effect on reflectional tiles)\n\
+                -> Shift+LMB: Activate tile\n\
+                *Some edits may change other tiles' rotations. This is a visual inconsistency but is otherwise normal."
                 .into(),
             );
         });
@@ -112,6 +114,7 @@ impl FractoryElement {
     pub fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
         use KeyCode::*;
         let shift = is_key_down(LeftShift) || is_key_down(RightShift);
+        // rotate currently held tile in cursor
         if let (CursorState::Holding(tile), true) = (&mut self.cursor, shift) {
             if is_key_pressed(Q) {
                 tile.orient += Transform::KL;

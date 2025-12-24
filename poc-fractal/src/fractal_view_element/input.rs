@@ -40,8 +40,8 @@ impl FractalViewElement {
         fractal: &mut Fractal,
     ) {
         let tf = match button {
-            MouseButton::Right => Transform::KL,
-            MouseButton::Left => Transform::KR,
+            MouseButton::Right => Transform::KR,
+            MouseButton::Left => Transform::KL,
             _ => {
                 debug_assert!(false, "unreachable");
                 return;
@@ -132,14 +132,20 @@ impl FractalViewElement {
 
             match (down, cursor) {
                 (false, CursorState::Free) => match (ctrl, shift, button) {
-                    (true, true, _) => {
-                        self.input_edit(button, hit_pos, &mut fractory.fractal, &cache.biome)
-                    }
-                    (true, false, Lmb) => self.input_act(hit_pos, &mut fractory.activated),
-                    (true, false, Rmb) => self.input_flip(hit_pos, &mut fractory.fractal),
-                    (false, true, _) => self.input_rot(button, hit_pos, &mut fractory.fractal),
+                    (true, true, Lmb) => self.input_rot(button, hit_pos, &mut fractory.fractal),
+                    (true, true, Rmb) => self.input_flip(hit_pos, &mut fractory.fractal),
+                    (false, true, Lmb) => self.input_act(hit_pos, &mut fractory.activated),
                     _ => {}
                 },
+                // (false, CursorState::Free) => match (ctrl, shift, button) {
+                //     (true, true, _) => {
+                //         self.input_edit(button, hit_pos, &mut fractory.fractal, &cache.biome)
+                //     }
+                //     (true, false, Lmb) => self.input_act(hit_pos, &mut fractory.activated),
+                //     (true, false, Rmb) => self.input_flip(hit_pos, &mut fractory.fractal),
+                //     (false, true, _) => self.input_rot(button, hit_pos, &mut fractory.fractal),
+                //     _ => {}
+                // },
                 (true, cursor @ CursorState::Free) => match (ctrl, shift, button) {
                     (false, false, Lmb) => self.input_grab(hit_pos, &mut fractory.fractal, cursor),
                     _ => {}
