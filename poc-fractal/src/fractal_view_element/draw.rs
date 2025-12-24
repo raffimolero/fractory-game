@@ -158,7 +158,7 @@ impl FractalViewElement {
                 text_tool,
                 format!(
                     "Selection Depth: 2^{:.2}\n\
-                    Background Depth: 2^{:.2}\n\
+                    Background Depth: 2^{:.2} * zoom\n\
                     Zoom: 2^{:.2}",
                     mouse_depth,
                     min_bg_depth,

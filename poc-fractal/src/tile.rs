@@ -4,14 +4,15 @@ use crate::prelude::*;
 const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
 
 pub const SIDE: f32 = 2.0;
+pub const HALF_SIDE: f32 = SIDE / 2.0;
 pub const HEIGHT: f32 = SIDE * SQRT_3 / 2.0;
 pub const OUT_R: f32 = SIDE * SQRT_3 / 3.0;
 pub const IN_R: f32 = OUT_R / 2.0;
 
 pub const TRIANGLE: [Vec2; 3] = {
     [
-        Vec2 { x: -1.0, y: IN_R },
-        Vec2 { x: 1.0, y: IN_R },
+        Vec2 { x: -HALF_SIDE, y: IN_R },
+        Vec2 { x: HALF_SIDE, y: IN_R },
         Vec2 { x: 0.0, y: -OUT_R },
     ]
 };
@@ -27,16 +28,11 @@ pub fn in_triangle(Vec2 { x, y }: Vec2) -> bool {
 }
 
 pub fn triangle_transforms() -> [Mat4; 4] {
-    let w = 1.0;
-    let side = 2.0;
-    let out_r = 3_f32.sqrt() / 3.0 * side;
-    let in_r = out_r / 2.0;
-
     [
         flip_xy(),
-        shift(0.0, -out_r),
-        shift(w, in_r),
-        shift(-w, in_r),
+        shift(0.0, -OUT_R),
+        shift(HALF_SIDE, IN_R),
+        shift(-HALF_SIDE, IN_R),
     ]
     .map(|t| downscale(2.0) * t)
 }

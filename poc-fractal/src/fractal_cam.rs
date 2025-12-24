@@ -27,6 +27,9 @@ impl FractalCam {
     /// transforms this camera based on user input
     pub fn input(&mut self, ctx: &Context) {
         use KeyCode::*;
+        let shift_down = is_key_down(LeftShift) || is_key_down(RightShift);
+        let ctrl_down = is_key_down(LeftControl) || is_key_down(RightControl);
+        let alt_down = is_key_down(LeftAlt) || is_key_down(RightAlt);
 
         let [mut x, mut y, mut rot] = [0.0; 3];
         let mut flipped = false;
@@ -67,7 +70,7 @@ impl FractalCam {
         };
 
         // check keypresses
-        let keyboard_zoom = if is_key_down(LeftShift) {
+        if !shift_down {
             let speed = 4.0;
             // WASD movement, y goes down
             if is_key_down(W) {
@@ -85,11 +88,21 @@ impl FractalCam {
 
             // rotation, clockwise
             let sensitivity = TAU / 2.0; // no i will not use pi
-            if is_key_down(Q) {
-                rot -= delta * sensitivity;
-            }
-            if is_key_down(E) {
-                rot += delta * sensitivity;
+            let snap = TAU / 6.0;
+            if ctrl_down {
+                if is_key_pressed(Q) {
+                    rot -= snap;
+                }
+                if is_key_pressed(E) {
+                    rot += snap;
+                }
+            } else {
+                if is_key_down(Q) {
+                    rot -= delta * sensitivity;
+                }
+                if is_key_down(E) {
+                    rot += delta * sensitivity;
+                }
             }
             if is_key_pressed(F) {
                 flipped ^= true;
@@ -97,30 +110,37 @@ impl FractalCam {
             if is_key_pressed(X) {
                 let (_scale, rotation, _translation) = self.camera.to_scale_rotation_translation();
                 let (_x, _y, z) = rotation.to_euler(EulerRot::XYZ);
-                let snap = TAU / 6.0;
                 let offset = snap / 2.0;
-                rot -= (z + offset) % snap - offset;
+                rot -= (z % snap + snap + offset) % snap - offset;
             }
-
+        }
+        let keyboard_zoom = {
             // zoom
             let zoom_sens = 4.0;
             let mut zoom = 0.0;
-            if is_key_down(Z) {
-                zoom -= delta * zoom_sens;
-            }
-            if is_key_down(C) {
-                zoom += delta * zoom_sens;
+            if ctrl_down {
+                if is_key_pressed(Z) {
+                    zoom -= 1.0;
+                }
+                if is_key_pressed(C) {
+                    zoom += 1.0;
+                }
+            } else {
+                if is_key_down(Z) {
+                    zoom -= delta * zoom_sens;
+                }
+                if is_key_down(C) {
+                    zoom += delta * zoom_sens;
+                }
             }
             zoom
-        } else {
-            0.0
         };
 
         let zoom_amount = mouse_zoom + keyboard_zoom;
         let mut zoom_scaling = (2_f32).powf(zoom_amount);
-        if is_key_down(LeftControl) {
+        if shift_down {
             mouse_depth += zoom_amount;
-        } else if is_key_down(LeftAlt) {
+        } else if ctrl_down {
             min_bg_depth += zoom_amount;
         } else {
             mouse_depth -= zoom_amount;

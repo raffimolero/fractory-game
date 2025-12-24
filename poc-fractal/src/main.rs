@@ -35,7 +35,7 @@ impl Resources {
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "WASD/Drag to move, Scroll to zoom, QE to rotate, F to flip.".to_owned(),
+        window_title: "Fractory Proof-of-Concept".to_owned(),
         fullscreen: true,
         window_resizable: false,
         ..Default::default()
@@ -82,19 +82,19 @@ fn transform_to_mat4(transform: Transform) -> Mat4 {
 }
 
 fn tile_pos_to_mat4(tile_pos: TilePos) -> Mat4 {
-    let off = Mat2::from_diagonal(Vec2::new(SIDE, HEIGHT))
-        * (Mat3::from_cols_array_2d(&[
-            [1.0, 0.0, 0.0],  //
-            [-0.5, 1.0, 0.0], //
-            [0.0, IN_R, 0.0], //
-        ]) * Vec3::new(
-            tile_pos.pos.x as f32,
-            tile_pos.pos.y as f32,
-            tile_pos.flop as u8 as f32,
-        ))
-        .truncate();
+    let off = (Mat3::from_cols_array_2d(&[
+        [SIDE, 0.0, 0.0],          //
+        [-HALF_SIDE, HEIGHT, 0.0], //
+        [0.0, OUT_R, 0.0],         //
+    ]) * Vec3::new(
+        tile_pos.pos.x as f32,
+        tile_pos.pos.y as f32,
+        tile_pos.flop as u8 as f32,
+    ))
+    .truncate();
     let mat_scale = upscale(0.5_f32.powi(tile_pos.depth as i32));
     let flop = upscale(if tile_pos.flop { -1.0 } else { 1.0 });
+
     // HACK: shifting by out_r is required for displaying the floating tile
     mat_scale * shift(off.x, off.y) * shift(0.0, OUT_R) * flop
 }

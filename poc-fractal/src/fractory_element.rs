@@ -50,8 +50,8 @@ impl FractoryElement {
                 Tab: toggle shattered view\n\
                 Enter: tick\n\
                 Camera:\n\
-                -> WASD: move | Q/E: rotate | F: flip | (Shift+)Space: zoom (out)in\n\
-                -> Click+Drag: move | Scroll: zoom | (Ctrl/Alt)+Scroll: change cursor/background depth\n\
+                -> WASD: move | Q/E: rotate | F: flip | Z/C: zoom out/in\n\
+                -> Middle Click+Drag: pan camera | Scroll: zoom | (Shift/Ctrl)+Scroll: change cursor/background depth\n\
                 Shift+LMB/RMB: Rotate tile (no effect on rotational tiles such as X, Y, Rotor)\n\
                 Ctrl+LMB: Activate tile | Ctrl+RMB: Flip tile (no effect on reflective tiles)\n\
                 Ctrl+Shift+LMB/RMB: Cycle tile\n\
@@ -111,7 +111,8 @@ impl FractoryElement {
 
     pub fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
         use KeyCode::*;
-        if let (CursorState::Holding(tile), false) = (&mut self.cursor, is_key_down(LeftShift)) {
+        let shift = is_key_down(LeftShift) || is_key_down(RightShift);
+        if let (CursorState::Holding(tile), true) = (&mut self.cursor, shift) {
             if is_key_pressed(Q) {
                 tile.orient += Transform::KL;
             }
