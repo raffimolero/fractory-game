@@ -15,6 +15,7 @@ pub struct FractoryElement {
     fractory_meta: FractoryMeta,
     fractal_view: fractal_view_element::FractalViewElement,
     inventory_view: InventoryViewState,
+    help_enabled: bool,
     cache: FractoryCache,
 }
 
@@ -45,6 +46,7 @@ impl FractoryElement {
             fractory_meta,
             fractal_view: fractal_view_element::FractalViewElement::new(),
             inventory_view: InventoryViewState::new(),
+            help_enabled: true,
             cache,
         }
     }
@@ -58,10 +60,16 @@ impl FractoryElement {
     }
 
     fn draw_help(&mut self, ctx: &mut Context, text_tool: TextToolId) {
+        if !self.help_enabled {
+            ctx.apply(shift(0.0, 0.9) * downscale(10.0), |ctx| {
+                ctx.queue_text(text_tool, "H: Toggle [H]elp".into());
+            });
+            return;
+        }
         ctx.apply(shift(0.0, 0.5) * downscale(10.0), |ctx| {
             ctx.queue_text(
                 text_tool,
-                "Esc: quit\n\
+                "Esc: quit | H: Toggle [H]elp\n\
                 Tab: toggle shattered view\n\
                 Enter: tick\n\
                 Camera:\n\
@@ -156,6 +164,11 @@ impl FractoryElement {
 
     pub fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
         use KeyCode::*;
+
+        if is_key_pressed(H) {
+            self.help_enabled ^= true;
+        }
+
         let shift = is_key_down(LeftShift) || is_key_down(RightShift);
         // rotate currently held tile in cursor
         if let (CursorState::Holding(tile), true) = (&mut self.cursor, shift) {

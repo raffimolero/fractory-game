@@ -147,13 +147,27 @@ impl FractalViewElement {
                 Ok(TilePos::UNIT),
             );
         });
-        ctx.apply(shift(0.0, -0.7) * downscale(5.0), |ctx| {
+        ctx.apply(shift(0.0, -0.8) * downscale(10.0), |ctx| {
             let fractal_cam::FractalCam {
                 camera,
                 mouse_depth,
                 min_bg_depth,
                 ..
             } = self.frac_cam;
+
+            // // rectangle around text for clarity
+            // ctx.flush();
+            // let expected_w = 8.7;
+            // let expected_h = 2.2;
+            // ctx.queue_polygon(
+            //     &[
+            //         Vec2::new(-expected_w / 2.0, -expected_h / 2.0),
+            //         Vec2::new(expected_w / 2.0, -expected_h / 2.0),
+            //         Vec2::new(expected_w / 2.0, expected_h / 2.0),
+            //         Vec2::new(-expected_w / 2.0, expected_h / 2.0),
+            //     ],
+            //     DARKGRAY,
+            // );
             ctx.queue_text(
                 text_tool,
                 format!(
