@@ -82,10 +82,11 @@ fn transform_to_mat4(transform: Transform) -> Mat4 {
 }
 
 fn tile_pos_to_mat4(tile_pos: TilePos) -> Mat4 {
+    #[rustfmt::skip]
     let off = (Mat3::from_cols_array_2d(&[
-        [SIDE, 0.0, 0.0],          //
-        [-HALF_SIDE, HEIGHT, 0.0], //
-        [0.0, OUT_R, 0.0],         //
+        [SIDE,       0.0,    0.0],
+        [-HALF_SIDE, HEIGHT, 0.0],
+        [0.0,        OUT_R,  0.0],
     ]) * Vec3::new(
         tile_pos.pos.x as f32,
         tile_pos.pos.y as f32,

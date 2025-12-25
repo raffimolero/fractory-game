@@ -91,8 +91,6 @@ impl FractoryElement {
                     .and_then(|pos| self.fractal_view.tree_click_pos(ctx, pos));
 
                 let mut matrix = transform_to_mat4(tile.orient.to_transform());
-                // this ridiculous cols array conversion is due to there being
-                // 2 versions of glam, which i am not going to fix at the moment
                 if let Some(tile_pos) = hit_pos {
                     matrix = self.fractal_view.frac_cam.camera
                         * shift(0.0, -OUT_R)
