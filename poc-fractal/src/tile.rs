@@ -1,3 +1,5 @@
+use fractory_common::sim::logic::orientation::Symmetries;
+
 use crate::prelude::*;
 
 /// std::f32::consts::SQRT_3 is unstable so here it is
@@ -11,8 +13,14 @@ pub const IN_R: f32 = OUT_R / 2.0;
 
 pub const TRIANGLE: [Vec2; 3] = {
     [
-        Vec2 { x: -HALF_SIDE, y: IN_R },
-        Vec2 { x: HALF_SIDE, y: IN_R },
+        Vec2 {
+            x: -HALF_SIDE,
+            y: IN_R,
+        },
+        Vec2 {
+            x: HALF_SIDE,
+            y: IN_R,
+        },
         Vec2 { x: 0.0, y: -OUT_R },
     ]
 };
@@ -37,6 +45,9 @@ pub fn triangle_transforms() -> [Mat4; 4] {
     .map(|t| downscale(2.0) * t)
 }
 
+pub fn tile_symmetries(fractory: &Fractory, tile_id: usize) -> Symmetries {
+    fractory.fractal.library[tile_id].symmetries
+}
 pub fn tile_color(fractory: &Fractory, tile_id: usize) -> Color {
     enum ColorMode {
         Fragment,
@@ -94,7 +105,7 @@ pub enum TileStyle {
     Plain,
     Bordered {
         border_color: Color,
-        with_orient_icon: bool,
+        orient_icon: Option<Symmetries>,
     },
 }
 
@@ -107,20 +118,31 @@ pub fn draw_tile(
 ) {
     if let TileStyle::Bordered {
         border_color,
-        with_orient_icon,
+        orient_icon,
     } = style
     {
         ctx.queue_polygon(&TRIANGLE, border_color);
         ctx.apply(upscale(0.8), |ctx| {
             ctx.queue_polygon(&TRIANGLE, color);
         });
-        if with_orient_icon {
-            ctx.apply(
-                shift(0.0, -0.625) * downscale(8.0) * rotate_cw(TAU / 4.0),
-                |ctx| {
-                    ctx.queue_polygon(&TRIANGLE, border_color);
-                },
-            )
+        if let Some(sym) = orient_icon {
+            let iters = if sym.is_rotational() { 3 } else { 1 };
+            let tri_rot = if sym.is_reflectional() {
+                0.0
+            } else {
+                TAU / 4.0
+            };
+            for i in 0..iters {
+                ctx.apply(
+                    rotate_cw(TAU / 3.0 * i as f32)
+                        * shift(0.0, -0.625)
+                        * downscale(8.0)
+                        * rotate_cw(tri_rot),
+                    |ctx| {
+                        ctx.queue_polygon(&TRIANGLE, border_color);
+                    },
+                )
+            }
         }
     } else {
         ctx.queue_polygon(&TRIANGLE, color);

@@ -196,7 +196,7 @@ impl TileOffset {
 
 impl AddAssign<Transform> for TileOffset {
     fn add_assign(&mut self, rhs: Transform) {
-        if rhs.reflected() {
+        if rhs.is_reflected() {
             self.flip_x();
         }
         match rhs.rotation() {

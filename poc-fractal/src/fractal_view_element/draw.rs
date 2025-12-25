@@ -58,7 +58,7 @@ impl FractalViewElement {
             };
             TileStyle::Bordered {
                 border_color,
-                with_orient_icon: hovered,
+                orient_icon: hovered.then(|| tile_symmetries(fractory, id)),
             }
         } else {
             TileStyle::Plain

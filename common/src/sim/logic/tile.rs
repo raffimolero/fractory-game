@@ -139,7 +139,7 @@ impl<T: AddAssign<Transform>> AddAssign<Transform> for Quad<T> {
         for child in self.0.iter_mut() {
             *child += rhs;
         }
-        if rhs.reflected() {
+        if rhs.is_reflected() {
             self.0.swap(2, 3);
         }
         self.0[1..].rotate_right(rhs.rotation() as usize);

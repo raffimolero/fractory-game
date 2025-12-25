@@ -38,28 +38,28 @@ pub enum Rotation {
     L,
 }
 
-/// glorified bitflags
+/// glorified bitflags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Symmetries {
     #[default]
-    Isotropic = 0b_00,
-    Rotational = 0b_01,
-    Reflective = 0b_10,
-    Asymmetric = 0b_11,
+    Isotropic = 0b_00, // D3
+    Rotational = 0b_01,   // C3
+    Reflectional = 0b_10, // D1
+    Asymmetric = 0b_11,   // C1
 }
 
 impl Symmetries {
-    pub const fn new(reflective: bool, rotational: bool) -> Self {
+    pub const fn new(reflectional: bool, rotational: bool) -> Self {
         use Symmetries::*;
-        match (reflective, rotational) {
+        match (reflectional, rotational) {
             (true, true) => Isotropic,
             (true, false) => Rotational,
-            (false, true) => Reflective,
+            (false, true) => Reflectional,
             (false, false) => Asymmetric,
         }
     }
 
-    pub const fn is_reflective(self) -> bool {
+    pub const fn is_reflectional(self) -> bool {
         self as u8 & 0b_01 == 0
     }
 
@@ -84,7 +84,7 @@ pub enum Orient {
     RtK, // Keep
     RtF, // Flip
 
-    // reflective
+    // reflectional
     RfU, // Up
     RfR, // Right
     RfL, // Left
@@ -173,9 +173,9 @@ impl Orient {
             Iso => Isotropic,
             RtK => Rotational,
             RtF => Rotational,
-            RfU => Reflective,
-            RfR => Reflective,
-            RfL => Reflective,
+            RfU => Reflectional,
+            RfR => Reflectional,
+            RfL => Reflectional,
             AKU => Asymmetric,
             AKR => Asymmetric,
             AKL => Asymmetric,
@@ -191,7 +191,7 @@ impl Orient {
         match self.symmetries() {
             Isotropic => Iso,
             Rotational => RtK,
-            Reflective => RfU,
+            Reflectional => RfU,
             Asymmetric => AKU,
         }
     }
@@ -272,7 +272,7 @@ impl From<Symmetries> for Orient {
         match symmetries {
             Isotropic => Iso,
             Rotational => RtK,
-            Reflective => RfU,
+            Reflectional => RfU,
             Asymmetric => AKU,
         }
     }
@@ -319,7 +319,7 @@ pub enum Transform {
 impl Transform {
     pub const TRANSFORMS: [Self; 6] = [Self::KU, Self::KR, Self::KL, Self::FU, Self::FR, Self::FL];
 
-    pub const fn reflected(self) -> bool {
+    pub const fn is_reflected(self) -> bool {
         use Transform::*;
         match self {
             KU | KR | KL => false,

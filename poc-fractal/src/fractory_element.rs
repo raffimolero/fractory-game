@@ -1,10 +1,20 @@
 use crate::prelude::*;
 
+struct InventoryViewState {
+    enabled: bool,
+}
+
+impl InventoryViewState {
+    pub fn new() -> Self {
+        Self { enabled: false }
+    }
+}
+
 pub struct FractoryElement {
     cursor: CursorState,
     fractory_meta: FractoryMeta,
     fractal_view: fractal_view_element::FractalViewElement,
-    // inventory_view: InventoryViewElement,
+    inventory_view: InventoryViewState,
     cache: FractoryCache,
 }
 
@@ -34,6 +44,7 @@ impl FractoryElement {
             cursor: CursorState::Free,
             fractory_meta,
             fractal_view: fractal_view_element::FractalViewElement::new(),
+            inventory_view: InventoryViewState::new(),
             cache,
         }
     }
@@ -42,7 +53,11 @@ impl FractoryElement {
         self.draw_inventory(ctx, text_tool);
         self.fractal_view
             .draw(ctx, res, text_tool, &self.fractory_meta, &self.cache);
+        self.draw_help(ctx, text_tool);
+        self.draw_cursor(ctx, text_tool);
+    }
 
+    fn draw_help(&mut self, ctx: &mut Context, text_tool: TextToolId) {
         ctx.apply(shift(0.0, 0.5) * downscale(10.0), |ctx| {
             ctx.queue_text(
                 text_tool,
@@ -61,7 +76,6 @@ impl FractoryElement {
                 .into(),
             );
         });
-        self.draw_cursor(ctx, text_tool);
     }
 
     pub fn draw_cursor(&mut self, ctx: &mut Context, text_tool: TextToolId) {
@@ -70,6 +84,7 @@ impl FractoryElement {
             CursorState::Holding(tile) => {
                 let color = tile_color(&self.fractory_meta.fractory, tile.id);
                 let name = tile_name(self.cache.fragments.names(), tile.id);
+                let sym = tile_symmetries(&self.fractory_meta.fractory, tile.id);
                 // UNIMPLEMENTED: get hit position to draw
                 let hit_pos = ctx
                     .mouse_pos()
@@ -93,7 +108,7 @@ impl FractoryElement {
                         name,
                         TileStyle::Bordered {
                             border_color: BLUE,
-                            with_orient_icon: true,
+                            orient_icon: Some(sym),
                         },
                     )
                 });
@@ -103,10 +118,29 @@ impl FractoryElement {
     }
 
     pub fn draw_inventory(&mut self, ctx: &mut Context, text_tool: TextToolId) {
+        if !self.inventory_view.enabled {
+            return;
+        }
+
         let wrap = (self.fractory_meta.fractory.inventory.len() as f32).sqrt() as usize;
-        for (idx, (tile_id, count)) in self.fractory_meta.fractory.inventory.iter().enumerate() {
+
+        return;
+        for (idx, (&tile_id, &count)) in self.fractory_meta.fractory.inventory.iter().enumerate() {
             let x = idx % wrap;
             let y = idx / wrap;
+            let color = tile_color(&self.fractory_meta.fractory, tile_id);
+            let name = tile_name(self.cache.fragments.names(), tile_id);
+            let sym = tile_symmetries(&self.fractory_meta.fractory, tile_id);
+            draw_tile(
+                ctx,
+                text_tool,
+                color,
+                name,
+                TileStyle::Bordered {
+                    border_color: WHITE,
+                    orient_icon: Some(sym),
+                },
+            )
         }
         ctx.flush();
     }

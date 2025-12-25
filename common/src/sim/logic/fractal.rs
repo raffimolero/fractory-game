@@ -282,7 +282,7 @@ impl Fractal {
                 quad += Transform::KR;
                 tile += Transform::KR;
             }
-            if tile.orient.symmetries().is_reflective() {
+            if tile.orient.symmetries().is_reflectional() {
                 break;
             }
             quad += Transform::FU;
