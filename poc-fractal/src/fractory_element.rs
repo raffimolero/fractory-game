@@ -85,17 +85,22 @@ impl FractoryElement {
                 let color = tile_color(&self.fractory_meta.fractory, tile.id);
                 let name = tile_name(self.cache.fragments.names(), tile.id);
                 let sym = tile_symmetries(&self.fractory_meta.fractory, tile.id);
-                // UNIMPLEMENTED: get hit position to draw
-                let hit_pos = ctx
-                    .mouse_pos()
-                    .and_then(|pos| self.fractal_view.tree_click_pos(ctx, pos));
+
+                let mouse = ctx.mouse_pos().unwrap_or_default();
+                let hit_pos = self.fractal_view.tree_click_pos(ctx, mouse);
 
                 let mut matrix = transform_to_mat4(tile.orient.to_transform());
+                let mut hovered_tile_is_placeable = false;
                 if let Some(tile_pos) = hit_pos {
-                    matrix = self.fractal_view.frac_cam.camera
-                        * shift(0.0, -OUT_R)
-                        * tile_pos_to_mat4(tile_pos)
-                        * matrix;
+                    matrix =
+                        self.fractal_view.frac_cam.camera * tile_pos_to_mat4(tile_pos) * matrix;
+                    if self.fractory_meta.fractory.fractal.get(tile_pos) == Tile::SPACE {
+                        hovered_tile_is_placeable = true;
+                    }
+                } else {
+                    let frac_cam = &self.fractal_view.frac_cam;
+                    let scale = 0.5_f32.powf(frac_cam.mouse_depth);
+                    matrix = shift(mouse.x, mouse.y) * upscale(scale) * matrix;
                 }
 
                 ctx.apply(matrix, |ctx| {
@@ -105,7 +110,13 @@ impl FractoryElement {
                         color,
                         name,
                         TileStyle::Bordered {
-                            border_color: BLUE,
+                            border_color: if hovered_tile_is_placeable {
+                                BLUE
+                            } else if is_mouse_button_down(MouseButton::Left) {
+                                RED
+                            } else {
+                                ORANGE
+                            },
                             orient_icon: Some(sym),
                         },
                     )

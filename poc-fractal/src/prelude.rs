@@ -2,7 +2,9 @@ pub use crate::{
     ctx::{Click, Context, TextToolId},
     fractal_cam::*,
     fractory_element::*,
+    settings::*,
     tile::*,
+    util::*,
     *,
 };
 pub use fractory_common::sim::logic::{

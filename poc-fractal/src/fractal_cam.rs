@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+const ROTATION_SNAP: f32 = TAU / 6.0;
+
 #[derive(Debug, Clone, Copy)]
 pub struct FractalCam {
     pub(crate) camera: Mat4,
@@ -16,107 +18,109 @@ impl Default for FractalCam {
             camera: Mat4::IDENTITY,
             min_depth: -1.0,
             min_bg_depth: 1.0,
-            mouse_depth: 4.0,
+            mouse_depth: 3.0,
             max_bg_depth: 4.0,
             max_mouse_depth: 6.0,
         }
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct RelativeMotions {
+    x: f32,
+    y: f32,
+    rot: f32,
+    flip: bool,
+    // the following are logarithmic
+    zoom: f32,
+    min_bg_depth: f32,
+    mouse_depth: f32,
+}
+
 impl FractalCam {
-    /// transforms this camera based on user input
-    pub fn input(&mut self, ctx: &Context) {
+    fn input_relative(&mut self, ctx: &Context, res: &Resources) -> RelativeMotions {
         use KeyCode::*;
+
+        let delta = get_frame_time();
         let shift_down = is_key_down(LeftShift) || is_key_down(RightShift);
         let ctrl_down = is_key_down(LeftControl) || is_key_down(RightControl);
         let alt_down = is_key_down(LeftAlt) || is_key_down(RightAlt);
 
-        let [mut x, mut y, mut rot] = [0.0; 3];
-        let mut flipped = false;
-        let mut zoom = 1.0;
-        let mut min_bg_depth = 0.0;
-        let mut mouse_depth = 0.0;
-
-        // // nearly every macroquad function uses f32 instead of f64 because that's what `Mat4`s are made of
-        // let time = get_time() as f32;
-        // for some reason this uses f32s already
-        let delta = get_frame_time();
+        let mut motions = RelativeMotions::default();
+        let RelativeMotions {
+            x,
+            y,
+            rot,
+            flip,
+            zoom,
+            min_bg_depth,
+            mouse_depth,
+        } = &mut motions;
 
         // check mouse
-        // mouse goes downwards, while transforms go upwards
-        // if the mouse hasn't moved since startup, this will be 0, 0
-        let mut mouse = mouse_position_local();
-        // if mouse out of bounds, default to center of screen
-        if !(-1.0..1.0).contains(&mouse.x) || !(-1.0..1.0).contains(&mouse.y) {
-            mouse = Vec2::ZERO;
-        }
+        // let mut mouse = self.get_mouse();
+        let mouse = ctx.mouse_pos().unwrap_or_default();
 
         let mouse_zoom = {
-            mouse = ctx.project(mouse);
+            // mouse = ctx.project(mouse);
             let mouse_delta = ctx.project(-mouse_delta_position());
-            // scroll goes up, transforms zoom in
+            // when mouse scrolls up, the transform zooms in
             let (_scroll_x, scroll_y) = mouse_wheel();
 
             // drag controls
             if is_mouse_button_down(MouseButton::Middle) {
-                x += mouse_delta.x;
-                y += mouse_delta.y;
+                *x += mouse_delta.x;
+                *y += mouse_delta.y;
             }
 
             // zoom
-            let scroll_sens = 1.0 / 120.0;
+            let scroll_sens = res.settings.mouse_sens.zoom_sens;
             let zoom_amount = scroll_y * scroll_sens;
             zoom_amount
         };
 
         // check keypresses
         if !shift_down {
-            let speed = 4.0;
-            // WASD movement, y goes down
+            let speed = res.settings.keyboard_sens.pan_sens;
+            // camera pan, `y` increases downwards
             if is_key_down(W) {
-                y += delta * speed;
+                *y += delta * speed;
             }
             if is_key_down(S) {
-                y -= delta * speed;
+                *y -= delta * speed;
             }
             if is_key_down(A) {
-                x += delta * speed;
+                *x += delta * speed;
             }
             if is_key_down(D) {
-                x -= delta * speed;
+                *x -= delta * speed;
             }
 
-            // rotation, clockwise
-            let sensitivity = TAU / 2.0; // no i will not use pi
-            let snap = TAU / 6.0;
+            // camera rotation, `rot` increases clockwise
+            let sensitivity = res.settings.keyboard_sens.rotate_sens;
             if ctrl_down {
                 if is_key_pressed(Q) {
-                    rot -= snap;
+                    *rot -= ROTATION_SNAP;
                 }
                 if is_key_pressed(E) {
-                    rot += snap;
+                    *rot += ROTATION_SNAP;
                 }
             } else {
                 if is_key_down(Q) {
-                    rot -= delta * sensitivity;
+                    *rot -= delta * sensitivity;
                 }
                 if is_key_down(E) {
-                    rot += delta * sensitivity;
+                    *rot += delta * sensitivity;
                 }
             }
+
+            // camera flip, `flipped` reflects horizontally, across the y-axis
             if is_key_pressed(F) {
-                flipped ^= true;
-            }
-            if is_key_pressed(X) {
-                let (_scale, rotation, _translation) = self.camera.to_scale_rotation_translation();
-                let (_x, _y, z) = rotation.to_euler(EulerRot::XYZ);
-                let offset = snap / 2.0;
-                rot -= (z % snap + snap + offset) % snap - offset;
+                *flip ^= true;
             }
         }
         let keyboard_zoom = {
             // zoom
-            let zoom_sens = 4.0;
             let mut zoom = 0.0;
             if ctrl_down {
                 if is_key_pressed(Z) {
@@ -126,6 +130,7 @@ impl FractalCam {
                     zoom += 1.0;
                 }
             } else {
+                let zoom_sens = res.settings.keyboard_sens.zoom_sens;
                 if is_key_down(Z) {
                     zoom -= delta * zoom_sens;
                 }
@@ -136,20 +141,61 @@ impl FractalCam {
             zoom
         };
 
+        // combine zoom from mouse and keyboard
         let zoom_amount = mouse_zoom + keyboard_zoom;
-        let mut zoom_scaling = (2_f32).powf(zoom_amount);
         if shift_down {
-            mouse_depth += zoom_amount;
+            *mouse_depth += zoom_amount;
         } else if ctrl_down {
-            min_bg_depth += zoom_amount;
+            *min_bg_depth += zoom_amount;
         } else {
-            mouse_depth -= zoom_amount;
-            zoom *= zoom_scaling;
+            // mouse_depth -= zoom_amount;
+            *zoom += zoom_amount;
         }
+
+        motions
+    }
+
+    fn snap_all(&mut self) -> RelativeMotions {
+        let (scale, rotation, _translation) = self.camera.to_scale_rotation_translation();
+
+        // reset flip
+        let flip = scale.x < 0.0;
+
+        // snap rotation
+        let (_x, _y, z) = rotation.to_euler(EulerRot::XYZ);
+        let offset = ROTATION_SNAP / 2.0;
+        let rot = dist_to_snap_f32(z, ROTATION_SNAP);
+
+        // snap zoom
+        debug_assert!((scale.x.abs() - scale.y).abs() < 0.001);
+        debug_assert_eq!(scale.z, 1.0);
+        RelativeMotions {
+            x: 0.0,
+            y: 0.0,
+            rot,
+            flip,
+            zoom: dist_to_snap_f32(scale.y.log2(), 1.0),
+            min_bg_depth: dist_to_snap_f32(self.min_bg_depth, 1.0),
+            mouse_depth: dist_to_snap_f32(self.mouse_depth, 1.0),
+        }
+    }
+
+    fn apply_motions(&mut self, ctx: &Context, motions: RelativeMotions) {
+        let RelativeMotions {
+            x,
+            y,
+            rot,
+            flip,
+            zoom,
+            min_bg_depth,
+            mouse_depth,
+        } = motions;
+
+        let zoom = 2_f32.powf(zoom);
 
         let main_transform = Mat4::from_scale_rotation_translation(
             Vec3 {
-                x: if flipped { -zoom } else { zoom },
+                x: if flip { -zoom } else { zoom },
                 y: zoom,
                 z: 1.0,
             },
@@ -157,6 +203,7 @@ impl FractalCam {
             Vec3 { x, y, z: 0.0 },
         );
 
+        let mouse = ctx.mouse_pos().unwrap_or_default();
         // center the transform at the mouse
         let camera = shift(mouse.x, mouse.y) * main_transform * shift(-mouse.x, -mouse.y);
         let relative_cam = FractalCam {
@@ -168,6 +215,27 @@ impl FractalCam {
             max_mouse_depth: 0.0,
         };
         *self = (relative_cam * *self).clamp_depth();
+    }
+
+    /// transforms this camera based on user input
+    pub fn input(&mut self, ctx: &Context, res: &Resources) {
+        use KeyCode::*;
+
+        let shift_down = is_key_down(LeftShift) || is_key_down(RightShift);
+        let ctrl_down = is_key_down(LeftControl) || is_key_down(RightControl);
+        let alt_down = is_key_down(LeftAlt) || is_key_down(RightAlt);
+
+        // mutable variables that will be applied as
+        // relative transforms to the camera later
+
+        // snap all controls
+        let motions = if is_key_pressed(X) {
+            self.snap_all()
+        } else {
+            self.input_relative(ctx, res)
+        };
+
+        self.apply_motions(ctx, motions);
     }
 
     pub fn scale(&self) -> f32 {

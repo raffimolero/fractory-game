@@ -8,7 +8,9 @@ pub mod ui;
 mod fractal_cam;
 mod fractal_view_element;
 mod fractory_element;
+mod settings;
 mod tile;
+mod util;
 
 use prelude::*;
 
@@ -22,6 +24,7 @@ fn apply(_youre_using_the_wrong_function: ()) {}
 struct Resources {
     planets: PlanetCache,
     biomes: BiomeCache,
+    settings: Settings,
 }
 
 impl Resources {
@@ -29,6 +32,7 @@ impl Resources {
         Self {
             planets: PlanetCache::default(),
             biomes: BiomeCache::default(),
+            settings: Settings::default(),
         }
     }
 }
@@ -96,8 +100,7 @@ fn tile_pos_to_mat4(tile_pos: TilePos) -> Mat4 {
     let mat_scale = upscale(0.5_f32.powi(tile_pos.depth as i32));
     let flop = upscale(if tile_pos.flop { -1.0 } else { 1.0 });
 
-    // HACK: shifting by out_r is required for displaying the floating tile
-    mat_scale * shift(off.x, off.y) * shift(0.0, OUT_R) * flop
+    shift(0.0, -OUT_R) * mat_scale * shift(off.x, off.y) * shift(0.0, OUT_R) * flop
 }
 
 struct UiElement {
