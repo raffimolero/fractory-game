@@ -5,7 +5,7 @@ use crate::prelude::*;
 /// std::f32::consts::SQRT_3 is unstable so here it is
 const SQRT_3: f32 = 1.732050807568877293527446341505872367_f32;
 
-pub const SIDE: f32 = 2.0;
+pub const SIDE: f32 = SCREEN_SPACE_WIDTH;
 pub const HALF_SIDE: f32 = SIDE / 2.0;
 pub const HEIGHT: f32 = SIDE * SQRT_3 / 2.0;
 pub const OUT_R: f32 = SIDE * SQRT_3 / 3.0;

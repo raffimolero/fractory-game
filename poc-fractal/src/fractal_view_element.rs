@@ -5,13 +5,13 @@ mod input;
 mod util;
 
 #[derive(Debug)]
-enum ViewState {
+pub enum ViewState {
     Flat,
     Shattered,
 }
 
 impl ViewState {
-    fn cycle(&mut self) {
+    pub fn cycle(&mut self) {
         use ViewState::*;
         *self = match self {
             Flat => Shattered,

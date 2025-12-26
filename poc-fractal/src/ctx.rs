@@ -225,17 +225,20 @@ impl Context {
         }
     }
 }
+/// information about the last time a mouse button was pressed down
 pub struct Click {
     pub pos: Vec2,
     pub held: bool,
 }
 impl Context {
+    /// gets the mousedown position for a specific button.
+    /// also determines whether the click is considered "click and hold"
     fn get_click(&self, button: MouseButton) -> Option<Click> {
         const SCREEN_WIDTH: f32 = 2.0;
         const LEASH_RANGE: f32 = SCREEN_WIDTH / 4.0;
         const HOLD_DURATION: Duration = Duration::from_secs(1);
 
-        let (down, lmb_time) = match button {
+        let (down, down_time) = match button {
             MouseButton::Right => self.rmb_pos(),
             MouseButton::Left => self.lmb_pos(),
             _ => return None,
@@ -245,7 +248,7 @@ impl Context {
         let leash_sq = LEASH_RANGE * LEASH_RANGE;
         let in_range = (down - up).length_squared() < leash_sq;
 
-        let hold_time = Instant::now() - lmb_time;
+        let hold_time = Instant::now() - down_time;
         let held = hold_time >= HOLD_DURATION;
 
         in_range.then(|| Click { pos: down, held })

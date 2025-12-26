@@ -173,10 +173,12 @@ impl FractalViewElement {
                 format!(
                     "Selection Depth: 2^{:.2}\n\
                     Background Depth: 2^{:.2} * zoom\n\
-                    Zoom: 2^{:.2}",
+                    Zoom: 2^{:.2}\n\
+                    Keyboard mode: {:?}",
                     mouse_depth,
                     min_bg_depth,
                     self.frac_cam.scale().log2(),
+                    res.settings.keyboard_control_mode,
                 ),
             );
         });

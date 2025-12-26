@@ -30,9 +30,27 @@ impl Default for MouseSensitivity {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum KeyboardControlMode {
+    #[default]
+    Smooth,
+    Snap,
+}
+
+impl KeyboardControlMode {
+    pub fn toggle(&mut self) {
+        use KeyboardControlMode::*;
+        *self = match self {
+            Smooth => Snap,
+            Snap => Smooth,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Settings {
     // keybinds:
     pub mouse_sens: MouseSensitivity,
     pub keyboard_sens: KeyboardSensitivity,
+    pub keyboard_control_mode: KeyboardControlMode,
 }

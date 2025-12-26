@@ -1,14 +1,7 @@
 use crate::prelude::*;
 
-struct InventoryViewState {
-    enabled: bool,
-}
-
-impl InventoryViewState {
-    pub fn new() -> Self {
-        Self { enabled: false }
-    }
-}
+mod inventory;
+use inventory::*;
 
 pub struct FractoryElement {
     cursor: CursorState,
@@ -52,9 +45,9 @@ impl FractoryElement {
     }
 
     pub fn draw(&mut self, ctx: &mut Context, res: &mut Resources, text_tool: TextToolId) {
-        self.draw_inventory(ctx, text_tool);
         self.fractal_view
             .draw(ctx, res, text_tool, &self.fractory_meta, &self.cache);
+        self.draw_inventory(ctx, text_tool);
         self.draw_help(ctx, text_tool);
         self.draw_cursor(ctx, text_tool);
     }
@@ -70,7 +63,7 @@ impl FractoryElement {
             ctx.queue_text(
                 text_tool,
                 "Esc: quit | H: Toggle [H]elp\n\
-                Tab: toggle shattered view\n\
+                Semicolon: toggle shattered view | Tab: Toggle Inventory\n\
                 Enter: tick\n\
                 Camera:\n\
                 -> WASD: move | (Ctrl+)Q/E: rotate | X: snap rotation | F: flip | Z/C: zoom out/in\n\
@@ -134,60 +127,75 @@ impl FractoryElement {
         ctx.flush();
     }
 
-    pub fn draw_inventory(&mut self, ctx: &mut Context, text_tool: TextToolId) {
-        if !self.inventory_view.enabled {
-            return;
-        }
-
-        let wrap = (self.fractory_meta.fractory.inventory.len() as f32).sqrt() as usize;
-
-        return;
-        for (idx, (&tile_id, &count)) in self.fractory_meta.fractory.inventory.iter().enumerate() {
-            let x = idx % wrap;
-            let y = idx / wrap;
-            let color = tile_color(&self.fractory_meta.fractory, tile_id);
-            let name = tile_name(self.cache.fragments.names(), tile_id);
-            let sym = tile_symmetries(&self.fractory_meta.fractory, tile_id);
-            draw_tile(
-                ctx,
-                text_tool,
-                color,
-                name,
-                TileStyle::Bordered {
-                    border_color: WHITE,
-                    orient_icon: Some(sym),
-                },
-            )
-        }
-        ctx.flush();
-    }
-
     pub fn input(&mut self, ctx: &mut Context, res: &mut Resources) {
         use KeyCode::*;
 
         if is_key_pressed(H) {
             self.help_enabled ^= true;
         }
+        let shift_down = is_key_down(LeftShift) || is_key_down(RightShift);
+        let ctrl_down = is_key_down(LeftControl) || is_key_down(RightControl);
 
-        let shift = is_key_down(LeftShift) || is_key_down(RightShift);
-        // rotate currently held tile in cursor
-        if let (CursorState::Holding(tile), true) = (&mut self.cursor, shift) {
-            if is_key_pressed(Q) {
-                tile.orient += Transform::KL;
-            }
-            if is_key_pressed(E) {
-                tile.orient += Transform::KR;
-            }
-            if is_key_pressed(F) {
-                tile.orient += Transform::FU;
+        // step the game
+        if is_key_pressed(KeyCode::Enter) {
+            self.fractory_meta.fractory.tick(
+                &self.cache.fragments.behaviors(),
+                self.cache.biome.fragment_filter(),
+            )
+        }
+
+        // cycle view state between flat and shattered
+        if is_key_pressed(KeyCode::Semicolon) {
+            self.fractal_view.view_state.cycle();
+        }
+
+        // toggle inventory
+        if is_key_pressed(KeyCode::Tab) {
+            self.inventory_view.toggle();
+            let distance = self.inventory_view.panel_width * SCREEN_SPACE_WIDTH;
+            let direction = if self.inventory_view.enabled {
+                -1.0
+            } else {
+                1.0
+            };
+            self.fractal_view.frac_cam.camera =
+                shift(distance * direction, 0.0) * self.fractal_view.frac_cam.camera;
+        }
+
+        if shift_down {
+            // rotate currently held tile in cursor
+            if let CursorState::Holding(tile) = &mut self.cursor {
+                if is_key_pressed(Q) {
+                    tile.orient += Transform::KL;
+                }
+                if is_key_pressed(E) {
+                    tile.orient += Transform::KR;
+                }
+                if is_key_pressed(F) {
+                    tile.orient += Transform::FU;
+                }
             }
         }
-        self.fractal_view.input(
-            ctx,
-            res,
-            &mut self.cursor,
-            &mut self.fractory_meta.fractory,
-            &self.cache,
-        );
+        // special snap button
+        if is_key_pressed(X) {
+            if shift_down {
+            } else if ctrl_down {
+                res.settings.keyboard_control_mode.toggle();
+            } else {
+                self.fractal_view.frac_cam.snap_all(&ctx);
+            }
+        }
+
+        let mut mouse_focus = true;
+        mouse_focus = mouse_focus && !self.input_inventory(ctx, res, mouse_focus);
+        mouse_focus = mouse_focus
+            && !self.fractal_view.input(
+                ctx,
+                res,
+                mouse_focus,
+                &mut self.cursor,
+                &mut self.fractory_meta.fractory,
+                &self.cache,
+            );
     }
 }

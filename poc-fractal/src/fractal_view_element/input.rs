@@ -83,31 +83,29 @@ impl FractalViewElement {
         *cursor = CursorState::Free;
     }
 
+    /// returns true if mouse input was captured
     pub fn input(
         &mut self,
         ctx: &mut Context,
         res: &mut Resources,
+        mouse_focus: bool,
         cursor: &mut CursorState,
         fractory: &mut Fractory,
         cache: &FractoryCache,
-    ) {
-        self.frac_cam.input(ctx, res);
+    ) -> bool {
+        self.frac_cam.input(ctx, res, mouse_focus);
 
         // if is_key_pressed(KeyCode::Apostrophe) {
         //     dbg!(&fractory.fractal.library);
         // }
 
-        if is_key_pressed(KeyCode::Enter) {
-            fractory.tick(&cache.fragments.behaviors(), cache.biome.fragment_filter())
-        }
-
-        if is_key_pressed(KeyCode::Tab) {
-            self.view_state.cycle();
-        }
-
         let shift = is_key_down(KeyCode::LeftShift) || is_key_down(KeyCode::RightShift);
         let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
         'click: {
+            if !mouse_focus {
+                break 'click false;
+            }
+
             use MouseButton::{Left as Lmb, Right as Rmb};
 
             let click = if is_mouse_button_pressed(Lmb) {
@@ -123,11 +121,11 @@ impl FractalViewElement {
             };
 
             let Some((click, down, button)) = click else {
-                break 'click;
+                break 'click false;
             };
 
             let Some(hit_pos) = self.tree_click_pos(ctx, click.pos) else {
-                break 'click;
+                break 'click false;
             };
 
             match (down, cursor) {
@@ -156,6 +154,7 @@ impl FractalViewElement {
                 },
                 _ => {}
             }
+            true
         }
     }
 }
