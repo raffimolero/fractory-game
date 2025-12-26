@@ -78,7 +78,8 @@ impl FractoryElement {
             .mouse_pos()
             .map_or(false, |pos| self.inventory_rect(ctx).contains(pos));
         if captured {
-            todo!()
+            dbg!("TODO: fractory_element/inventory.rs input_inventory");
+            // todo!()
         }
         captured
     }
